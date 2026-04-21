@@ -1,0 +1,7 @@
+{
+  "name": "e-petplace",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "react-vite"
+}
