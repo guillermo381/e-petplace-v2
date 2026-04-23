@@ -23,37 +23,23 @@ interface Mascota  {
 interface Producto { id: string; nombre: string; precio: number; imagen_url?: string }
 
 type AlertKind = 'urgente' | 'warning' | 'info';
-interface SmartAlert { kind: AlertKind; title: string; sub: string }
+interface SmartAlert { kind: AlertKind; title: string; sub: string; mascotaId?: string }
 
 interface Props { session: Session }
 
 /* ── Constantes ──────────────────────────────────────────────── */
 const ESPECIE_EMOJI: Record<string, string> = {
-  perro:'🐶', gato:'🐱', ave:'🐦', pez:'🐠', otro:'🐾',
+  perro:'🐶', gato:'🐱', ave:'🐦', pez:'🐠', conejo:'🐰', otro:'🐾',
 };
 
 const SERVICES = [
-  { icon:'🛒', name:'Nutrición',   path:'/tienda',    available:true  },
-  { icon:'🏥', name:'Veterinario', path:'/vet',       available:true  },
-  { icon:'🏠', name:'Guardería',   path:'/guarderia', available:false },
-  { icon:'🚶', name:'Paseos',      path:'/paseos',    available:false },
-  { icon:'✂️', name:'Grooming',    path:'/grooming',  available:false },
-  { icon:'🐾', name:'Adopción',    path:'/adopcion',  available:true  },
+  { icon:'🛒', name:'Nutrición',   sub:'Alimentos y suplementos', path:'/tienda',    available:true,  bg:'#0d1f12', color:'#00F5A0' },
+  { icon:'🏥', name:'Veterinario', sub:'Citas y consultas',        path:'/vet',       available:true,  bg:'#0d1a2b', color:'#00E5FF' },
+  { icon:'🏠', name:'Guardería',   sub:'Cuidado a domicilio',      path:'/guarderia', available:false, bg:'#1f1a08', color:'#FFE600' },
+  { icon:'🐾', name:'Adopción',    sub:'12 mascotas esperan',      path:'/adopcion',  available:true,  bg:'#1f0d14', color:'#FF2D9B' },
+  { icon:'✂️', name:'Grooming',    sub:'Estética y spa',           path:'/grooming',  available:false, bg:'#150d1f', color:'#A78BFA' },
+  { icon:'🚶', name:'Paseos',      sub:'Paseadores verificados',   path:'/paseos',    available:false, bg:'#1a0f08', color:'#FF6B35' },
 ] as const;
-
-const ALERT_COLOR: Record<AlertKind, string> = {
-  urgente: '#FF2D9B',
-  warning: '#FFE600',
-  info:    '#00E5FF',
-};
-const ALERT_BG: Record<AlertKind, string> = {
-  urgente: 'rgba(255,45,155,0.07)',
-  warning: 'rgba(255,230,0,0.06)',
-  info:    'rgba(0,229,255,0.06)',
-};
-const ALERT_ICON: Record<AlertKind, string> = {
-  urgente:'🚨', warning:'⚠️', info:'💡',
-};
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 const calcEdad = (fecha: string): string => {
@@ -76,36 +62,34 @@ const buildAlertas = (mascotas: Mascota[]): SmartAlert[] => {
       if (!v.fecha_proxima) return;
       const f = new Date(v.fecha_proxima);
       if (f < hoy) {
-        alerts.push({ kind:'urgente', title:`Vacuna vencida de ${m.nombre}`, sub:`${v.nombre} · Requiere atención inmediata` });
+        alerts.push({ kind:'urgente', title:`Vacuna vencida de ${m.nombre}`, sub:`${v.nombre} · Requiere atención inmediata`, mascotaId: m.id });
       } else if (f <= en7) {
         const d = Math.ceil((f.getTime() - hoy.getTime()) / 86_400_000);
-        alerts.push({ kind:'warning', title:`${v.nombre} de ${m.nombre}`, sub:`Vence en ${d} día${d !== 1 ? 's' : ''}` });
+        alerts.push({ kind:'warning', title:`${v.nombre} de ${m.nombre}`, sub:`Vence en ${d} día${d !== 1 ? 's' : ''}`, mascotaId: m.id });
       } else if (f <= en30) {
         const d = Math.ceil((f.getTime() - hoy.getTime()) / 86_400_000);
-        alerts.push({ kind:'info', title:`${v.nombre} de ${m.nombre}`, sub:`Próxima en ${d} días` });
+        alerts.push({ kind:'info', title:`${v.nombre} de ${m.nombre}`, sub:`Próxima en ${d} días`, mascotaId: m.id });
       }
     });
   });
 
-  // Sugerencias IA si no hay alertas reales
   if (alerts.length === 0 && mascotas.length > 0) {
-    alerts.push({
-      kind: 'info',
-      title: `Registra el peso mensual de ${mascotas[0].nombre}`,
-      sub: 'Sugerencia IA · Seguimiento de salud',
-    });
-    if (mascotas.length > 1) {
-      alerts.push({
-        kind: 'info',
-        title: `¿Ya revisaste a ${mascotas[1].nombre} este mes?`,
-        sub: 'Sugerencia IA · Control preventivo',
-      });
-    }
+    alerts.push({ kind:'info', title:`Registra el peso mensual de ${mascotas[0].nombre}`, sub:'Sugerencia IA · Seguimiento de salud' });
+    if (mascotas.length > 1)
+      alerts.push({ kind:'info', title:`¿Ya revisaste a ${mascotas[1].nombre} este mes?`, sub:'Sugerencia IA · Control preventivo' });
   }
 
   return alerts;
 };
 
+const petHasAlert = (mascota: Mascota): boolean => {
+  const hoy = new Date();
+  const en7 = new Date(hoy.getTime() + 7 * 86_400_000);
+  return (mascota.vacunas ?? []).some(v => {
+    if (!v.fecha_proxima) return false;
+    return new Date(v.fecha_proxima) <= en7;
+  });
+};
 
 /* ════════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
@@ -124,7 +108,6 @@ const Home: React.FC<Props> = ({ session }) => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
-    // Perfil
     const { data: prof } = await supabase
       .from('profiles').select('*').eq('id', session.user.id).single();
     if (prof) {
@@ -137,7 +120,6 @@ const Home: React.FC<Props> = ({ session }) => {
       setProfile(p);
     }
 
-    // Mascotas + vacunas
     const { data: mascs } = await supabase
       .from('mascotas').select('*, vacunas(*)')
       .eq('user_id', session.user.id).order('nombre');
@@ -145,11 +127,10 @@ const Home: React.FC<Props> = ({ session }) => {
     if (mascs) {
       setMascotas(mascs as Mascota[]);
       setAlertas(buildAlertas(mascs as Mascota[]));
-
       const especies = [...new Set((mascs as Mascota[]).map(m => m.especie))];
       const { data: prods } = await supabase
         .from('productos').select('*')
-        .in('para_especie', [...especies, 'todos']).limit(4);
+        .in('para_especie', [...especies, 'todos']).limit(6);
       if (prods) setProductos(prods as Producto[]);
     } else {
       setAlertas(buildAlertas([]));
@@ -165,11 +146,7 @@ const Home: React.FC<Props> = ({ session }) => {
     e.detail.complete();
   };
 
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2400);
-  };
-
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2400); };
   const handleService = (path: string, available: boolean) => {
     if (available) history.push(path);
     else showToast('Próximamente 🚀');
@@ -179,6 +156,8 @@ const Home: React.FC<Props> = ({ session }) => {
     ?? session.user.user_metadata?.nombre
     ?? session.user.email?.split('@')[0]
     ?? 'Usuario';
+
+  const alertaUrgente = alertas.find(a => a.kind === 'urgente') ?? alertas.find(a => a.kind === 'warning');
 
   /* ── Render ──────────────────────────────────────────────────── */
   return (
@@ -194,249 +173,181 @@ const Home: React.FC<Props> = ({ session }) => {
               ZONA 1 – HEADER
           ════════════════════════════════════════════════════════ */}
           <div style={{
-            padding: '52px 20px 20px',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding:'52px 20px 20px',
+            display:'flex', alignItems:'center', justifyContent:'space-between',
           }}>
             {/* Logo + saludo */}
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-              <img src={logoImg} alt="e-PetPlace" style={{ height: 40, width: 'auto', display: 'block' }} />
+              <img src={logoImg} alt="e-PetPlace" style={{ height:36, width:'auto', display:'block' }} />
               <div>
-                <p style={{ color:'#888', fontSize:12, margin:0 }}>Buenos días,</p>
+                <p style={{ color:'#666', fontSize:11, margin:0, letterSpacing:'0.03em' }}>Buenos días,</p>
                 {loading ? (
-                  <IonSkeletonText animated style={{ width:90, height:16, borderRadius:6, marginTop:3 } as React.CSSProperties} />
+                  <IonSkeletonText animated style={{ width:88, height:15, borderRadius:6, marginTop:3 } as React.CSSProperties} />
                 ) : (
-                  <p style={{ color:'#fff', fontSize:17, fontWeight:800, margin:0, lineHeight:1.1 }}>{nombre}</p>
+                  <p style={{ color:'#fff', fontSize:16, fontWeight:800, margin:0, lineHeight:1.1 }}>{nombre}</p>
                 )}
               </div>
             </div>
 
             {/* Carrito + Campana */}
             <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              {/* Carrito */}
               <div style={{ position:'relative' }}>
-                <button
-                  onClick={() => history.push('/carrito')}
-                  style={{
-                    width:40, height:40, borderRadius:12,
-                    background:'#111', border:'1px solid #222',
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    fontSize:18, cursor:'pointer',
-                  }}>🛒</button>
+                <button onClick={() => history.push('/carrito')} style={iconBtn}>🛒</button>
                 {totalItems > 0 && (
-                  <div style={{
-                    position:'absolute', top:-5, right:-5,
-                    width:18, height:18, borderRadius:'50%',
-                    background:'linear-gradient(135deg,#FF2D9B,#00E5FF)',
-                    color:'#000', fontSize:9, fontWeight:900,
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                  }}>{totalItems > 9 ? '9+' : totalItems}</div>
+                  <Badge label={totalItems > 9 ? '9+' : String(totalItems)} />
                 )}
               </div>
-
-              {/* Campana */}
               <div style={{ position:'relative' }}>
-                <button style={{
-                  width:40, height:40, borderRadius:12,
-                  background:'#111', border:'1px solid #222',
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:18, cursor:'pointer',
-                }}>🔔</button>
-                <div style={{
-                  position:'absolute', top:-5, right:-5,
-                  width:18, height:18, borderRadius:'50%',
-                  background:'#FF2D9B', color:'#fff',
-                  fontSize:10, fontWeight:800,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  boxShadow:'0 0 8px rgba(255,45,155,0.6)',
-                }}>2</div>
+                <button style={iconBtn}>🔔</button>
+                <Badge label="2" />
               </div>
             </div>
           </div>
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 2 – CARRUSEL DE MASCOTAS
+              ZONA 2 – MIS MASCOTAS
           ════════════════════════════════════════════════════════ */}
-          <Zone
-            title="Mis Mascotas"
-            action={{ label:'+', onClick:() => history.push('/biopet/new') }}
-          >
+          <section style={{ padding:'0 20px 24px' }}>
+            <SectionHeader
+              title="Mis mascotas"
+              action={{ label:'+ Agregar', onClick:() => history.push('/biopet/new'), color:'#00E5FF' }}
+            />
+
             {loading ? (
-              /* Skeleton */
               <div style={{ display:'flex', gap:12, overflowX:'auto' }} className="no-scrollbar">
-                {[1,2].map(k => (
-                  <div key={k} style={{
-                    flexShrink:0, width:148, borderRadius:20,
-                    background:'#111', border:'1px solid #1a1a1a',
-                    padding:'20px 12px', display:'flex',
-                    flexDirection:'column', alignItems:'center', gap:10,
-                  }}>
-                    <IonSkeletonText animated style={{ width:60, height:60, borderRadius:'50%' } as React.CSSProperties} />
-                    <IonSkeletonText animated style={{ width:70, height:13, borderRadius:6 } as React.CSSProperties} />
-                    <IonSkeletonText animated style={{ width:50, height:10, borderRadius:6 } as React.CSSProperties} />
-                  </div>
-                ))}
+                {[1,2].map(k => <PetCardSkeleton key={k} />)}
               </div>
             ) : mascotas.length === 0 ? (
-              /* Estado vacío */
-              <button
-                onClick={() => history.push('/biopet/new')}
-                style={{
-                  width:'100%', padding:'28px 0', borderRadius:18,
-                  background:'#111', border:'2px dashed #2a2a2a',
-                  display:'flex', flexDirection:'column', alignItems:'center', gap:10,
-                  cursor:'pointer',
-                }}
-              >
-                <span style={{ fontSize:40 }}>🐾</span>
-                <p style={{ color:'#555', fontSize:13, margin:0 }}>Agrega a tu primera mascota</p>
+              <button onClick={() => history.push('/biopet/new')} style={{
+                width:'100%', padding:'28px 0', borderRadius:18,
+                background:'#0d0d0d', border:'2px dashed #252525',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:10, cursor:'pointer',
+              }}>
+                <span style={{ fontSize:38 }}>🐾</span>
+                <p style={{ color:'#444', fontSize:13, margin:0 }}>Agrega a tu primera mascota</p>
                 <div style={{
-                  width:32, height:32, borderRadius:8,
+                  width:30, height:30, borderRadius:8,
                   background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
                   display:'flex', alignItems:'center', justifyContent:'center',
-                  color:'#000', fontSize:20, fontWeight:800,
+                  color:'#000', fontSize:18, fontWeight:800,
                 }}>+</div>
               </button>
             ) : (
-              /* Cards de mascotas */
               <div style={{ display:'flex', gap:12, overflowX:'auto', paddingBottom:4 }} className="no-scrollbar">
-                {mascotas.map(m => <PetCard key={m.id} m={m} onClick={() => history.push(`/biopet/${m.id}`)} />)}
-                {/* Añadir mascota */}
-                <button
-                  onClick={() => history.push('/biopet/new')}
-                  style={{
-                    flexShrink:0, width:80, borderRadius:20,
-                    background:'#111', border:'2px dashed #2a2a2a',
-                    display:'flex', flexDirection:'column',
-                    alignItems:'center', justifyContent:'center', gap:6,
-                    cursor:'pointer',
-                  }}
-                >
+                {mascotas.map(m => (
+                  <PetCard
+                    key={m.id} m={m}
+                    hasAlert={petHasAlert(m)}
+                    onClick={() => history.push(`/biopet/${m.id}`)}
+                  />
+                ))}
+                {/* Card "+" */}
+                <button onClick={() => history.push('/biopet/new')} style={{
+                  flexShrink:0, width:76, minHeight:160, borderRadius:18,
+                  background:'#0d0d0d', border:'2px dashed #252525',
+                  display:'flex', flexDirection:'column',
+                  alignItems:'center', justifyContent:'center', gap:6, cursor:'pointer',
+                }}>
                   <span style={{ fontSize:22, color:'#333' }}>+</span>
-                  <span style={{ color:'#444', fontSize:10 }}>Agregar</span>
+                  <span style={{ color:'#3a3a3a', fontSize:10, fontWeight:600 }}>Agregar</span>
                 </button>
               </div>
             )}
-          </Zone>
+          </section>
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 3 – ALERTAS INTELIGENTES
+              ZONA 3 – ALERTA URGENTE
           ════════════════════════════════════════════════════════ */}
-          <Zone
-            title="⚡ Alertas"
-            badge={loading ? undefined : alertas.length > 0 ? String(alertas.length) : undefined}
-          >
-            {loading ? (
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {[1,2].map(k => (
-                  <div key={k} style={{ display:'flex', borderRadius:12, overflow:'hidden', border:'1px solid #1a1a1a' }}>
-                    <div style={{ width:3, background:'#1a1a1a', flexShrink:0 }} />
-                    <div style={{ flex:1, padding:'12px 14px', background:'#111', display:'flex', gap:10, alignItems:'center' }}>
-                      <IonSkeletonText animated style={{ width:32, height:32, borderRadius:8 } as React.CSSProperties} />
-                      <div style={{ flex:1 }}>
-                        <IonSkeletonText animated style={{ width:'70%', height:13, borderRadius:5, marginBottom:6 } as React.CSSProperties} />
-                        <IonSkeletonText animated style={{ width:'45%', height:10, borderRadius:5 } as React.CSSProperties} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : alertas.length === 0 ? (
+          {!loading && alertaUrgente && (
+            <section style={{ padding:'0 20px 24px' }}>
               <div style={{
-                padding:'20px 16px', borderRadius:14,
-                background:'#0d1a0d', border:'1px solid rgba(0,245,100,0.15)',
-                display:'flex', alignItems:'center', gap:12,
+                display:'flex', borderRadius:14, overflow:'hidden',
+                border:'1px solid rgba(255,45,155,0.25)',
               }}>
-                <span style={{ fontSize:28 }}>🎉</span>
-                <div>
-                  <p style={{ color:'#4ade80', fontSize:14, fontWeight:700, margin:0 }}>Todo en orden</p>
-                  <p style={{ color:'#555', fontSize:12, margin:'2px 0 0' }}>Sin alertas pendientes</p>
+                {/* Borde izquierdo rosa */}
+                <div style={{ width:4, background:'#FF2D9B', flexShrink:0 }} />
+                <div style={{
+                  flex:1, background:'#1a0a0a',
+                  padding:'14px 16px',
+                  display:'flex', alignItems:'center', gap:12,
+                }}>
+                  <div style={{
+                    width:36, height:36, borderRadius:10, flexShrink:0,
+                    background:'rgba(255,45,155,0.12)',
+                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
+                  }}>
+                    {alertaUrgente.kind === 'urgente' ? '🚨' : '⚠️'}
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0,
+                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      {alertaUrgente.title}
+                    </p>
+                    <p style={{ color:'#886', fontSize:11, margin:'3px 0 0' }}>
+                      {alertaUrgente.sub}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => alertaUrgente.mascotaId
+                      ? history.push(`/biopet/${alertaUrgente.mascotaId}`)
+                      : history.push('/mascotas')}
+                    style={{
+                      background:'#FF2D9B', color:'#fff', border:'none',
+                      borderRadius:8, padding:'6px 14px', fontSize:12,
+                      fontWeight:700, cursor:'pointer', flexShrink:0,
+                    }}
+                  >Ver</button>
                 </div>
               </div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {alertas.map((a, i) => {
-                  const c = ALERT_COLOR[a.kind];
-                  return (
-                    <div key={i} style={{ display:'flex', borderRadius:12, overflow:'hidden', border:`1px solid ${c}18` }}>
-                      {/* Barra lateral de color */}
-                      <div style={{ width:3, background:c, flexShrink:0 }} />
-                      <div style={{
-                        flex:1, padding:'12px 14px',
-                        background: ALERT_BG[a.kind],
-                        display:'flex', alignItems:'center', gap:12,
-                      }}>
-                        <div style={{
-                          width:34, height:34, borderRadius:9, flexShrink:0,
-                          background:`${c}15`,
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:16,
-                        }}>
-                          {ALERT_ICON[a.kind]}
-                        </div>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ color:'#fff', fontSize:13, fontWeight:600, margin:0,
-                            whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                            {a.title}
-                          </p>
-                          <p style={{ color:'#666', fontSize:11, margin:'3px 0 0' }}>{a.sub}</p>
-                        </div>
-                        <div style={{ color:c, fontSize:11, fontWeight:700, flexShrink:0 }}>›</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Zone>
+            </section>
+          )}
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 4 – SERVICIOS
+              ZONA 4 – SERVICIOS (grid 2 columnas)
           ════════════════════════════════════════════════════════ */}
-          <Zone title="Servicios">
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+          <section style={{ padding:'0 20px 24px' }}>
+            <SectionHeader title="Servicios" />
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               {SERVICES.map(s => (
                 <button
                   key={s.name}
                   onClick={() => handleService(s.path, s.available)}
                   style={{
-                    padding:'16px 8px 12px',
-                    borderRadius:16,
-                    background:'#111',
-                    border:'1px solid #1e1e1e',
-                    display:'flex', flexDirection:'column',
-                    alignItems:'center', gap:6,
-                    cursor:'pointer',
-                    position:'relative',
-                    opacity: s.available ? 1 : 0.75,
+                    background: s.bg,
+                    border:`1px solid ${s.color}22`,
+                    borderRadius:12, padding:'14px 14px 12px',
+                    display:'flex', flexDirection:'column', alignItems:'flex-start',
+                    gap:6, cursor:'pointer', position:'relative', textAlign:'left',
                   }}
                 >
-                  <span style={{ fontSize:26, lineHeight:1 }}>{s.icon}</span>
-                  <span style={{ color: s.available ? '#ddd' : '#777', fontSize:11, fontWeight:600 }}>
-                    {s.name}
-                  </span>
                   {!s.available && (
                     <span style={{
-                      position:'absolute', top:6, right:6,
-                      fontSize:8, fontWeight:700, padding:'2px 5px', borderRadius:6,
-                      background:'rgba(255,230,0,0.12)', color:'#FFE600',
-                      border:'1px solid rgba(255,230,0,0.2)',
-                    }}>
-                      PRONTO
-                    </span>
+                      position:'absolute', top:8, right:8,
+                      fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:6,
+                      background:`${s.color}18`, color:s.color,
+                      border:`1px solid ${s.color}33`,
+                    }}>Pronto</span>
                   )}
+                  <span style={{ fontSize:22, lineHeight:1 }}>{s.icon}</span>
+                  <div>
+                    <p style={{ color:s.color, fontSize:13, fontWeight:700, margin:0, lineHeight:1.2 }}>{s.name}</p>
+                    <p style={{ color:`${s.color}88`, fontSize:10, margin:'3px 0 0', lineHeight:1.3 }}>{s.sub}</p>
+                  </div>
                 </button>
               ))}
             </div>
-          </Zone>
+          </section>
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 5 – SUGERIDO POR IA
+              ZONA 5 – PARA TI (IA)
           ════════════════════════════════════════════════════════ */}
-          <Zone
-            title="✨ Para ti"
-            badge="IA"
-            action={{ label:'Ver tienda →', onClick:() => history.push('/tienda') }}
-          >
+          <section style={{ padding:'0 20px 28px' }}>
+            <SectionHeader
+              title="Para ti"
+              badge={{ label:'IA', color:'#A78BFA', bg:'rgba(167,139,250,0.12)', border:'rgba(167,139,250,0.25)' }}
+              action={{ label:'Ver tienda →', onClick:() => history.push('/tienda'), color:'#00E5FF' }}
+            />
+
             {loading ? (
               <div style={{ display:'flex', gap:12, overflowX:'auto' }} className="no-scrollbar">
                 {[1,2,3].map(k => (
@@ -444,7 +355,7 @@ const Home: React.FC<Props> = ({ session }) => {
                     flexShrink:0, width:148, borderRadius:16,
                     background:'#111', border:'1px solid #1a1a1a', overflow:'hidden',
                   }}>
-                    <IonSkeletonText animated style={{ width:'100%', height:104 } as React.CSSProperties} />
+                    <IonSkeletonText animated style={{ width:'100%', height:100 } as React.CSSProperties} />
                     <div style={{ padding:'10px 12px' }}>
                       <IonSkeletonText animated style={{ width:'80%', height:12, borderRadius:5, marginBottom:6 } as React.CSSProperties} />
                       <IonSkeletonText animated style={{ width:'40%', height:14, borderRadius:5 } as React.CSSProperties} />
@@ -453,37 +364,30 @@ const Home: React.FC<Props> = ({ session }) => {
                 ))}
               </div>
             ) : productos.length === 0 ? (
-              <button
-                onClick={() => history.push('/tienda')}
-                style={{
-                  width:'100%', padding:'24px 0', borderRadius:16,
-                  background:'#111', border:'1px solid #1e1e1e',
-                  display:'flex', flexDirection:'column', alignItems:'center', gap:8,
-                  cursor:'pointer',
-                }}
-              >
+              <button onClick={() => history.push('/tienda')} style={{
+                width:'100%', padding:'24px 0', borderRadius:16,
+                background:'#0d0d0d', border:'1px solid #1a1a1a',
+                display:'flex', flexDirection:'column', alignItems:'center', gap:8, cursor:'pointer',
+              }}>
                 <span style={{ fontSize:32 }}>🛍️</span>
-                <span style={{ color:'#555', fontSize:13 }}>Explora la tienda</span>
+                <span style={{ color:'#444', fontSize:13 }}>Explora la tienda</span>
               </button>
             ) : (
               <div style={{ display:'flex', gap:12, overflowX:'auto', paddingBottom:4 }} className="no-scrollbar">
                 {productos.map(p => <ProductCard key={p.id} p={p} onView={() => history.push('/tienda')} />)}
               </div>
             )}
-          </Zone>
+          </section>
 
-          {/* Línea decorativa de marca */}
-          <div style={{ padding:'4px 20px 0', display:'flex', gap:4 }}>
+          {/* Línea decorativa */}
+          <div style={{ padding:'0 20px 8px', display:'flex', gap:4 }}>
             {['#FF2D9B','#00E5FF','#FFE600'].map((c, i) => (
-              <div key={i} style={{
-                height:2, flex: i===1 ? 2 : 1,
-                background:c, borderRadius:2, opacity:0.3,
-              }} />
+              <div key={i} style={{ height:2, flex: i===1 ? 2 : 1, background:c, borderRadius:2, opacity:0.2 }} />
             ))}
           </div>
         </div>
 
-        {/* ── Toast "Próximamente" ──────────────────────────────── */}
+        {/* Toast */}
         {toast && (
           <div style={{
             position:'fixed', bottom:84, left:'50%', transform:'translateX(-50%)',
@@ -491,11 +395,8 @@ const Home: React.FC<Props> = ({ session }) => {
             background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
             color:'#000', fontWeight:800, fontSize:13,
             boxShadow:'0 0 30px rgba(0,229,255,0.4)',
-            zIndex:9999, whiteSpace:'nowrap',
-            pointerEvents:'none',
-          }}>
-            {toast}
-          </div>
+            zIndex:9999, whiteSpace:'nowrap', pointerEvents:'none',
+          }}>{toast}</div>
         )}
       </IonContent>
     </IonPage>
@@ -506,153 +407,154 @@ const Home: React.FC<Props> = ({ session }) => {
    SUBCOMPONENTES
 ════════════════════════════════════════════════════════════════ */
 
-/* ── Zone wrapper ────────────────────────────────────────────── */
-const Zone: React.FC<{
+/* ── Estilos compartidos ─────────────────────────────────────── */
+const iconBtn: React.CSSProperties = {
+  width:40, height:40, borderRadius:12,
+  background:'#111', border:'1px solid #222',
+  display:'flex', alignItems:'center', justifyContent:'center',
+  fontSize:18, cursor:'pointer',
+};
+
+/* ── Badge de notificación ───────────────────────────────────── */
+const Badge: React.FC<{ label: string }> = ({ label }) => (
+  <div style={{
+    position:'absolute', top:-5, right:-5,
+    minWidth:18, height:18, borderRadius:9,
+    background:'#FF2D9B', color:'#fff',
+    fontSize:9, fontWeight:900, padding:'0 3px',
+    display:'flex', alignItems:'center', justifyContent:'center',
+    boxShadow:'0 0 8px rgba(255,45,155,0.6)',
+  }}>{label}</div>
+);
+
+/* ── Section header ──────────────────────────────────────────── */
+interface BadgeProps { label: string; color: string; bg: string; border: string }
+const SectionHeader: React.FC<{
   title: string;
-  badge?: string;
-  action?: { label:string; onClick:()=>void };
-  children: React.ReactNode;
-}> = ({ title, badge, action, children }) => (
-  <div style={{ padding:'0 20px 26px' }}>
-    <div style={{
-      display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14,
-    }}>
-      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-        <h2 style={{ color:'#fff', fontSize:16, fontWeight:700, margin:0 }}>{title}</h2>
-        {badge && (
-          <span style={{
-            fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
-            background:'rgba(0,229,255,0.1)', color:'#00E5FF',
-            border:'1px solid rgba(0,229,255,0.22)',
-          }}>
-            {badge}
-          </span>
-        )}
-      </div>
-      {action && (
-        <button
-          onClick={action.onClick}
-          style={{
-            fontSize:13, fontWeight:700, padding:'4px 12px', borderRadius:20,
-            background:'rgba(0,229,255,0.08)', color:'#00E5FF',
-            border:'1px solid rgba(0,229,255,0.2)', cursor:'pointer',
-          }}
-        >
-          {action.label}
-        </button>
+  badge?: BadgeProps;
+  action?: { label: string; onClick: () => void; color: string };
+}> = ({ title, badge, action }) => (
+  <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+      <h2 style={{ color:'#fff', fontSize:16, fontWeight:700, margin:0 }}>{title}</h2>
+      {badge && (
+        <span style={{
+          fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
+          background: badge.bg, color: badge.color, border:`1px solid ${badge.border}`,
+        }}>{badge.label}</span>
       )}
     </div>
-    {children}
+    {action && (
+      <button onClick={action.onClick} style={{
+        fontSize:12, fontWeight:700, padding:'4px 12px', borderRadius:20,
+        background:'transparent', color: action.color,
+        border:`1px solid ${action.color}33`, cursor:'pointer',
+      }}>{action.label}</button>
+    )}
   </div>
 );
 
-/* ── Pet Card ────────────────────────────────────────────────── */
-const PetCard: React.FC<{ m: Mascota; onClick: () => void }> = ({ m, onClick }) => {
+/* ── Pet card skeleton ───────────────────────────────────────── */
+const PetCardSkeleton: React.FC = () => (
+  <div style={{
+    flexShrink:0, width:148, borderRadius:18,
+    background:'#0d0d0d', border:'1px solid #1a1a1a',
+    padding:'20px 12px', display:'flex', flexDirection:'column', alignItems:'center', gap:10,
+  }}>
+    <IonSkeletonText animated style={{ width:60, height:60, borderRadius:'50%' } as React.CSSProperties} />
+    <IonSkeletonText animated style={{ width:70, height:13, borderRadius:6 } as React.CSSProperties} />
+    <IonSkeletonText animated style={{ width:50, height:10, borderRadius:6 } as React.CSSProperties} />
+  </div>
+);
+
+/* ── Pet card ────────────────────────────────────────────────── */
+const PetCard: React.FC<{ m: Mascota; hasAlert: boolean; onClick: () => void }> = ({ m, hasAlert, onClick }) => {
   const edad = m.fecha_nacimiento ? calcEdad(m.fecha_nacimiento) : null;
   return (
-    <button
-      onClick={onClick}
-      style={{
-        flexShrink:0, width:148,
-        borderRadius:20, padding:'18px 14px 14px',
-        /* Truco CSS: borde con gradiente */
-        background:'linear-gradient(#111,#111) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box',
-        border:'2px solid transparent',
-        display:'flex', flexDirection:'column', alignItems:'center', gap:9,
-        cursor:'pointer',
-      }}
-    >
-      {/* Avatar circular */}
+    <button onClick={onClick} style={{
+      flexShrink:0, width:148,
+      borderRadius:18, padding:'18px 14px 14px',
+      background:'linear-gradient(#111,#111) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box',
+      border:'2px solid transparent',
+      display:'flex', flexDirection:'column', alignItems:'center', gap:9,
+      cursor:'pointer',
+    }}>
+      {/* Avatar */}
       {m.foto_url ? (
-        <img
-          src={m.foto_url}
-          alt={m.nombre}
-          style={{ width:60, height:60, borderRadius:'50%', objectFit:'cover' }}
-        />
+        <img src={m.foto_url} alt={m.nombre}
+          style={{ width:60, height:60, borderRadius:'50%', objectFit:'cover' }} />
       ) : (
         <div style={{
           width:60, height:60, borderRadius:'50%',
-          background:'linear-gradient(135deg,#FF2D9B55,#00E5FF55)',
-          border:'2px solid rgba(0,229,255,0.3)',
+          background:'linear-gradient(135deg,#FF2D9B44,#00E5FF44)',
+          border:'2px solid rgba(0,229,255,0.25)',
           display:'flex', alignItems:'center', justifyContent:'center', fontSize:26,
         }}>
           {ESPECIE_EMOJI[m.especie] ?? '🐾'}
         </div>
       )}
 
-      {/* Info */}
+      {/* Nombre + especie + edad */}
       <div style={{ width:'100%', textAlign:'center' }}>
         <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:0,
           whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
           {m.nombre}
         </p>
-        <p style={{ color:'#888', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
+        <p style={{ color:'#666', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
           {m.especie}{m.raza ? ` · ${m.raza}` : ''}
         </p>
-        {edad && (
-          <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>{edad}</p>
-        )}
+        {edad && <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>{edad}</p>}
       </div>
 
-      {/* Indicador de salud */}
+      {/* Indicador salud */}
       <div style={{
         display:'flex', alignItems:'center', gap:4,
         padding:'3px 10px', borderRadius:20,
-        background:'rgba(0,245,80,0.1)', border:'1px solid rgba(0,245,80,0.2)',
+        background: hasAlert ? 'rgba(255,230,0,0.1)' : 'rgba(0,245,80,0.1)',
+        border: hasAlert ? '1px solid rgba(255,230,0,0.22)' : '1px solid rgba(0,245,80,0.2)',
       }}>
         <div style={{
           width:6, height:6, borderRadius:'50%',
-          background:'#4ade80',
-          boxShadow:'0 0 6px rgba(74,222,128,0.8)',
+          background: hasAlert ? '#FFE600' : '#4ade80',
+          boxShadow: hasAlert ? '0 0 6px rgba(255,230,0,0.8)' : '0 0 6px rgba(74,222,128,0.8)',
         }} />
-        <span style={{ color:'#4ade80', fontSize:10, fontWeight:600 }}>Saludable</span>
+        <span style={{ color: hasAlert ? '#FFE600' : '#4ade80', fontSize:10, fontWeight:600 }}>
+          {hasAlert ? 'Alerta' : 'Saludable'}
+        </span>
       </div>
     </button>
   );
 };
 
-/* ── Product Card ────────────────────────────────────────────── */
+/* ── Product card ────────────────────────────────────────────── */
 const ProductCard: React.FC<{ p: Producto; onView: () => void }> = ({ p, onView }) => (
-  <button
-    onClick={onView}
-    style={{
-      flexShrink:0, width:148, borderRadius:16, overflow:'hidden',
-      background:'#111', border:'1px solid #222',
-      textAlign:'left', cursor:'pointer',
-    }}
-  >
+  <button onClick={onView} style={{
+    flexShrink:0, width:148, borderRadius:16, overflow:'hidden',
+    background:'#0d0d0d', border:'1px solid #1e1e1e',
+    textAlign:'left', cursor:'pointer',
+  }}>
     {p.imagen_url ? (
-      <img src={p.imagen_url} alt={p.nombre}
-        style={{ width:'100%', height:100, objectFit:'cover' }} />
+      <img src={p.imagen_url} alt={p.nombre} style={{ width:'100%', height:100, objectFit:'cover' }} />
     ) : (
-      /* Placeholder con gradiente de marca */
       <div style={{
         width:'100%', height:100,
-        background:'linear-gradient(135deg,#FF2D9B22,#00E5FF22,#FFE60022)',
+        background:'linear-gradient(135deg,#FF2D9B15,#00E5FF15,#FFE60015)',
         display:'flex', alignItems:'center', justifyContent:'center', fontSize:34,
-      }}>
-        🛍️
-      </div>
+      }}>🛍️</div>
     )}
     <div style={{ padding:'10px 12px 12px' }}>
       <p style={{
-        color:'#ddd', fontSize:12, fontWeight:500, margin:0,
+        color:'#ccc', fontSize:12, fontWeight:500, margin:0,
         overflow:'hidden', display:'-webkit-box',
         WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const,
-      }}>
-        {p.nombre}
-      </p>
+      }}>{p.nombre}</p>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:8 }}>
-        <p style={{ color:'#00E5FF', fontSize:14, fontWeight:800, margin:0 }}>
-          ${p.precio.toFixed(2)}
-        </p>
+        <p style={{ color:'#00E5FF', fontSize:14, fontWeight:800, margin:0 }}>${p.precio.toFixed(2)}</p>
         <span style={{
           fontSize:10, fontWeight:700, padding:'3px 8px', borderRadius:8,
-          background:'rgba(0,229,255,0.1)', color:'#00E5FF',
-          border:'1px solid rgba(0,229,255,0.2)',
-        }}>
-          Ver
-        </span>
+          background:'rgba(167,139,250,0.12)', color:'#A78BFA',
+          border:'1px solid rgba(167,139,250,0.25)',
+        }}>Ver</span>
       </div>
     </div>
   </button>

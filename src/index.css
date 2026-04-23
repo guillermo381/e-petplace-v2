@@ -59,14 +59,21 @@ ion-tab-bar {
 }
 
 ion-tab-button {
-  --color:          #3a3a3a;
+  --color:          #888888;
   --color-selected: #00E5FF;
   --ripple-color:   rgba(0, 229, 255, 0.12);
+  font-size: 10px;
 }
 
 /* cyan glow on active tab icon */
 ion-tab-button.tab-selected ion-icon {
   filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.7));
+}
+
+/* ensure labels are always visible */
+ion-tab-button ion-label {
+  font-size: 10px !important;
+  font-weight: 600;
 }
 
 /* ── Pages & content ─────────────────────────────────────────── */
