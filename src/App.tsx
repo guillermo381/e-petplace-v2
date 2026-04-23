@@ -26,6 +26,7 @@ import Vet                from './pages/Vet';
 import Adopcion           from './pages/Adopcion';
 import Cart               from './pages/Cart';
 import Checkout           from './pages/Checkout';
+import ResetPassword      from './pages/ResetPassword';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -172,6 +173,7 @@ const App: React.FC = () => {
       <IonApp>
         <IonReactRouter>
           <IonRouterOutlet>
+            <Route exact path="/reset-password" render={() => <ResetPassword />} />
             <Route render={() => <Login />} />
           </IonRouterOutlet>
         </IonReactRouter>
