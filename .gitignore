@@ -13,7 +13,12 @@
 
 # misc
 .DS_Store
+
+# environment variables – NEVER commit these
+.env
 .env.local
+.env.*.local
+.env.production
 .env.development.local
 .env.test.local
 .env.production.local

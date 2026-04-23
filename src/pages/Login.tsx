@@ -1,27 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
 import { supabase } from '../lib/supabase';
 import logoImg from '../assets/logo.jpg';
 
+const MAX_ATTEMPTS  = 5;
+const LOCKOUT_SECS  = 30;
+
 /* ── Login ───────────────────────────────────────────────────── */
 const Login: React.FC = () => {
-  const [isLogin,  setIsLogin]  = useState(true);
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [nombre,   setNombre]   = useState('');
-  const [loading,  setLoading]  = useState(false);
-  const [error,    setError]    = useState('');
-  const [success,  setSuccess]  = useState('');
+  const [isLogin,   setIsLogin]   = useState(true);
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [nombre,    setNombre]    = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState('');
+  const [success,   setSuccess]   = useState('');
+
+  // Rate limiting
+  const [attempts,  setAttempts]  = useState(0);
+  const [lockout,   setLockout]   = useState(0); // seconds remaining
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown ticker
+  useEffect(() => {
+    if (lockout <= 0) return;
+    timerRef.current = setInterval(() => {
+      setLockout(s => {
+        if (s <= 1) {
+          clearInterval(timerRef.current!);
+          setAttempts(0);
+          setError('');
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current!);
+  }, [lockout > 0]); // only re-run when lockout transitions from 0→positive
+
+  const isLocked  = lockout > 0;
+  const isDisabled = loading || isLocked;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDisabled) return;
+
     setLoading(true);
     setError('');
     setSuccess('');
 
     if (isLogin) {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-      if (err) setError('Email o contraseña incorrectos.');
+      if (err) {
+        const next = attempts + 1;
+        setAttempts(next);
+        if (next >= MAX_ATTEMPTS) {
+          setLockout(LOCKOUT_SECS);
+          setError(`Demasiados intentos. Espera ${LOCKOUT_SECS} segundos.`);
+        } else {
+          setError(`Email o contraseña incorrectos. (${next}/${MAX_ATTEMPTS} intentos)`);
+        }
+      }
     } else {
       const { data, error: err } = await supabase.auth.signUp({
         email,
@@ -46,74 +85,48 @@ const Login: React.FC = () => {
     setIsLogin(login);
     setError('');
     setSuccess('');
+    // Reset rate limit when switching to register
+    if (!login) { setAttempts(0); setLockout(0); }
   };
 
   return (
     <IonPage>
       <IonContent fullscreen scrollY={false}>
-        <div
-          style={{
-            background: '#000000',
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '40px 24px 48px',
-          }}
-        >
+        <div style={{
+          background: '#000000', minHeight: '100vh',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          padding: '40px 24px 48px',
+        }}>
           {/* ── Logotipo ──────────────────────────────────────── */}
           <div style={{ marginBottom: 32, textAlign: 'center' }}>
-            <img
-              src={logoImg}
-              alt="e-PetPlace logo"
-              style={{ width: 200, display: 'block', margin: '0 auto' }}
-            />
+            <img src={logoImg} alt="e-PetPlace logo"
+              style={{ width: 200, display: 'block', margin: '0 auto' }} />
             <p style={{ color: '#444', fontSize: 12, marginTop: 6, letterSpacing: '0.06em' }}>
               Tu mundo animal, digitalizado
             </p>
           </div>
 
           {/* ── Toggle Ingresar / Registrarse ─────────────────── */}
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 360,
-              display: 'flex',
-              background: '#111111',
-              border: '1px solid #222222',
-              borderRadius: 16,
-              padding: 4,
-              marginBottom: 28,
-            }}
-          >
+          <div style={{
+            width: '100%', maxWidth: 360, display: 'flex',
+            background: '#111111', border: '1px solid #222222',
+            borderRadius: 16, padding: 4, marginBottom: 28,
+          }}>
             {([
               { label: 'Ingresar',    val: true  },
               { label: 'Registrarse', val: false },
             ] as { label: string; val: boolean }[]).map(({ label, val }) => {
               const active = isLogin === val;
               return (
-                <button
-                  key={label}
-                  onClick={() => switchMode(val)}
-                  style={{
-                    flex: 1,
-                    padding: '12px 0',
-                    borderRadius: 12,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    background: active
-                      ? 'linear-gradient(90deg, #FF2D9B, #00E5FF)'
-                      : 'transparent',
-                    color: active ? '#000' : '#555',
-                    boxShadow: active
-                      ? '0 0 20px rgba(0,229,255,0.3)'
-                      : 'none',
-                  }}
-                >
+                <button key={label} onClick={() => switchMode(val)} style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  background: active ? 'linear-gradient(90deg, #FF2D9B, #00E5FF)' : 'transparent',
+                  color: active ? '#000' : '#555',
+                  boxShadow: active ? '0 0 20px rgba(0,229,255,0.3)' : 'none',
+                }}>
                   {label}
                 </button>
               );
@@ -121,96 +134,77 @@ const Login: React.FC = () => {
           </div>
 
           {/* ── Formulario ────────────────────────────────────── */}
-          <form
-            onSubmit={handleSubmit}
-            style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
+          <form onSubmit={handleSubmit} style={{
+            width: '100%', maxWidth: 360,
+            display: 'flex', flexDirection: 'column', gap: 16,
+          }}>
             {!isLogin && (
-              <InputField
-                label="Tu nombre"
-                type="text"
-                value={nombre}
-                onChange={setNombre}
-                placeholder="Ej: María García"
-              />
+              <InputField label="Tu nombre" type="text" value={nombre}
+                onChange={setNombre} placeholder="Ej: María García" />
             )}
 
-            <InputField
-              label="Email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              placeholder="tu@email.com"
-              required
-            />
+            <InputField label="Email" type="email" value={email}
+              onChange={setEmail} placeholder="tu@email.com" required />
 
-            <InputField
-              label="Contraseña"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              placeholder="••••••••"
-              required
-              minLength={6}
-            />
+            <InputField label="Contraseña" type="password" value={password}
+              onChange={setPassword} placeholder="••••••••" required minLength={6} />
 
-            {/* Error */}
+            {/* Error / lockout */}
             {error && (
               <div style={{
-                padding: '12px 16px',
-                borderRadius: 12,
-                background: 'rgba(255,45,155,0.08)',
+                padding: '12px 16px', borderRadius: 12,
+                background: isLocked ? 'rgba(255,45,155,0.12)' : 'rgba(255,45,155,0.08)',
                 border: '1px solid rgba(255,45,155,0.3)',
-                color: '#FF7EB3',
-                fontSize: 13,
+                color: '#FF7EB3', fontSize: 13,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
               }}>
-                {error}
+                <span>{error}</span>
+                {isLocked && (
+                  <span style={{
+                    background: '#FF2D9B', color: '#000', fontWeight: 800,
+                    borderRadius: 8, padding: '2px 8px', fontSize: 13, flexShrink: 0,
+                  }}>{lockout}s</span>
+                )}
               </div>
             )}
 
             {/* Success */}
             {success && (
               <div style={{
-                padding: '12px 16px',
-                borderRadius: 12,
+                padding: '12px 16px', borderRadius: 12,
                 background: 'rgba(0,229,255,0.08)',
                 border: '1px solid rgba(0,229,255,0.3)',
-                color: '#00E5FF',
-                fontSize: 13,
-              }}>
-                {success}
-              </div>
+                color: '#00E5FF', fontSize: 13,
+              }}>{success}</div>
             )}
 
             {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-brand"
+            <button type="submit" disabled={isDisabled} className="btn-brand"
               style={{
-                width: '100%',
-                padding: '16px 0',
-                borderRadius: 14,
-                fontSize: 16,
-                marginTop: 4,
-                boxShadow: '0 0 40px rgba(0,229,255,0.25), 0 0 20px rgba(255,45,155,0.2)',
+                width: '100%', padding: '16px 0', borderRadius: 14,
+                fontSize: 16, marginTop: 4,
+                boxShadow: isLocked ? 'none' : '0 0 40px rgba(0,229,255,0.25), 0 0 20px rgba(255,45,155,0.2)',
+                opacity: isLocked ? 0.45 : 1,
+                cursor: isLocked ? 'not-allowed' : 'pointer',
               }}
             >
-              {loading ? 'Cargando…' : isLogin ? 'Entrar a PetPlace 🐾' : 'Crear cuenta'}
+              {isLocked
+                ? `Bloqueado ${lockout}s`
+                : loading
+                ? 'Cargando…'
+                : isLogin
+                ? 'Entrar a PetPlace 🐾'
+                : 'Crear cuenta'}
             </button>
           </form>
 
           {/* ── Línea decorativa de marca ──────────────────────── */}
           <div style={{ marginTop: 48, display: 'flex', alignItems: 'center', gap: 0 }}>
             {['#FF2D9B', '#00E5FF', '#FFE600'].map((c, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: c, margin: '0 3px',
-                  boxShadow: `0 0 10px ${c}`,
-                }}
-              />
+              <div key={i} style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: c, margin: '0 3px', boxShadow: `0 0 10px ${c}`,
+              }} />
             ))}
           </div>
         </div>
@@ -221,13 +215,9 @@ const Login: React.FC = () => {
 
 /* ── Input field ─────────────────────────────────────────────── */
 interface InputFieldProps {
-  label: string;
-  type: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  required?: boolean;
-  minLength?: number;
+  label: string; type: string; value: string;
+  onChange: (v: string) => void; placeholder?: string;
+  required?: boolean; minLength?: number;
 }
 
 const InputField: React.FC<InputFieldProps> = ({
@@ -235,31 +225,16 @@ const InputField: React.FC<InputFieldProps> = ({
 }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <label style={{
-      fontSize: 11,
-      fontWeight: 600,
-      letterSpacing: '0.1em',
-      textTransform: 'uppercase',
-      color: '#444',
-    }}>
-      {label}
-    </label>
+      fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
+      textTransform: 'uppercase', color: '#444',
+    }}>{label}</label>
     <input
-      type={type}
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      required={required}
-      minLength={minLength}
+      type={type} value={value} onChange={e => onChange(e.target.value)}
+      placeholder={placeholder} required={required} minLength={minLength}
       style={{
-        background: '#111111',
-        border: '1px solid #2a2a2a',
-        borderRadius: 12,
-        padding: '14px 16px',
-        color: '#ffffff',
-        fontSize: 15,
-        width: '100%',
-        boxSizing: 'border-box',
-        outline: 'none',
+        background: '#111111', border: '1px solid #2a2a2a', borderRadius: 12,
+        padding: '14px 16px', color: '#ffffff', fontSize: 15,
+        width: '100%', boxSizing: 'border-box', outline: 'none',
         transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
       onFocus={e => {

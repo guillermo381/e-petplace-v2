@@ -144,10 +144,18 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    // Verify session against server on mount — catches expired tokens
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Token invalid or expired — force logout
+        supabase.auth.signOut();
+        setSession(null);
+      } else {
+        setSession(session);
+      }
       setLoading(false);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
       setSession(s);
     });
