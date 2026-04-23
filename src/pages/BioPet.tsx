@@ -509,7 +509,8 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
 ════════════════════════════════════════════════════════════════ */
 export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ session, petId }) => {
   const [mascota,      setMascota]      = useState<MascotaConVacunas | null>(null);
-  const [loading,      setLoading]      = useState(true);
+  // Guard: nunca debe recibir "new" como petId — si ocurre, renderizar BioPetNew
+  const [loading,      setLoading]      = useState(petId !== 'new');
   const [showVacForm,  setShowVacForm]  = useState(false);
   const [vacForm,      setVacForm]      = useState({ nombre:'', fecha_aplicada:'', fecha_proxima:'', veterinario:'' });
   const [saving,       setSaving]       = useState(false);
@@ -517,6 +518,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
   const history = useHistory();
 
   const fetchMascota = useCallback(async () => {
+    if (!petId || petId === 'new') { setLoading(false); return; }
     const { data } = await supabase
       .from('mascotas').select('*, vacunas(*)')
       .eq('id', petId).single();
@@ -525,6 +527,9 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
   }, [petId]);
 
   useEffect(() => { fetchMascota(); }, [fetchMascota]);
+
+  // Guard: si llega "new" como petId, este componente no debe renderizarse
+  if (petId === 'new') return <BioPetNew session={session} />;
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 

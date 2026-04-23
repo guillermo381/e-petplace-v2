@@ -106,11 +106,14 @@ const AuthedApp: React.FC<{ session: Session }> = ({ session }) => (
         {/* Adopción */}
         <Route exact path="/adopcion" render={() => <Adopcion session={session} />} />
 
-        {/* Sub-páginas mascotas */}
+        {/* Sub-páginas mascotas — /new debe ir primero y :id excluye "new" explícitamente */}
         <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
-        <Route path="/biopet/:id"       render={(props) =>
-          <BioPetDetail session={session} petId={props.match.params.id} />
-        } />
+        <Route exact path="/biopet/:id" render={(props) => {
+          const id = props.match.params.id;
+          // Guard: IonRouterOutlet puede cachear ambas rutas simultáneamente
+          if (!id || id === 'new') return <BioPetNew session={session} />;
+          return <BioPetDetail session={session} petId={id} />;
+        }} />
 
         <Route render={() => <Redirect to="/home" />} />
       </IonRouterOutlet>
