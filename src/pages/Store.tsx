@@ -4,6 +4,7 @@ import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
+import { SERVICIOS } from '../data/servicios';
 
 interface Producto {
   id: string;
@@ -82,19 +83,26 @@ const Store: React.FC<Props> = ({ session }) => {
     setTimeout(() => setToast(''), 2200);
   };
 
-  const handleAdd = (p: Producto) => {
-    if (!session) {
-      setPendingProduct(p);
-      setShowGuestModal(true);
-    } else {
+  const handleAdd = async (p: Producto) => {
+    const isLoggedIn = !!(await supabase.auth.getSession()).data.session;
+    const isGuest    = localStorage.getItem('guest_mode') === 'true';
+    if (isLoggedIn || isGuest) {
       doAddToCart(p);
+      return;
     }
+    setPendingProduct(p);
+    setShowGuestModal(true);
   };
 
   const handleGuestAdd = () => {
     if (pendingProduct) doAddToCart(pendingProduct);
     setShowGuestModal(false);
     setPendingProduct(null);
+  };
+
+  const handleService = (s: typeof SERVICIOS[number]) => {
+    if (!s.disponible) { setToast('Próximamente 🚀'); setTimeout(() => setToast(''), 2200); return; }
+    history.push(s.ruta);
   };
 
   const handleGuestLogin = () => {
@@ -202,6 +210,47 @@ const Store: React.FC<Props> = ({ session }) => {
             </div>
           </div>
 
+          {/* ── Servicios ────────────────────────────────────────── */}
+          <div className="px-5 pt-6 pb-2">
+            <div style={{ marginBottom: 14 }}>
+              <h2 className="text-white font-semibold text-base">Servicios disponibles</h2>
+              <p className="text-gray-500 text-xs mt-1">Todo para tu mascota en un solo lugar</p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {SERVICIOS.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => handleService(s)}
+                  style={{
+                    background: s.color,
+                    border: `1px solid ${s.textColor}22`,
+                    borderRadius: 12, padding: '14px 14px 12px',
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                    gap: 6, cursor: 'pointer', position: 'relative', textAlign: 'left',
+                  }}
+                >
+                  {!s.disponible && (
+                    <span style={{
+                      position: 'absolute', top: 8, right: 8,
+                      fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+                      background: `${s.textColor}18`, color: s.textColor,
+                      border: `1px solid ${s.textColor}33`,
+                    }}>Pronto</span>
+                  )}
+                  <span style={{ fontSize: 22, lineHeight: 1 }}>{s.icono}</span>
+                  <div>
+                    <p style={{ color: s.textColor, fontSize: 13, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
+                      {s.nombre}
+                    </p>
+                    <p style={{ color: `${s.textColor}88`, fontSize: 10, margin: '3px 0 0', lineHeight: 1.3 }}>
+                      {s.subtitulo}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* ── Recomendados IA (solo usuarios logueados) ─────────── */}
           {session && recomendados.length > 0 && categoria === 'Todos' && !busqueda && (
             <div className="mb-6">
@@ -248,6 +297,7 @@ const Store: React.FC<Props> = ({ session }) => {
               </div>
             )}
           </div>
+
         </div>
 
         {/* ── Toast ────────────────────────────────────────────── */}

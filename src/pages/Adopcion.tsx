@@ -35,7 +35,7 @@ interface PetAdopcion {
   urgente: boolean; color: string;
 }
 
-interface Props { session: Session }
+interface Props { session: Session | null }
 
 /* ── Datos ───────────────────────────────────────────────────── */
 const MASCOTAS: PetAdopcion[] = [
@@ -96,8 +96,8 @@ const Adopcion: React.FC<Props> = ({ session }) => {
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
   useEffect(() => {
-    const uid = session.user.id;
-    supabase.from('profiles').select('nombre,email').eq('id', uid).single()
+    if (!session) return;
+    supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) {
           setNombreForm(data.nombre ?? '');
@@ -140,7 +140,7 @@ const Adopcion: React.FC<Props> = ({ session }) => {
     }
     setSaving(true);
     const { error } = await supabase.from('solicitudes_adopcion').insert({
-      user_id:            session.user.id,
+      user_id:            session?.user.id ?? null,
       mascota_nombre:     formModal.nombre,
       refugio:            formModal.refugio,
       nombre_solicitante: nombreForm,

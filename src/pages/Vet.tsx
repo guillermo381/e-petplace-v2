@@ -15,6 +15,9 @@ CREATE TABLE citas (
 );
 ALTER TABLE citas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own citas" ON citas USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- Soporte para citas de invitados (ejecutar si aún no existe):
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS guest_email text;
+CREATE POLICY "Guest citas insert" ON citas FOR INSERT WITH CHECK (user_id IS NULL);
 */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -25,6 +28,7 @@ import {
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
 
 /* ── Tipos ───────────────────────────────────────────────────── */
 interface Vet {
@@ -38,7 +42,7 @@ interface Cita {
   fecha: string; hora: string; motivo: string; precio: number;
   estado: string; mascota_id: string;
 }
-interface Props { session: Session }
+interface Props { session: Session | null }
 
 /* ── Datos locales ───────────────────────────────────────────── */
 const VETS: Vet[] = [
@@ -90,6 +94,7 @@ const Toast: React.FC<{ msg: string }> = ({ msg }) => (
 ════════════════════════════════════════════════════════════════ */
 const Vet: React.FC<Props> = ({ session }) => {
   const history  = useHistory();
+  const { addToCart } = useCart();
   const [filtro,       setFiltro]       = useState('Todos');
   const [busqueda,     setBusqueda]     = useState('');
   const [mascotas,     setMascotas]     = useState<Mascota[]>([]);
@@ -114,6 +119,7 @@ const Vet: React.FC<Props> = ({ session }) => {
   };
 
   const fetchData = useCallback(async () => {
+    if (!session) return;
     const uid = session.user.id;
     const [{ data: m }, { data: c }] = await Promise.all([
       supabase.from('mascotas').select('id,nombre,especie').eq('user_id', uid).order('nombre'),
@@ -121,7 +127,7 @@ const Vet: React.FC<Props> = ({ session }) => {
     ]);
     if (m) setMascotas(m);
     if (c) setCitas(c);
-  }, [session.user.id]);
+  }, [session?.user.id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -144,48 +150,33 @@ const Vet: React.FC<Props> = ({ session }) => {
     setNotas('');
   };
 
-  /* ── Confirmar cita ────────────────────────────────────────── */
-  const confirmarCita = async () => {
-    if (!vetModal || !mascotaSel || !fechaSel || !horaSel || !motivoSel) {
+  /* ── Confirmar cita → agregar al carrito ──────────────────── */
+  const confirmarCita = () => {
+    if (!vetModal || !fechaSel || !horaSel || !motivoSel) {
       showToast('Completa todos los campos requeridos');
       return;
     }
-    setSaving(true);
 
-    // PostgreSQL time requiere HH:MM:SS con padding
-    const [hh, mm] = horaSel.split(':');
-    const horaFmt = `${hh.padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
+    const fechaLabel = dias.find(d => d.value === fechaSel)?.label ?? fechaSel;
 
-    const payload = {
-      user_id:            session.user.id,
-      mascota_id:         mascotaSel,
-      veterinario_nombre: vetModal.nombre,
-      clinica:            vetModal.clinica,
-      fecha:              fechaSel,    // YYYY-MM-DD — ya correcto
-      hora:               horaFmt,    // HH:MM:SS
-      motivo:             motivoSel,
-      precio:             vetModal.precio,
-      estado:             'pendiente',
-    };
-
-    console.log('[Vet] INSERT citas:', payload);
-
-    const { error } = await supabase.from('citas').insert(payload);
-    setSaving(false);
-
-    if (error) {
-      console.error('[Vet] INSERT citas error:', error);
-      const msg = error.code === '42501'
-        ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
-        : error.message;
-      showToast(`Error: ${msg}`);
-      return;
-    }
+    addToCart({
+      producto_id:  `cita-${vetModal.id}-${Date.now()}`,
+      nombre:       `Cita Veterinaria — ${vetModal.nombre}`,
+      precio:       vetModal.precio,
+      imagen_emoji: '🗓️',
+      tipo:         'cita',
+      subtitulo:    `${vetModal.clinica} · ${fechaLabel} ${horaSel}`,
+      metadata: {
+        veterinario_nombre: vetModal.nombre,
+        clinica:            vetModal.clinica,
+        fecha:              fechaSel,
+        hora:               horaSel,
+        motivo:             motivoSel,
+      },
+    });
 
     setVetModal(null);
-    await fetchData();
-    setTab('citas');
-    showToast('¡Cita agendada con éxito! 🐾');
+    showToast('¡Cita agregada al carrito! Procede al pago para confirmarla 🗓️');
   };
 
   /* ── Cancelar cita ─────────────────────────────────────────── */
@@ -531,7 +522,7 @@ const Vet: React.FC<Props> = ({ session }) => {
                     boxShadow:'0 0 30px rgba(0,229,255,0.2)',
                   }}
                 >
-                  Confirmar Cita ${vetModal.precio}
+                  Agregar al carrito — ${vetModal.precio}
                 </button>
               </>
             )}

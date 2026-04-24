@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import logoImg from '../assets/logo.jpg';
 import { useCart } from '../context/CartContext';
+import ServicesGrid from '../components/ServicesGrid';
 import {
   IonContent,
   IonPage,
@@ -33,14 +34,6 @@ const ESPECIE_EMOJI: Record<string, string> = {
   perro:'🐶', gato:'🐱', ave:'🐦', pez:'🐠', conejo:'🐰', otro:'🐾',
 };
 
-const SERVICES = [
-  { icon:'🛒', name:'Nutrición',   sub:'Alimentos y suplementos', path:'/tienda',    available:true,  bg:'#0d1f12', color:'#00F5A0' },
-  { icon:'🏥', name:'Veterinario', sub:'Citas y consultas',        path:'/vet',       available:true,  bg:'#0d1a2b', color:'#00E5FF' },
-  { icon:'🏠', name:'Guardería',   sub:'Cuidado a domicilio',      path:'/guarderia', available:false, bg:'#1f1a08', color:'#FFE600' },
-  { icon:'🐾', name:'Adopción',    sub:'12 mascotas esperan',      path:'/adopcion',  available:true,  bg:'#1f0d14', color:'#FF2D9B' },
-  { icon:'✂️', name:'Grooming',    sub:'Estética y spa',           path:'/grooming',  available:false, bg:'#150d1f', color:'#A78BFA' },
-  { icon:'🚶', name:'Paseos',      sub:'Paseadores verificados',   path:'/paseos',    available:false, bg:'#1a0f08', color:'#FF6B35' },
-] as const;
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 const calcEdad = (fecha: string): string => {
@@ -151,8 +144,8 @@ const Home: React.FC<Props> = ({ session }) => {
   };
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2400); };
-  const handleService = (path: string, available: boolean) => {
-    if (available) history.push(path);
+  const handleService = (ruta: string, disponible: boolean) => {
+    if (disponible) history.push(ruta);
     else showToast('Próximamente 🚀');
   };
 
@@ -311,35 +304,7 @@ const Home: React.FC<Props> = ({ session }) => {
           ════════════════════════════════════════════════════════ */}
           <section style={{ padding:'0 20px 24px' }}>
             <SectionHeader title="Servicios" />
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              {SERVICES.map(s => (
-                <button
-                  key={s.name}
-                  onClick={() => handleService(s.path, s.available)}
-                  style={{
-                    background: s.bg,
-                    border:`1px solid ${s.color}22`,
-                    borderRadius:12, padding:'14px 14px 12px',
-                    display:'flex', flexDirection:'column', alignItems:'flex-start',
-                    gap:6, cursor:'pointer', position:'relative', textAlign:'left',
-                  }}
-                >
-                  {!s.available && (
-                    <span style={{
-                      position:'absolute', top:8, right:8,
-                      fontSize:8, fontWeight:700, padding:'2px 6px', borderRadius:6,
-                      background:`${s.color}18`, color:s.color,
-                      border:`1px solid ${s.color}33`,
-                    }}>Pronto</span>
-                  )}
-                  <span style={{ fontSize:22, lineHeight:1 }}>{s.icon}</span>
-                  <div>
-                    <p style={{ color:s.color, fontSize:13, fontWeight:700, margin:0, lineHeight:1.2 }}>{s.name}</p>
-                    <p style={{ color:`${s.color}88`, fontSize:10, margin:'3px 0 0', lineHeight:1.3 }}>{s.sub}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <ServicesGrid onServiceClick={handleService} />
           </section>
 
           {/* ════════════════════════════════════════════════════════

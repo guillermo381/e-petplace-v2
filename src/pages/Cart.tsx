@@ -95,26 +95,36 @@ const Cart: React.FC<Props> = ({ session }) => {
             </div>
           ) : (
             <div style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {items.map(item => (
+              {items.map(item => {
+                const esCita = item.tipo === 'cita';
+                return (
                 <div key={item.producto_id} style={{
                   background: '#111', borderRadius: 16, padding: 16,
-                  border: '1px solid #1e1e1e',
+                  border: `1px solid ${esCita ? 'rgba(0,229,255,0.2)' : '#1e1e1e'}`,
                 }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                     <div style={{
                       width: 52, height: 52, borderRadius: 14, flexShrink: 0,
-                      background: 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)',
-                      border: '1px solid #2a2a2a',
+                      background: esCita
+                        ? 'linear-gradient(135deg,rgba(0,229,255,0.15),rgba(0,229,255,0.05))'
+                        : 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)',
+                      border: `1px solid ${esCita ? 'rgba(0,229,255,0.3)' : '#2a2a2a'}`,
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
-                    }}>{item.imagen_emoji}</div>
+                    }}>{esCita ? '🗓️' : item.imagen_emoji}</div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ color: '#fff', fontWeight: 700, fontSize: 14, margin: 0,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {item.nombre}
                       </p>
-                      <p style={{ color: '#00E5FF', fontSize: 13, fontWeight: 600, margin: '3px 0 0' }}>
-                        ${item.precio.toFixed(2)} c/u
+                      {esCita && item.subtitulo && (
+                        <p style={{ color: '#00E5FF', fontSize: 11, fontWeight: 500, margin: '2px 0 0',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.subtitulo}
+                        </p>
+                      )}
+                      <p style={{ color: esCita ? '#00F5A0' : '#00E5FF', fontSize: 13, fontWeight: 600, margin: '3px 0 0' }}>
+                        ${item.precio.toFixed(2)}
                       </p>
                     </div>
 
@@ -127,30 +137,39 @@ const Cart: React.FC<Props> = ({ session }) => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 0,
-                      background: '#1a1a1a', borderRadius: 12, overflow: 'hidden',
-                      border: '1px solid #2a2a2a' }}>
-                      <button
-                        onClick={() => item.cantidad > 1
-                          ? updateQuantity(item.producto_id, item.cantidad - 1)
-                          : removeFromCart(item.producto_id)}
-                        style={{ width: 36, height: 36, border: 'none', background: 'transparent',
-                          color: '#fff', fontSize: 18, cursor: 'pointer', fontWeight: 700 }}
-                      >−</button>
-                      <span style={{ color: '#fff', fontWeight: 700, fontSize: 15,
-                        minWidth: 32, textAlign: 'center' }}>{item.cantidad}</span>
-                      <button
-                        onClick={() => updateQuantity(item.producto_id, item.cantidad + 1)}
-                        style={{ width: 36, height: 36, border: 'none', background: 'transparent',
-                          color: '#00E5FF', fontSize: 18, cursor: 'pointer', fontWeight: 700 }}
-                      >+</button>
-                    </div>
+                    {esCita ? (
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 8,
+                        background: 'rgba(0,229,255,0.1)', color: '#00E5FF',
+                        border: '1px solid rgba(0,229,255,0.2)',
+                      }}>1 cita</span>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 0,
+                        background: '#1a1a1a', borderRadius: 12, overflow: 'hidden',
+                        border: '1px solid #2a2a2a' }}>
+                        <button
+                          onClick={() => item.cantidad > 1
+                            ? updateQuantity(item.producto_id, item.cantidad - 1)
+                            : removeFromCart(item.producto_id)}
+                          style={{ width: 36, height: 36, border: 'none', background: 'transparent',
+                            color: '#fff', fontSize: 18, cursor: 'pointer', fontWeight: 700 }}
+                        >−</button>
+                        <span style={{ color: '#fff', fontWeight: 700, fontSize: 15,
+                          minWidth: 32, textAlign: 'center' }}>{item.cantidad}</span>
+                        <button
+                          onClick={() => updateQuantity(item.producto_id, item.cantidad + 1)}
+                          style={{ width: 36, height: 36, border: 'none', background: 'transparent',
+                            color: '#00E5FF', fontSize: 18, cursor: 'pointer', fontWeight: 700 }}
+                        >+</button>
+                      </div>
+                    )}
                     <p style={{ color: '#fff', fontWeight: 800, fontSize: 15, margin: 0 }}>
                       ${(item.precio * item.cantidad).toFixed(2)}
                     </p>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

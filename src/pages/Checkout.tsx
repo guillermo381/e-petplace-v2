@@ -1,10 +1,9 @@
 /*
--- SQL para pedidos de invitados (ejecutar en Supabase SQL Editor si quieres persistirlos):
+-- SQL para pedidos de invitados (ejecutar en Supabase SQL Editor):
 ALTER TABLE pedidos ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS guest_email text;
 CREATE POLICY "Guest pedidos insert" ON pedidos
   FOR INSERT WITH CHECK (user_id IS NULL);
--- Los pedidos de invitados no tienen RLS de lectura (solo el admin los ve).
--- Por ahora los pedidos de invitados se confirman sin guardar en BD.
 */
 
 import React, { useState, useEffect } from 'react';
@@ -19,8 +18,10 @@ interface Props { session: Session | null }
 type Step = 1 | 2 | 3 | 4;
 type MetodoPago = 'tarjeta' | 'transferencia' | 'efectivo';
 
-const CIUDADES = ['Quito', 'Guayaquil', 'Cuenca', 'Otra'];
+const CIUDADES    = ['Quito', 'Guayaquil', 'Cuenca', 'Otra'];
 const STEP_LABELS = ['Resumen', 'Envío', 'Pago', '¡Listo!'];
+
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 /* ── Barra de progreso ───────────────────────────────────────── */
 const StepBar: React.FC<{ step: Step }> = ({ step }) => (
@@ -49,8 +50,7 @@ const StepBar: React.FC<{ step: Step }> = ({ step }) => (
           {idx < STEP_LABELS.length - 1 && (
             <div style={{
               flex: 1, height: 2, margin: '0 6px', marginBottom: 16,
-              background: done ? '#00F5A0' : '#1a1a1a',
-              borderRadius: 2,
+              background: done ? '#00F5A0' : '#1a1a1a', borderRadius: 2,
             }} />
           )}
         </React.Fragment>
@@ -90,6 +90,10 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [dir,      setDir]      = useState('');
   const [ciudad,   setCiudad]   = useState('Quito');
   const [refs,     setRefs]     = useState('');
+
+  // Guest
+  const [guestEmail,   setGuestEmail]   = useState('');
+  const [crearCuenta,  setCrearCuenta]  = useState(true);
 
   // Pago
   const [metodo,   setMetodo]   = useState<MetodoPago>('tarjeta');
@@ -132,8 +136,49 @@ const Checkout: React.FC<Props> = ({ session }) => {
         numero_orden: orden,
         estado:       'confirmado',
       });
+    } else {
+      // Crear cuenta si el usuario lo solicitó
+      if (crearCuenta && guestEmail) {
+        await supabase.auth.signUp({
+          email: guestEmail.trim(),
+          password: crypto.randomUUID(),
+        });
+        // Supabase envía email de confirmación; ignoramos error si ya existe
+      }
+
+      // Guardar pedido de invitado con guest_email
+      await supabase.from('pedidos').insert({
+        user_id:      null,
+        guest_email:  guestEmail.trim(),
+        items,
+        total:        totalPrice,
+        direccion:    dir,
+        ciudad,
+        metodo_pago:  metodo,
+        numero_orden: orden,
+        estado:       'confirmado',
+      });
     }
-    // Para invitados: la orden se confirma localmente sin guardar en BD
+
+    // Confirmar citas: INSERT por cada item de tipo 'cita'
+    const citaItems = items.filter(i => i.tipo === 'cita');
+    for (const item of citaItems) {
+      const meta = item.metadata ?? {};
+      const [hh, mm] = (meta.hora ?? '').split(':');
+      const horaFmt = `${(hh ?? '00').padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
+      await supabase.from('citas').insert({
+        user_id:            session?.user.id ?? null,
+        guest_email:        session ? null : (guestEmail.trim() || null),
+        veterinario_nombre: meta.veterinario_nombre ?? '',
+        clinica:            meta.clinica ?? '',
+        fecha:              meta.fecha ?? '',
+        hora:               horaFmt,
+        motivo:             meta.motivo ?? '',
+        precio:             item.precio,
+        estado:             'confirmada',
+        mascota_id:         null,
+      });
+    }
 
     setSaving(false);
     setNumOrden(orden);
@@ -146,56 +191,144 @@ const Checkout: React.FC<Props> = ({ session }) => {
   };
 
   /* ── PASO 1: RESUMEN ────────────────────────────────────────── */
-  if (step === 1) return (
-    <IonPage>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
-        <div style={{ padding: '52px 20px 40px' }}>
-          <BackBtn onClick={() => history.goBack()} />
-          <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 20, margin: '0 0 24px' }}>
-            Confirmar pedido
-          </h2>
-          <StepBar step={1} />
+  if (step === 1) {
+    const canContinue = !!session || isValidEmail(guestEmail);
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-            {items.map(item => (
-              <div key={item.producto_id} style={{
-                display: 'flex', gap: 12, alignItems: 'center',
-                background: '#111', borderRadius: 14, padding: '12px 14px',
-                border: '1px solid #1e1e1e',
-              }}>
-                <span style={{ fontSize: 24 }}>{item.imagen_emoji}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ color: '#fff', fontWeight: 600, fontSize: 14, margin: 0 }}>{item.nombre}</p>
-                  <p style={{ color: '#555', fontSize: 12, margin: '2px 0 0' }}>x{item.cantidad}</p>
+    return (
+      <IonPage>
+        <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
+          <div style={{ padding: '52px 20px 40px' }}>
+            <BackBtn onClick={() => history.goBack()} />
+            <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 20, margin: '0 0 24px' }}>
+              Confirmar pedido
+            </h2>
+            <StepBar step={1} />
+
+            {/* Items */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {items.map(item => (
+                <div key={item.producto_id} style={{
+                  display: 'flex', gap: 12, alignItems: 'center',
+                  background: '#111', borderRadius: 14, padding: '12px 14px',
+                  border: '1px solid #1e1e1e',
+                }}>
+                  <span style={{ fontSize: 24 }}>{item.imagen_emoji}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ color: '#fff', fontWeight: 600, fontSize: 14, margin: 0 }}>{item.nombre}</p>
+                    <p style={{ color: '#555', fontSize: 12, margin: '2px 0 0' }}>x{item.cantidad}</p>
+                  </div>
+                  <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 14, margin: 0 }}>
+                    ${(item.precio * item.cantidad).toFixed(2)}
+                  </p>
                 </div>
-                <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 14, margin: 0 }}>
-                  ${(item.precio * item.cantidad).toFixed(2)}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ background: '#111', borderRadius: 16, padding: 16, marginBottom: 24,
-            border: '1px solid #1e1e1e' }}>
-            <SummaryRow label="Subtotal" value={`$${totalPrice.toFixed(2)}`} />
-            <SummaryRow label="Envío" value="Gratis 🎉" color="#00F5A0" />
-            <div style={{ borderTop: '1px solid #222', marginTop: 10, paddingTop: 10,
-              display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#fff', fontWeight: 700 }}>Total</span>
-              <span style={{ color: '#00E5FF', fontWeight: 900, fontSize: 20 }}>
-                ${totalPrice.toFixed(2)}
-              </span>
+              ))}
             </div>
-          </div>
 
-          <button onClick={() => setStep(2)} className="btn-brand"
-            style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16 }}>
-            Continuar →
-          </button>
-        </div>
-      </IonContent>
-    </IonPage>
-  );
+            {/* Totales */}
+            <div style={{ background: '#111', borderRadius: 16, padding: 16, marginBottom: 24,
+              border: '1px solid #1e1e1e' }}>
+              <SummaryRow label="Subtotal" value={`$${totalPrice.toFixed(2)}`} />
+              <SummaryRow label="Envío" value="Gratis 🎉" color="#00F5A0" />
+              <div style={{ borderTop: '1px solid #222', marginTop: 10, paddingTop: 10,
+                display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#fff', fontWeight: 700 }}>Total</span>
+                <span style={{ color: '#00E5FF', fontWeight: 900, fontSize: 20 }}>
+                  ${totalPrice.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* ── Email invitado ──────────────────────────────── */}
+            {!session && (
+              <div style={{ marginBottom: 24 }}>
+                {/* Banner amarillo */}
+                <div style={{
+                  background: 'rgba(255,230,0,0.1)', borderRadius: '12px 12px 0 0',
+                  border: '1px solid rgba(255,230,0,0.35)', borderBottom: 'none',
+                  padding: '10px 16px',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <span style={{ fontSize: 16 }}>📧</span>
+                  <p style={{ color: '#FFE600', fontSize: 13, fontWeight: 700, margin: 0 }}>
+                    Necesitamos tu email para procesar el pedido
+                  </p>
+                </div>
+
+                <div style={{
+                  background: '#0d0d0d', borderRadius: '0 0 16px 16px', padding: '16px 16px',
+                  border: '1px solid rgba(255,230,0,0.25)', borderTop: 'none',
+                }}>
+                  <p style={{ color: '#888', fontSize: 12, margin: '0 0 14px' }}>
+                    Te enviaremos la confirmación y podrás rastrear tu pedido
+                  </p>
+
+                <Field label="Tu email">
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={e => setGuestEmail(e.target.value)}
+                    placeholder="tu@email.com"
+                    style={{
+                      ...iStyle,
+                      borderColor: guestEmail && !isValidEmail(guestEmail)
+                        ? 'rgba(255,45,155,0.5)' : '#222',
+                    }}
+                  />
+                  {guestEmail && !isValidEmail(guestEmail) && (
+                    <p style={{ color: '#FF7EB3', fontSize: 11, margin: '5px 0 0' }}>
+                      Email inválido
+                    </p>
+                  )}
+                  {isValidEmail(guestEmail) && (
+                    <p style={{ color: '#00F5A0', fontSize: 11, margin: '5px 0 0' }}>✓ Válido</p>
+                  )}
+                </Field>
+
+                {/* Checkbox crear cuenta  */}
+                <div
+                  onClick={() => setCrearCuenta(s => !s)}
+                  style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    cursor: 'pointer', marginTop: 4,
+                  }}
+                >
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 1,
+                    background: crearCuenta ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#222',
+                    border: crearCuenta ? 'none' : '1px solid #444',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, color: '#000',
+                  }}>{crearCuenta ? '✓' : ''}</div>
+                  <div>
+                    <p style={{ color: '#ccc', fontSize: 13, margin: 0, fontWeight: 600 }}>
+                      Crear cuenta gratis con este email
+                    </p>
+                    <p style={{ color: '#444', fontSize: 11, margin: '2px 0 0' }}>
+                      Recibirás un email para configurar tu contraseña
+                    </p>
+                  </div>
+                </div>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={() => setStep(2)}
+              disabled={!canContinue}
+              className="btn-brand"
+              style={{
+                width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
+                opacity: canContinue ? 1 : 0.4,
+                cursor: canContinue ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Continuar →
+            </button>
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   /* ── PASO 2: ENVÍO ──────────────────────────────────────────── */
   if (step === 2) return (
@@ -208,7 +341,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
           </h2>
           <StepBar step={2} />
 
-          {/* Banner invitado con upsell */}
+          {/* Upsell invitado */}
           {!session && (
             <div style={{
               padding: '12px 16px', borderRadius: 14, marginBottom: 20,
@@ -227,7 +360,12 @@ const Checkout: React.FC<Props> = ({ session }) => {
             <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" style={iStyle} />
           </Field>
           <Field label="Email">
-            <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="tu@email.com" style={iStyle} />
+            <input
+              value={session ? email : guestEmail}
+              onChange={e => session ? setEmail(e.target.value) : setGuestEmail(e.target.value)}
+              type="email" placeholder="tu@email.com" style={iStyle}
+              readOnly={!session && isValidEmail(guestEmail)}
+            />
           </Field>
           <Field label="Teléfono">
             <input value={telefono} onChange={e => setTelefono(e.target.value)} type="tel" placeholder="+593 99 000 0000" style={iStyle} />
@@ -369,6 +507,8 @@ const Checkout: React.FC<Props> = ({ session }) => {
   );
 
   /* ── PASO 4: CONFIRMACIÓN ───────────────────────────────────── */
+  const emailConfirmacion = session ? (session.user.email ?? email) : guestEmail;
+
   return (
     <IonPage>
       <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
@@ -389,6 +529,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
             Gracias por tu compra en e-PetPlace
           </p>
 
+          {/* Número de orden */}
           <div style={{ background: '#111', borderRadius: 14, padding: '12px 20px',
             border: '1px solid #1e1e1e', display: 'inline-block', marginBottom: 24 }}>
             <p style={{ color: '#555', fontSize: 11, fontWeight: 600,
@@ -400,6 +541,22 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </p>
           </div>
 
+          {/* Confirmación por email — solo invitados */}
+          {!session && emailConfirmacion && (
+            <div style={{
+              background: 'rgba(0,229,255,0.06)', borderRadius: 14, padding: 14,
+              border: '1px solid rgba(0,229,255,0.2)', marginBottom: 16, textAlign: 'left',
+            }}>
+              <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 14, margin: '0 0 4px' }}>
+                📧 ¡Revisa tu email!
+              </p>
+              <p style={{ color: '#888', fontSize: 13, margin: 0, wordBreak: 'break-all' }}>
+                Te enviamos la confirmación a <strong style={{ color: '#fff' }}>{emailConfirmacion}</strong>
+              </p>
+            </div>
+          )}
+
+          {/* Resumen del pedido */}
           <div style={{ background: '#111', borderRadius: 16, padding: 16,
             border: '1px solid #1e1e1e', textAlign: 'left', marginBottom: 16 }}>
             <p style={{ color: '#555', fontSize: 11, fontWeight: 600,
@@ -432,7 +589,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
           )}
 
           <div style={{ background: 'rgba(0,245,160,0.08)', borderRadius: 14, padding: 14,
-            border: '1px solid rgba(0,245,160,0.2)', marginBottom: !session ? 12 : 24 }}>
+            border: '1px solid rgba(0,245,160,0.2)', marginBottom: 16 }}>
             <p style={{ color: '#00F5A0', fontWeight: 700, fontSize: 14, margin: 0 }}>
               📦 Preparando tu pedido
             </p>
@@ -441,20 +598,30 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </p>
           </div>
 
-          {/* Upsell para invitados en confirmación */}
+          {/* Card conversión para invitados */}
           {!session && (
-            <div style={{ background: 'rgba(255,45,155,0.06)', borderRadius: 14, padding: 14,
-              border: '1px solid rgba(255,45,155,0.2)', marginBottom: 24, textAlign: 'left' }}>
-              <p style={{ color: '#FF7EB3', fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>
-                🐾 Crea tu cuenta gratis
+            <div style={{
+              background: '#0d0d0d', borderRadius: 16, padding: '18px 16px',
+              border: '1px solid #1e1e1e', textAlign: 'left', marginBottom: 24,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              {/* Acento gradiente */}
+              <div style={{
+                position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                background: 'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+              }} />
+
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: 14, margin: '0 0 4px' }}>
+                🐾 ¿Quieres ver el estado de tu pedido en tiempo real?
               </p>
-              <p style={{ color: '#555', fontSize: 12, margin: '0 0 10px' }}>
-                Guarda tus pedidos, gestiona tus mascotas y accede a beneficios exclusivos
+              <p style={{ color: '#555', fontSize: 12, margin: '0 0 14px', lineHeight: 1.5 }}>
+                Con tu cuenta puedes rastrear pedidos, guardar mascotas y acceder a recomendaciones personalizadas.
               </p>
               <button
                 onClick={() => { clearCart(); history.replace('/'); }}
                 className="btn-brand"
-                style={{ padding: '10px 20px', borderRadius: 10, fontSize: 13 }}
+                style={{ width: '100%', padding: '13px 0', borderRadius: 12, fontSize: 14,
+                  boxShadow: '0 0 20px rgba(0,229,255,0.15)' }}
               >
                 Crear cuenta gratis
               </button>

@@ -6,20 +6,25 @@ import {
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Session } from '@supabase/supabase-js';
+import { useHistory } from 'react-router-dom';
 import { homeOutline, pawOutline, bagHandleOutline, cartOutline, personOutline } from 'ionicons/icons';
 
 import { supabase } from './lib/supabase';
 import { CartProvider, useCart } from './context/CartContext';
-import Login              from './pages/Login';
-import Home               from './pages/Home';
+import { GuestProvider, useGuest } from './context/GuestContext';
+import RegisterPrompt    from './components/RegisterPrompt';
+import GuestHeader       from './components/GuestHeader';
+import Login             from './pages/Login';
+import Welcome           from './pages/Welcome';
+import Home              from './pages/Home';
 import BioPet, { BioPetNew, BioPetDetail } from './pages/BioPet';
-import Store              from './pages/Store';
-import Profile            from './pages/Profile';
-import Vet                from './pages/Vet';
-import Adopcion           from './pages/Adopcion';
-import Cart               from './pages/Cart';
-import Checkout           from './pages/Checkout';
-import ResetPassword      from './pages/ResetPassword';
+import Store             from './pages/Store';
+import Profile           from './pages/Profile';
+import Vet               from './pages/Vet';
+import Adopcion          from './pages/Adopcion';
+import Cart              from './pages/Cart';
+import Checkout          from './pages/Checkout';
+import ResetPassword     from './pages/ResetPassword';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -39,19 +44,19 @@ setupIonicReact({ mode: 'ios' });
 /* ── Splash ──────────────────────────────────────────────────── */
 const Splash: React.FC = () => (
   <div style={{
-    background:'#000', height:'100vh', display:'flex',
-    flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16,
+    background: '#000', height: '100vh', display: 'flex',
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
   }}>
     <div style={{
-      width:72, height:72, borderRadius:18,
-      background:'linear-gradient(135deg,#FF2D9B,#00E5FF)',
-      display:'flex', alignItems:'center', justifyContent:'center',
-      fontSize:36, boxShadow:'0 0 50px rgba(0,229,255,0.4)',
+      width: 72, height: 72, borderRadius: 18,
+      background: 'linear-gradient(135deg,#FF2D9B,#00E5FF)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 36, boxShadow: '0 0 50px rgba(0,229,255,0.4)',
     }}>🐾</div>
-    <p style={{ color:'#fff', fontWeight:800, fontSize:22 }}>e-PetPlace</p>
+    <p style={{ color: '#fff', fontWeight: 800, fontSize: 22 }}>e-PetPlace</p>
     <div className="pet-spin" style={{
-      width:28, height:28, borderRadius:'50%',
-      border:'3px solid rgba(0,229,255,0.2)', borderTopColor:'#00E5FF',
+      width: 28, height: 28, borderRadius: '50%',
+      border: '3px solid rgba(0,229,255,0.2)', borderTopColor: '#00E5FF',
     }} />
   </div>
 );
@@ -118,18 +123,76 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   </IonTabs>
 );
 
-/* ── App ─────────────────────────────────────────────────────── */
-const App: React.FC = () => {
+/* ── Tabs invitado (3 tabs simplificados) ────────────────────── */
+const GuestTabsEntrar: React.FC = () => {
+  const { exitGuest } = useGuest();
+  const history = useHistory();
+
+  const handleEntrar = () => {
+    exitGuest();
+    history.push('/login');
+  };
+
+  return (
+    <IonTabButton tab="entrar" onClick={handleEntrar}>
+      <IonIcon icon={personOutline} style={{ color: '#00E5FF' }} />
+      <IonLabel style={{ color: '#00E5FF' }}>Entrar</IonLabel>
+    </IonTabButton>
+  );
+};
+
+const GuestContent: React.FC = () => (
+  <>
+    <GuestHeader />
+    <IonTabs>
+      <IonRouterOutlet>
+        <Route exact path="/tienda"   render={() => <Store    session={null} />} />
+        <Route exact path="/vet"      render={() => <Vet      session={null} />} />
+        <Route exact path="/adopcion" render={() => <Adopcion session={null} />} />
+        <Route exact path="/carrito"  render={() => <Cart     session={null} />} />
+        <Route exact path="/checkout" render={() => <Checkout session={null} />} />
+        <Route render={() => <Redirect to="/tienda" />} />
+      </IonRouterOutlet>
+
+      <IonTabBar slot="bottom">
+        <IonTabButton tab="tienda" href="/tienda">
+          <IonIcon icon={bagHandleOutline} /><IonLabel>Tienda</IonLabel>
+        </IonTabButton>
+        <IonTabButton tab="adopcion" href="/adopcion">
+          <IonIcon icon={pawOutline} /><IonLabel>Adopción</IonLabel>
+        </IonTabButton>
+        <GuestTabsEntrar />
+      </IonTabBar>
+    </IonTabs>
+  </>
+);
+
+/* ── Bridge: prompt de registro para invitados ───────────────── */
+const GuestPromptBridge: React.FC<{ session: Session | null }> = ({ session }) => {
+  const { showRegisterPrompt, dismissRegisterPrompt } = useCart();
+  if (session || !showRegisterPrompt) return null;
+  return <RegisterPrompt onDismiss={dismissRegisterPrompt} />;
+};
+
+/* ── App interno (usa los contextos) ─────────────────────────── */
+const AppInner: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { guestMode, exitGuest } = useGuest();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) { supabase.auth.signOut(); setSession(null); }
-      else setSession(session);
+      else {
+        if (session) exitGuest();
+        setSession(session);
+      }
       setLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s) exitGuest();
+      setSession(s);
+    });
     return () => subscription.unsubscribe();
   }, []);
 
@@ -137,23 +200,32 @@ const App: React.FC = () => {
 
   return (
     <IonApp>
-      <CartProvider>
-        <IonReactRouter>
-          {!session ? (
-            <IonRouterOutlet>
-              <Route exact path="/reset-password" render={() => <ResetPassword />} />
-              <Route exact path="/tienda"   render={() => <Store    session={null} />} />
-              <Route exact path="/carrito"  render={() => <Cart     session={null} />} />
-              <Route exact path="/checkout" render={() => <Checkout session={null} />} />
-              <Route render={() => <Login />} />
-            </IonRouterOutlet>
-          ) : (
-            <AuthedContent session={session} />
-          )}
-        </IonReactRouter>
-      </CartProvider>
+      <IonReactRouter>
+        {session ? (
+          <AuthedContent session={session} />
+        ) : guestMode ? (
+          <GuestContent />
+        ) : (
+          <IonRouterOutlet>
+            <Route exact path="/reset-password" render={() => <ResetPassword />} />
+            <Route exact path="/welcome"        render={() => <Welcome />} />
+            <Route exact path="/login"          render={() => <Login />} />
+            <Route render={() => <Redirect to="/welcome" />} />
+          </IonRouterOutlet>
+        )}
+        <GuestPromptBridge session={session} />
+      </IonReactRouter>
     </IonApp>
   );
 };
+
+/* ── App raíz: proveedores ───────────────────────────────────── */
+const App: React.FC = () => (
+  <GuestProvider>
+    <CartProvider>
+      <AppInner />
+    </CartProvider>
+  </GuestProvider>
+);
 
 export default App;

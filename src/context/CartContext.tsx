@@ -6,6 +6,9 @@ export interface CartItem {
   precio: number;
   cantidad: number;
   imagen_emoji: string;
+  tipo?: string;
+  subtitulo?: string;
+  metadata?: Record<string, string>;
 }
 
 interface CartContextType {
@@ -16,11 +19,15 @@ interface CartContextType {
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
+  showRegisterPrompt: boolean;
+  dismissRegisterPrompt: () => void;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
 
-const STORAGE_KEY = 'epetplace_cart';
+const STORAGE_KEY      = 'epetplace_cart';
+const INTERACTIONS_KEY = 'epetplace_session_interactions';
+const SHOWN_KEY        = 'register_prompt_shown';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
@@ -31,6 +38,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [];
     }
   });
+
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -46,6 +55,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return [...prev, { ...p, cantidad: 1 }];
     });
+
+    if (sessionStorage.getItem(SHOWN_KEY)) return;
+    const count = parseInt(sessionStorage.getItem(INTERACTIONS_KEY) ?? '0', 10) + 1;
+    sessionStorage.setItem(INTERACTIONS_KEY, String(count));
+    if (count >= 3) {
+      sessionStorage.setItem(SHOWN_KEY, 'true');
+      setShowRegisterPrompt(true);
+    }
   }, []);
 
   const removeFromCart = useCallback((producto_id: string) => {
@@ -59,11 +76,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const clearCart = useCallback(() => setItems([]), []);
 
+  const dismissRegisterPrompt = useCallback(() => {
+    setShowRegisterPrompt(false);
+  }, []);
+
   const totalItems = items.reduce((s, i) => s + i.cantidad, 0);
   const totalPrice = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice }}>
+    <CartContext.Provider value={{
+      items, addToCart, removeFromCart, updateQuantity, clearCart,
+      totalItems, totalPrice,
+      showRegisterPrompt, dismissRegisterPrompt,
+    }}>
       {children}
     </CartContext.Provider>
   );

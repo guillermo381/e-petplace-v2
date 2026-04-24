@@ -15,7 +15,9 @@ CONFIGURACIÓN REQUERIDA EN SUPABASE DASHBOARD:
 
 import React, { useState, useEffect, useRef } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
+import { useHistory, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useGuest } from '../context/GuestContext';
 import logoImg from '../assets/logo.jpg';
 
 const MAX_ATTEMPTS = 5;
@@ -163,6 +165,10 @@ const RecuperarView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
    LOGIN PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const Login: React.FC = () => {
+  const history  = useHistory();
+  const location = useLocation();
+  const { enterGuest } = useGuest();
+
   const [isLogin,       setIsLogin]       = useState(true);
   const [email,         setEmail]         = useState('');
   const [password,      setPassword]      = useState('');
@@ -175,6 +181,13 @@ const Login: React.FC = () => {
   const [showRecuperar, setShowRecuperar] = useState(false);
   const [showPwd,       setShowPwd]       = useState(false);
   const [showConf,      setShowConf]      = useState(false);
+
+  // Leer modo desde query param (?mode=login | ?mode=register)
+  useEffect(() => {
+    const mode = new URLSearchParams(location.search).get('mode');
+    if (mode === 'register') setIsLogin(false);
+    else if (mode === 'login') setIsLogin(true);
+  }, [location.search]);
 
   // Rate limiting
   const [attempts, setAttempts] = useState(0);
@@ -467,6 +480,29 @@ const Login: React.FC = () => {
                 </button>
               </form>
             </>
+          )}
+
+          {/* ── Continuar como invitado ─────────────────────── */}
+          {!showRecuperar && (
+            <div style={{ width: '100%', maxWidth: 360, marginTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
+                <span style={{ color: '#333', fontSize: 12 }}>o</span>
+                <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
+              </div>
+              <button
+                onClick={() => { enterGuest(); history.replace('/tienda'); }}
+                style={{
+                  width: '100%', padding: '14px 0', borderRadius: 12,
+                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  background: 'transparent',
+                  border: '1px solid #2a2a2a',
+                  color: '#666',
+                }}
+              >
+                Continuar como invitado
+              </button>
+            </div>
           )}
 
           {/* ── Dots decorativos ────────────────────────────── */}
