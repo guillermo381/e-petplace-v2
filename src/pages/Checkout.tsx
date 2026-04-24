@@ -1,20 +1,10 @@
 /*
--- SQL to run in Supabase SQL Editor:
-CREATE TABLE pedidos (
-  id           uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id      uuid REFERENCES auth.users(id),
-  items        jsonb,
-  total        numeric,
-  direccion    text,
-  ciudad       text,
-  metodo_pago  text,
-  numero_orden text,
-  estado       text DEFAULT 'confirmado',
-  created_at   timestamptz DEFAULT now()
-);
-ALTER TABLE pedidos ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own pedidos" ON pedidos
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+-- SQL para pedidos de invitados (ejecutar en Supabase SQL Editor si quieres persistirlos):
+ALTER TABLE pedidos ALTER COLUMN user_id DROP NOT NULL;
+CREATE POLICY "Guest pedidos insert" ON pedidos
+  FOR INSERT WITH CHECK (user_id IS NULL);
+-- Los pedidos de invitados no tienen RLS de lectura (solo el admin los ve).
+-- Por ahora los pedidos de invitados se confirman sin guardar en BD.
 */
 
 import React, { useState, useEffect } from 'react';
@@ -24,7 +14,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 
-interface Props { session: Session }
+interface Props { session: Session | null }
 
 type Step = 1 | 2 | 3 | 4;
 type MetodoPago = 'tarjeta' | 'transferencia' | 'efectivo';
@@ -114,6 +104,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [numOrden, setNumOrden] = useState('');
 
   useEffect(() => {
+    if (!session) return;
     supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) { setNombre(data.nombre ?? ''); setEmail(data.email ?? session.user.email ?? ''); }
@@ -121,7 +112,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
       });
   }, [session]);
 
-  // Formato número tarjeta
   const formatCard = (v: string) => {
     const digits = v.replace(/\D/g, '').slice(0, 16);
     return digits.replace(/(.{4})/g, '$1 ').trim();
@@ -130,25 +120,29 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const confirmarPago = async () => {
     setSaving(true);
     const orden = `EPP-${Math.floor(100000 + Math.random() * 900000)}`;
-    const { error } = await supabase.from('pedidos').insert({
-      user_id:     session.user.id,
-      items:       items,
-      total:       totalPrice,
-      direccion:   dir,
-      ciudad,
-      metodo_pago: metodo,
-      numero_orden: orden,
-      estado:      'confirmado',
-    });
+
+    if (session) {
+      await supabase.from('pedidos').insert({
+        user_id:      session.user.id,
+        items,
+        total:        totalPrice,
+        direccion:    dir,
+        ciudad,
+        metodo_pago:  metodo,
+        numero_orden: orden,
+        estado:       'confirmado',
+      });
+    }
+    // Para invitados: la orden se confirma localmente sin guardar en BD
+
     setSaving(false);
-    if (error) { console.error(error); }
     setNumOrden(orden);
     setStep(4);
   };
 
   const volverInicio = () => {
     clearCart();
-    history.push('/home');
+    history.push(session ? '/home' : '/tienda');
   };
 
   /* ── PASO 1: RESUMEN ────────────────────────────────────────── */
@@ -214,6 +208,21 @@ const Checkout: React.FC<Props> = ({ session }) => {
           </h2>
           <StepBar step={2} />
 
+          {/* Banner invitado con upsell */}
+          {!session && (
+            <div style={{
+              padding: '12px 16px', borderRadius: 14, marginBottom: 20,
+              background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.2)',
+            }}>
+              <p style={{ color: '#00E5FF', fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>
+                💡 Guarda tu historial de compras
+              </p>
+              <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
+                Crea tu cuenta gratis y accede a tus pedidos cuando quieras
+              </p>
+            </div>
+          )}
+
           <Field label="Nombre completo">
             <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" style={iStyle} />
           </Field>
@@ -256,7 +265,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
           </h2>
           <StepBar step={3} />
 
-          {/* Radio métodos */}
           {([
             { value: 'tarjeta',       label: '💳 Tarjeta de crédito/débito' },
             { value: 'transferencia', label: '📱 Transferencia bancaria' },
@@ -284,7 +292,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </div>
           ))}
 
-          {/* Campos tarjeta */}
           {metodo === 'tarjeta' && (
             <div style={{ marginTop: 20, background: '#111', borderRadius: 16, padding: 16,
               border: '1px solid #1e1e1e' }}>
@@ -368,7 +375,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
         <div style={{ padding: '52px 20px 48px', textAlign: 'center' }}>
           <StepBar step={4} />
 
-          {/* Círculo éxito */}
           <div style={{
             width: 100, height: 100, borderRadius: '50%', margin: '0 auto 24px',
             background: 'linear-gradient(135deg,#00F5A0,#00E5FF)',
@@ -383,7 +389,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
             Gracias por tu compra en e-PetPlace
           </p>
 
-          {/* Número de orden */}
           <div style={{ background: '#111', borderRadius: 14, padding: '12px 20px',
             border: '1px solid #1e1e1e', display: 'inline-block', marginBottom: 24 }}>
             <p style={{ color: '#555', fontSize: 11, fontWeight: 600,
@@ -395,7 +400,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </p>
           </div>
 
-          {/* Resumen */}
           <div style={{ background: '#111', borderRadius: 16, padding: 16,
             border: '1px solid #1e1e1e', textAlign: 'left', marginBottom: 16 }}>
             <p style={{ color: '#555', fontSize: 11, fontWeight: 600,
@@ -418,7 +422,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </div>
           </div>
 
-          {/* Dirección + tiempo */}
           {dir && (
             <div style={{ background: '#111', borderRadius: 14, padding: 14,
               border: '1px solid #1e1e1e', textAlign: 'left', marginBottom: 16 }}>
@@ -429,7 +432,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
           )}
 
           <div style={{ background: 'rgba(0,245,160,0.08)', borderRadius: 14, padding: 14,
-            border: '1px solid rgba(0,245,160,0.2)', marginBottom: 24 }}>
+            border: '1px solid rgba(0,245,160,0.2)', marginBottom: !session ? 12 : 24 }}>
             <p style={{ color: '#00F5A0', fontWeight: 700, fontSize: 14, margin: 0 }}>
               📦 Preparando tu pedido
             </p>
@@ -438,13 +441,33 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </p>
           </div>
 
+          {/* Upsell para invitados en confirmación */}
+          {!session && (
+            <div style={{ background: 'rgba(255,45,155,0.06)', borderRadius: 14, padding: 14,
+              border: '1px solid rgba(255,45,155,0.2)', marginBottom: 24, textAlign: 'left' }}>
+              <p style={{ color: '#FF7EB3', fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>
+                🐾 Crea tu cuenta gratis
+              </p>
+              <p style={{ color: '#555', fontSize: 12, margin: '0 0 10px' }}>
+                Guarda tus pedidos, gestiona tus mascotas y accede a beneficios exclusivos
+              </p>
+              <button
+                onClick={() => { clearCart(); history.replace('/'); }}
+                className="btn-brand"
+                style={{ padding: '10px 20px', borderRadius: 10, fontSize: 13 }}
+              >
+                Crear cuenta gratis
+              </button>
+            </div>
+          )}
+
           <button
             onClick={volverInicio}
             className="btn-brand"
             style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
               boxShadow: '0 0 30px rgba(0,229,255,0.2)' }}
           >
-            Volver al inicio
+            {session ? 'Volver al inicio' : 'Seguir comprando'}
           </button>
         </div>
       </IonContent>

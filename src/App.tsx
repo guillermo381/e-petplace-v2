@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Redirect, Route } from 'react-router-dom';
 import {
-  IonApp,
-  IonIcon,
-  IonLabel,
-  IonRouterOutlet,
-  IonTabBar,
-  IonTabButton,
-  IonTabs,
-  setupIonicReact,
+  IonApp, IonIcon, IonLabel, IonRouterOutlet,
+  IonTabBar, IonTabButton, IonTabs, setupIonicReact,
 } from '@ionic/react';
 import { IonReactRouter } from '@ionic/react-router';
 import { Session } from '@supabase/supabase-js';
@@ -18,8 +12,7 @@ import { supabase } from './lib/supabase';
 import { CartProvider, useCart } from './context/CartContext';
 import Login              from './pages/Login';
 import Home               from './pages/Home';
-import BioPet             from './pages/BioPet';
-import { BioPetNew, BioPetDetail } from './pages/BioPet';
+import BioPet, { BioPetNew, BioPetDetail } from './pages/BioPet';
 import Store              from './pages/Store';
 import Profile            from './pages/Profile';
 import Vet                from './pages/Vet';
@@ -86,60 +79,43 @@ const CartTabButton: React.FC = () => {
   );
 };
 
-/* ── Main app con sesión ─────────────────────────────────────── */
-const AuthedApp: React.FC<{ session: Session }> = ({ session }) => (
-  <IonReactRouter>
-    <IonTabs>
-      <IonRouterOutlet>
-        {/* Rutas principales */}
-        <Route exact path="/home"     render={() => <Home    session={session} />} />
-        <Route exact path="/mascotas" render={() => <BioPet  session={session} />} />
-        <Route exact path="/tienda"   render={() => <Store   session={session} />} />
-        <Route exact path="/perfil"   render={() => <Profile session={session} />} />
+/* ── Rutas autenticadas con tabs ─────────────────────────────── */
+const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
+  <IonTabs>
+    <IonRouterOutlet>
+      <Route exact path="/home"     render={() => <Home     session={session} />} />
+      <Route exact path="/mascotas" render={() => <BioPet   session={session} />} />
+      <Route exact path="/tienda"   render={() => <Store    session={session} />} />
+      <Route exact path="/perfil"   render={() => <Profile  session={session} />} />
+      <Route exact path="/carrito"  render={() => <Cart     session={session} />} />
+      <Route exact path="/checkout" render={() => <Checkout session={session} />} />
+      <Route exact path="/vet"      render={() => <Vet      session={session} />} />
+      <Route exact path="/adopcion" render={() => <Adopcion session={session} />} />
+      <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
+      <Route exact path="/biopet/:id" render={(props) => {
+        const id = props.match.params.id;
+        if (!id || id === 'new') return <BioPetNew session={session} />;
+        return <BioPetDetail session={session} petId={id} />;
+      }} />
+      <Route render={() => <Redirect to="/home" />} />
+    </IonRouterOutlet>
 
-        {/* Carrito y checkout */}
-        <Route exact path="/carrito"  render={() => <Cart />} />
-        <Route exact path="/checkout" render={() => <Checkout session={session} />} />
-
-        {/* Veterinarios */}
-        <Route exact path="/vet"      render={() => <Vet      session={session} />} />
-
-        {/* Adopción */}
-        <Route exact path="/adopcion" render={() => <Adopcion session={session} />} />
-
-        {/* Sub-páginas mascotas — /new debe ir primero y :id excluye "new" explícitamente */}
-        <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
-        <Route exact path="/biopet/:id" render={(props) => {
-          const id = props.match.params.id;
-          // Guard: IonRouterOutlet puede cachear ambas rutas simultáneamente
-          if (!id || id === 'new') return <BioPetNew session={session} />;
-          return <BioPetDetail session={session} petId={id} />;
-        }} />
-
-        <Route render={() => <Redirect to="/home" />} />
-      </IonRouterOutlet>
-
-      <IonTabBar slot="bottom">
-        <IonTabButton tab="home"     href="/home">
-          <IonIcon icon={homeOutline} />
-          <IonLabel>Inicio</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="mascotas" href="/mascotas">
-          <IonIcon icon={pawOutline} />
-          <IonLabel>Mascotas</IonLabel>
-        </IonTabButton>
-        <IonTabButton tab="tienda"   href="/tienda">
-          <IonIcon icon={bagHandleOutline} />
-          <IonLabel>Tienda</IonLabel>
-        </IonTabButton>
-        <CartTabButton />
-        <IonTabButton tab="perfil"   href="/perfil">
-          <IonIcon icon={personOutline} />
-          <IonLabel>Perfil</IonLabel>
-        </IonTabButton>
-      </IonTabBar>
-    </IonTabs>
-  </IonReactRouter>
+    <IonTabBar slot="bottom">
+      <IonTabButton tab="home"     href="/home">
+        <IonIcon icon={homeOutline} /><IonLabel>Inicio</IonLabel>
+      </IonTabButton>
+      <IonTabButton tab="mascotas" href="/mascotas">
+        <IonIcon icon={pawOutline} /><IonLabel>Mascotas</IonLabel>
+      </IonTabButton>
+      <IonTabButton tab="tienda"   href="/tienda">
+        <IonIcon icon={bagHandleOutline} /><IonLabel>Tienda</IonLabel>
+      </IonTabButton>
+      <CartTabButton />
+      <IonTabButton tab="perfil"   href="/perfil">
+        <IonIcon icon={personOutline} /><IonLabel>Perfil</IonLabel>
+      </IonTabButton>
+    </IonTabBar>
+  </IonTabs>
 );
 
 /* ── App ─────────────────────────────────────────────────────── */
@@ -148,43 +124,33 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Verify session against server on mount — catches expired tokens
     supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        // Token invalid or expired — force logout
-        supabase.auth.signOut();
-        setSession(null);
-      } else {
-        setSession(session);
-      }
+      if (error) { supabase.auth.signOut(); setSession(null); }
+      else setSession(session);
       setLoading(false);
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
-    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
   }, []);
 
   if (loading) return <Splash />;
 
-  if (!session) {
-    return (
-      <IonApp>
-        <IonReactRouter>
-          <IonRouterOutlet>
-            <Route exact path="/reset-password" render={() => <ResetPassword />} />
-            <Route render={() => <Login />} />
-          </IonRouterOutlet>
-        </IonReactRouter>
-      </IonApp>
-    );
-  }
-
   return (
     <IonApp>
       <CartProvider>
-        <AuthedApp session={session} />
+        <IonReactRouter>
+          {!session ? (
+            <IonRouterOutlet>
+              <Route exact path="/reset-password" render={() => <ResetPassword />} />
+              <Route exact path="/tienda"   render={() => <Store    session={null} />} />
+              <Route exact path="/carrito"  render={() => <Cart     session={null} />} />
+              <Route exact path="/checkout" render={() => <Checkout session={null} />} />
+              <Route render={() => <Login />} />
+            </IonRouterOutlet>
+          ) : (
+            <AuthedContent session={session} />
+          )}
+        </IonReactRouter>
       </CartProvider>
     </IonApp>
   );

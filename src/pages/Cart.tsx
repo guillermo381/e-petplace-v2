@@ -1,9 +1,12 @@
 import React from 'react';
 import { IonPage, IonContent } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
+import { Session } from '@supabase/supabase-js';
 import { useCart } from '../context/CartContext';
 
-const Cart: React.FC = () => {
+interface Props { session: Session | null }
+
+const Cart: React.FC<Props> = ({ session }) => {
   const history = useHistory();
   const { items, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
 
@@ -11,6 +14,31 @@ const Cart: React.FC = () => {
     <IonPage>
       <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
         <div style={{ paddingBottom: items.length ? 200 : 80 }}>
+
+          {/* ── BANNER INVITADO ─────────────────────────────────── */}
+          {!session && (
+            <div style={{
+              margin: '0 0 0 0',
+              padding: '12px 20px',
+              background: 'rgba(0,229,255,0.06)',
+              borderBottom: '1px solid rgba(0,229,255,0.15)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            }}>
+              <p style={{ color: '#00E5FF', fontSize: 12, margin: 0, fontWeight: 500 }}>
+                🔐 Inicia sesión para guardar tu carrito y ver historial de pedidos
+              </p>
+              <button
+                onClick={() => history.replace('/')}
+                style={{
+                  background: 'rgba(0,229,255,0.15)', border: '1px solid rgba(0,229,255,0.3)',
+                  borderRadius: 8, color: '#00E5FF', fontSize: 11, fontWeight: 700,
+                  padding: '5px 10px', cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                Entrar
+              </button>
+            </div>
+          )}
 
           {/* ── ZONA 1: HEADER ─────────────────────────────────── */}
           <div style={{
@@ -73,7 +101,6 @@ const Cart: React.FC = () => {
                   border: '1px solid #1e1e1e',
                 }}>
                   <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                    {/* Emoji */}
                     <div style={{
                       width: 52, height: 52, borderRadius: 14, flexShrink: 0,
                       background: 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)',
@@ -81,7 +108,6 @@ const Cart: React.FC = () => {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26,
                     }}>{item.imagen_emoji}</div>
 
-                    {/* Info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ color: '#fff', fontWeight: 700, fontSize: 14, margin: 0,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -92,7 +118,6 @@ const Cart: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Eliminar */}
                     <button
                       onClick={() => removeFromCart(item.producto_id)}
                       style={{ background: 'rgba(255,45,155,0.1)', border: '1px solid rgba(255,45,155,0.2)',
@@ -101,7 +126,6 @@ const Cart: React.FC = () => {
                     >🗑️</button>
                   </div>
 
-                  {/* Controles cantidad + subtotal */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 0,
                       background: '#1a1a1a', borderRadius: 12, overflow: 'hidden',
@@ -145,9 +169,9 @@ const Cart: React.FC = () => {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 12 }}>
-              <Row label="Subtotal"    value={`$${totalPrice.toFixed(2)}`} />
-              <Row label="Envío"       value="Gratis 🎉" valueColor="#00F5A0" />
-              <Row label="Descuento Prime" value="-$0.00" valueColor="#444" />
+              <Row label="Subtotal"        value={`$${totalPrice.toFixed(2)}`} />
+              <Row label="Envío"           value="Gratis 🎉" valueColor="#00F5A0" />
+              <Row label="Descuento Prime" value="-$0.00"    valueColor="#444" />
             </div>
 
             <div style={{ borderTop: '1px solid #222', paddingTop: 12, marginBottom: 16,

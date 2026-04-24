@@ -15,7 +15,7 @@ interface Producto {
   para_especie: string;
 }
 
-interface Props { session: Session }
+interface Props { session: Session | null }
 
 const CATEGORIAS = ['Todos', 'Alimento', 'Juguetes', 'Salud', 'Accesorios', 'Higiene'];
 const CAT_EMOJI: Record<string, string> = {
@@ -31,6 +31,8 @@ const Store: React.FC<Props> = ({ session }) => {
   const [busqueda,     setBusqueda]     = useState('');
   const [loading,      setLoading]      = useState(true);
   const [toast,        setToast]        = useState('');
+  const [pendingProduct, setPendingProduct] = useState<Producto | null>(null);
+  const [showGuestModal,  setShowGuestModal]  = useState(false);
 
   useEffect(() => {
     const fetch = async () => {
@@ -38,14 +40,16 @@ const Store: React.FC<Props> = ({ session }) => {
       const { data } = await supabase.from('productos').select('*').order('nombre');
       if (data) {
         setProductos(data as Producto[]);
-        const { data: mascs } = await supabase
-          .from('mascotas').select('especie').eq('user_id', session.user.id);
-        if (mascs && mascs.length > 0) {
-          const especies = mascs.map((m: { especie: string }) => m.especie);
-          const recs = (data as Producto[])
-            .filter(p => especies.includes(p.para_especie) || p.para_especie === 'todos')
-            .slice(0, 6);
-          setRecomendados(recs);
+        if (session) {
+          const { data: mascs } = await supabase
+            .from('mascotas').select('especie').eq('user_id', session.user.id);
+          if (mascs && mascs.length > 0) {
+            const especies = mascs.map((m: { especie: string }) => m.especie);
+            const recs = (data as Producto[])
+              .filter(p => especies.includes(p.para_especie) || p.para_especie === 'todos')
+              .slice(0, 6);
+            setRecomendados(recs);
+          }
         }
       }
       setLoading(false);
@@ -67,7 +71,7 @@ const Store: React.FC<Props> = ({ session }) => {
     return list;
   }, [productos, categoria, busqueda]);
 
-  const handleAdd = (p: Producto) => {
+  const doAddToCart = (p: Producto) => {
     addToCart({
       producto_id:  p.id,
       nombre:       p.nombre,
@@ -76,6 +80,26 @@ const Store: React.FC<Props> = ({ session }) => {
     });
     setToast(`¡${p.nombre} agregado al carrito! 🛒`);
     setTimeout(() => setToast(''), 2200);
+  };
+
+  const handleAdd = (p: Producto) => {
+    if (!session) {
+      setPendingProduct(p);
+      setShowGuestModal(true);
+    } else {
+      doAddToCart(p);
+    }
+  };
+
+  const handleGuestAdd = () => {
+    if (pendingProduct) doAddToCart(pendingProduct);
+    setShowGuestModal(false);
+    setPendingProduct(null);
+  };
+
+  const handleGuestLogin = () => {
+    setShowGuestModal(false);
+    history.replace('/');
   };
 
   const ProductCard = ({ p }: { p: Producto }) => (
@@ -117,7 +141,6 @@ const Store: React.FC<Props> = ({ session }) => {
               <h1 className="text-2xl font-extrabold text-white">Tienda</h1>
               <p className="text-gray-500 text-sm mt-1">{productos.length} productos disponibles</p>
             </div>
-            {/* Ícono carrito con badge */}
             <button
               onClick={() => history.push('/carrito')}
               style={{ position: 'relative', background: '#111', border: '1px solid #222',
@@ -179,8 +202,8 @@ const Store: React.FC<Props> = ({ session }) => {
             </div>
           </div>
 
-          {/* ── Recomendados IA ──────────────────────────────────── */}
-          {recomendados.length > 0 && categoria === 'Todos' && !busqueda && (
+          {/* ── Recomendados IA (solo usuarios logueados) ─────────── */}
+          {session && recomendados.length > 0 && categoria === 'Todos' && !busqueda && (
             <div className="mb-6">
               <div className="px-5 mb-3 flex items-center gap-2">
                 <h2 className="text-white font-semibold text-base">✨ Recomendado para ti</h2>
@@ -235,6 +258,78 @@ const Store: React.FC<Props> = ({ session }) => {
           </div>
         )}
       </IonContent>
+
+      {/* ── Modal invitado ────────────────────────────────────── */}
+      {showGuestModal && pendingProduct && (
+        <div
+          onClick={() => setShowGuestModal(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex', alignItems: 'flex-end',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', background: '#111',
+              borderRadius: '20px 20px 0 0',
+              padding: '20px 20px 44px',
+              border: '1px solid #222',
+            }}
+          >
+            {/* Handle */}
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#333', margin: '0 auto 20px' }} />
+
+            {/* Producto */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 12, flexShrink: 0,
+                background: 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)',
+                border: '1px solid #2a2a2a',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+              }}>
+                {CAT_EMOJI[pendingProduct.categoria] ?? '📦'}
+              </div>
+              <div>
+                <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, margin: 0 }}>
+                  {pendingProduct.nombre}
+                </p>
+                <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 14, margin: '2px 0 0' }}>
+                  ${pendingProduct.precio.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            <p style={{ color: '#aaa', fontSize: 14, margin: '0 0 20px', textAlign: 'center' }}>
+              Inicia sesión para guardar tu historial de compras y acceder a recomendaciones personalizadas
+            </p>
+
+            <button
+              onClick={handleGuestLogin}
+              className="btn-brand"
+              style={{ width: '100%', padding: '15px 0', borderRadius: 14, fontSize: 15, marginBottom: 10 }}
+            >
+              Iniciar sesión
+            </button>
+
+            <button
+              onClick={handleGuestAdd}
+              style={{
+                width: '100%', padding: '15px 0', borderRadius: 14, fontSize: 15,
+                background: 'transparent', border: '1px solid #333', color: '#aaa',
+                cursor: 'pointer', fontWeight: 600,
+              }}
+            >
+              Continuar como invitado
+            </button>
+
+            <p style={{ color: '#444', fontSize: 11, textAlign: 'center', margin: '12px 0 0' }}>
+              El carrito de invitado no se guarda entre sesiones
+            </p>
+          </div>
+        </div>
+      )}
     </IonPage>
   );
 };

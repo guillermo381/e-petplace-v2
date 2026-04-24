@@ -151,19 +151,37 @@ const Vet: React.FC<Props> = ({ session }) => {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from('citas').insert({
+
+    // PostgreSQL time requiere HH:MM:SS con padding
+    const [hh, mm] = horaSel.split(':');
+    const horaFmt = `${hh.padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
+
+    const payload = {
       user_id:            session.user.id,
       mascota_id:         mascotaSel,
       veterinario_nombre: vetModal.nombre,
       clinica:            vetModal.clinica,
-      fecha:              fechaSel,
-      hora:               horaSel,
+      fecha:              fechaSel,    // YYYY-MM-DD — ya correcto
+      hora:               horaFmt,    // HH:MM:SS
       motivo:             motivoSel,
       precio:             vetModal.precio,
       estado:             'pendiente',
-    });
+    };
+
+    console.log('[Vet] INSERT citas:', payload);
+
+    const { error } = await supabase.from('citas').insert(payload);
     setSaving(false);
-    if (error) { showToast('Error al agendar: ' + error.message); return; }
+
+    if (error) {
+      console.error('[Vet] INSERT citas error:', error);
+      const msg = error.code === '42501'
+        ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
+        : error.message;
+      showToast(`Error: ${msg}`);
+      return;
+    }
+
     setVetModal(null);
     await fetchData();
     setTab('citas');

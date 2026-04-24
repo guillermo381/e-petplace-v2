@@ -308,27 +308,49 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
       notas:            form.notas             || null,
     };
 
-    const { data: newPet, error } = await supabase
-      .from('mascotas').insert(payload).select().single();
+    console.log('[BioPet] INSERT mascotas:', payload);
 
-    if (error || !newPet) {
-      // Si falla por columna sexo inexistente, reintentar sin ella
-      if (error?.message?.includes('sexo')) {
-        delete payload.sexo;
-        const retry = await supabase.from('mascotas').insert(payload).select().single();
-        if (retry.error) { showToast('Error al guardar. Revisa la consola.'); setSaving(false); return; }
-        Object.assign(newPet ?? {}, retry.data);
+    let savedId: string | null = null;
+
+    const { data, error } = await supabase
+      .from('mascotas').insert(payload).select('id').single();
+
+    if (error) {
+      console.error('[BioPet] INSERT error:', error);
+      if (error.message?.includes('sexo')) {
+        // Columna sexo no existe aún — reintentar sin ella
+        const payloadSinSexo = { ...payload };
+        delete payloadSinSexo.sexo;
+        const retry = await supabase.from('mascotas').insert(payloadSinSexo).select('id').single();
+        if (retry.error) {
+          console.error('[BioPet] RETRY error:', retry.error);
+          const msg = retry.error.code === '42501'
+            ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
+            : retry.error.message;
+          showToast(`Error: ${msg}`);
+          setSaving(false); return;
+        }
+        savedId = retry.data?.id ?? null;
       } else {
-        showToast('Error al guardar. Intenta de nuevo.');
-        setSaving(false);
-        return;
+        const msg = error.code === '42501'
+          ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
+          : error.message;
+        showToast(`Error: ${msg}`);
+        setSaving(false); return;
       }
+    } else {
+      savedId = data?.id ?? null;
+    }
+
+    if (!savedId) {
+      showToast('Error: no se recibió ID de la mascota guardada');
+      setSaving(false); return;
     }
 
     // Subir foto si hay una seleccionada
-    if (photoFile && newPet?.id) {
-      const url = await uploadPetPhoto(photoFile, newPet.id);
-      if (url) await supabase.from('mascotas').update({ foto_url: url }).eq('id', newPet.id);
+    if (photoFile) {
+      const url = await uploadPetPhoto(photoFile, savedId);
+      if (url) await supabase.from('mascotas').update({ foto_url: url }).eq('id', savedId);
     }
 
     setSaving(false);

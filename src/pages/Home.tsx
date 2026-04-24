@@ -7,6 +7,7 @@ import {
   IonRefresher,
   IonRefresherContent,
   IonSkeletonText,
+  useIonViewWillEnter,
 } from '@ionic/react';
 import { RefresherEventDetail } from '@ionic/core';
 import { Session } from '@supabase/supabase-js';
@@ -140,6 +141,9 @@ const Home: React.FC<Props> = ({ session }) => {
   }, [session]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Recarga mascotas cada vez que el usuario navega de vuelta al Home
+  useIonViewWillEnter(() => { fetchAll(); });
 
   const onRefresh = async (e: CustomEvent<RefresherEventDetail>) => {
     await fetchAll();

@@ -21,6 +21,22 @@ import logoImg from '../assets/logo.jpg';
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECS = 30;
 
+/* ── Fortaleza de contraseña ─────────────────────────────────── */
+interface Strength { score: number; label: string; color: string }
+
+const getStrength = (pwd: string): Strength => {
+  if (pwd.length === 0) return { score: 0, label: '', color: '#333' };
+  let score = 0;
+  if (pwd.length >= 8)              score++;
+  if (pwd.length >= 12)             score++;
+  if (/[A-Z]/.test(pwd))           score++;
+  if (/[0-9]/.test(pwd))           score++;
+  if (/[^A-Za-z0-9]/.test(pwd))    score++;
+  if (score <= 1) return { score, label: 'Débil',  color: '#FF2D9B' };
+  if (score <= 3) return { score, label: 'Media',  color: '#FFE600' };
+  return            { score, label: 'Fuerte', color: '#00F5A0' };
+};
+
 /* ── Google SVG icon ─────────────────────────────────────────── */
 const GoogleIcon: React.FC = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
@@ -29,6 +45,47 @@ const GoogleIcon: React.FC = () => (
     <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
     <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
   </svg>
+);
+
+/* ── Campo contraseña con ojo toggle ─────────────────────────── */
+interface PwdFieldProps {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  show: boolean;
+  onToggle: () => void;
+  extra?: React.ReactNode;
+}
+
+const PwdField: React.FC<PwdFieldProps> = ({ label, value, onChange, placeholder, show, onToggle, extra }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
+      textTransform: 'uppercase', color: '#444' }}>{label}</label>
+    <div style={{ position: 'relative' }}>
+      <input
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{
+          width: '100%', boxSizing: 'border-box',
+          background: '#111', border: '1px solid #2a2a2a', borderRadius: 12,
+          padding: '14px 44px 14px 16px', color: '#fff', fontSize: 15, outline: 'none',
+          transition: 'border-color 0.2s, box-shadow 0.2s',
+        }}
+        onFocus={e => { e.currentTarget.style.borderColor = '#00E5FF'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,229,255,0.15)'; }}
+        onBlur={e  => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.boxShadow = 'none'; }}
+      />
+      <button type="button" onClick={onToggle} style={{
+        position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#555',
+      }}>
+        {show ? '🙈' : '👁️'}
+      </button>
+    </div>
+    {extra}
+  </div>
 );
 
 /* ════════════════════════════════════════════════════════════════
@@ -106,20 +163,25 @@ const RecuperarView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
    LOGIN PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const Login: React.FC = () => {
-  const [isLogin,      setIsLogin]      = useState(true);
-  const [email,        setEmail]        = useState('');
-  const [password,     setPassword]     = useState('');
-  const [nombre,       setNombre]       = useState('');
-  const [loading,      setLoading]      = useState(false);
-  const [googleLoading,setGoogleLoading]= useState(false);
-  const [error,        setError]        = useState('');
-  const [success,      setSuccess]      = useState('');
-  const [showRecuperar,setShowRecuperar]= useState(false);
+  const [isLogin,       setIsLogin]       = useState(true);
+  const [email,         setEmail]         = useState('');
+  const [password,      setPassword]      = useState('');
+  const [confirmPwd,    setConfirmPwd]    = useState('');
+  const [nombre,        setNombre]        = useState('');
+  const [loading,       setLoading]       = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error,         setError]         = useState('');
+  const [success,       setSuccess]       = useState('');
+  const [showRecuperar, setShowRecuperar] = useState(false);
+  const [showPwd,       setShowPwd]       = useState(false);
+  const [showConf,      setShowConf]      = useState(false);
 
   // Rate limiting
   const [attempts, setAttempts] = useState(0);
   const [lockout,  setLockout]  = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const strength = getStrength(password);
 
   useEffect(() => {
     if (lockout <= 0) return;
@@ -144,7 +206,6 @@ const Login: React.FC = () => {
       options: { redirectTo: window.location.origin + '/home' },
     });
     if (err) { setError('Error al conectar con Google'); setGoogleLoading(false); }
-    // Si no hay error, el browser redirige → no se llega aquí
   };
 
   /* ── Email/password ────────────────────────────────────────── */
@@ -166,6 +227,19 @@ const Login: React.FC = () => {
         }
       }
     } else {
+      if (password.length < 8) {
+        setError('La contraseña debe tener al menos 8 caracteres');
+        setLoading(false); return;
+      }
+      if (strength.score <= 1) {
+        setError('La contraseña es demasiado débil — agrega mayúsculas, números o símbolos');
+        setLoading(false); return;
+      }
+      if (password !== confirmPwd) {
+        setError('Las contraseñas no coinciden');
+        setLoading(false); return;
+      }
+
       const { data, error: err } = await supabase.auth.signUp({
         email, password,
         options: { data: { nombre: nombre || email.split('@')[0] } },
@@ -185,6 +259,7 @@ const Login: React.FC = () => {
 
   const switchMode = (login: boolean) => {
     setIsLogin(login); setError(''); setSuccess('');
+    setConfirmPwd(''); setShowPwd(false); setShowConf(false);
     if (!login) { setAttempts(0); setLockout(0); }
   };
 
@@ -213,7 +288,7 @@ const Login: React.FC = () => {
             <RecuperarView onBack={() => setShowRecuperar(false)} />
           ) : (
             <>
-              {/* ── Toggle ──────────────────────────────────── */}
+              {/* ── Toggle login/registro ────────────────────── */}
               <div style={{
                 width: '100%', maxWidth: 360, display: 'flex',
                 background: '#111', border: '1px solid #222',
@@ -264,9 +339,7 @@ const Login: React.FC = () => {
                 </button>
 
                 {/* ── Separador ─────────────────────────────── */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 0',
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 0' }}>
                   <div style={{ flex: 1, height: 1, background: '#222' }} />
                   <span style={{ color: '#444', fontSize: 12, fontWeight: 600 }}>o</span>
                   <div style={{ flex: 1, height: 1, background: '#222' }} />
@@ -286,24 +359,71 @@ const Login: React.FC = () => {
                 <InputField label="Email" type="email" value={email}
                   onChange={setEmail} placeholder="tu@email.com" required />
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <InputField label="Contraseña" type="password" value={password}
-                    onChange={setPassword} placeholder="••••••••" required minLength={6} />
-                  {/* ¿Olvidaste tu contraseña? */}
-                  {isLogin && (
-                    <button
-                      type="button"
-                      onClick={() => setShowRecuperar(true)}
-                      style={{
-                        alignSelf: 'flex-end', background: 'none', border: 'none',
-                        color: '#00E5FF', fontSize: 12, cursor: 'pointer',
-                        padding: '2px 0', fontWeight: 500,
-                      }}
-                    >
-                      ¿Olvidaste tu contraseña?
-                    </button>
-                  )}
-                </div>
+                {/* ── Contraseña con toggle ─────────────────── */}
+                <PwdField
+                  label="Contraseña"
+                  value={password}
+                  onChange={setPassword}
+                  placeholder={isLogin ? '••••••••' : 'Mínimo 8 caracteres'}
+                  show={showPwd}
+                  onToggle={() => setShowPwd(s => !s)}
+                  extra={
+                    !isLogin && password.length > 0 ? (
+                      <div>
+                        <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                          {[1,2,3,4,5].map(i => (
+                            <div key={i} style={{
+                              flex: 1, height: 3, borderRadius: 2,
+                              background: i <= strength.score ? strength.color : '#222',
+                              transition: 'background 0.2s',
+                            }} />
+                          ))}
+                        </div>
+                        <p style={{ color: strength.color, fontSize: 11, fontWeight: 600, margin: 0 }}>
+                          {strength.label}
+                        </p>
+                      </div>
+                    ) : undefined
+                  }
+                />
+
+                {/* ── Confirmar contraseña (solo registro) ──── */}
+                {!isLogin && (
+                  <PwdField
+                    label="Confirmar contraseña"
+                    value={confirmPwd}
+                    onChange={setConfirmPwd}
+                    placeholder="Repite la contraseña"
+                    show={showConf}
+                    onToggle={() => setShowConf(s => !s)}
+                    extra={
+                      confirmPwd.length > 0 ? (
+                        confirmPwd !== password ? (
+                          <p style={{ color: '#FF7EB3', fontSize: 11, margin: 0 }}>
+                            Las contraseñas no coinciden
+                          </p>
+                        ) : password.length >= 8 ? (
+                          <p style={{ color: '#00F5A0', fontSize: 11, margin: 0 }}>✓ Coinciden</p>
+                        ) : undefined
+                      ) : undefined
+                    }
+                  />
+                )}
+
+                {/* ¿Olvidaste tu contraseña? */}
+                {isLogin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRecuperar(true)}
+                    style={{
+                      alignSelf: 'flex-end', background: 'none', border: 'none',
+                      color: '#00E5FF', fontSize: 12, cursor: 'pointer',
+                      padding: '0', fontWeight: 500, marginTop: -6,
+                    }}
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
 
                 {/* Error */}
                 {error && (
@@ -364,7 +484,7 @@ const Login: React.FC = () => {
   );
 };
 
-/* ── Input field ─────────────────────────────────────────────── */
+/* ── Input field genérico ────────────────────────────────────── */
 interface InputFieldProps {
   label: string; type: string; value: string;
   onChange: (v: string) => void; placeholder?: string;
