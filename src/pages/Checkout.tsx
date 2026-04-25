@@ -132,12 +132,9 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const checkEmailYContinuar = async () => {
     setCheckingEmail(true);
     setLoginError('');
-    const { error } = await supabase.auth.signInWithPassword({
-      email: guestEmail.trim(),
-      password: '__email_check__',
-    });
+    const { data: existe } = await supabase.rpc('email_exists', { check_email: guestEmail.trim() });
     setCheckingEmail(false);
-    if (error?.message === 'Invalid login credentials') {
+    if (existe) {
       setEmailExiste(true);
     } else {
       setEmailExiste(false);
