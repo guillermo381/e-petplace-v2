@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { IonContent, IonPage, IonToggle } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
+import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 
@@ -21,6 +22,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [nombre,   setNombre]   = useState('');
   const [saving,   setSaving]   = useState(false);
   const { isDark, toggleTheme } = useTheme();
+  const history = useHistory();
 
   useEffect(() => {
     const fetch = async () => {
@@ -193,22 +195,25 @@ const Profile: React.FC<Props> = ({ session }) => {
               </div>
 
               {[
-                { icon: '🌟', label: 'e-PetPlace',  val: 'v1.0.0' },
-                { icon: '🔒', label: 'Privacidad',  val: '›' },
-                { icon: '📋', label: 'Términos',    val: '›' },
-                { icon: '💬', label: 'Soporte',     val: '›' },
+                { icon: '🌟', label: 'e-PetPlace',        val: 'v1.0.0',  ruta: null },
+                { icon: '🍪', label: 'Política de Cookies', val: '›',      ruta: '/cookies' },
+                { icon: '🔒', label: 'Política de Privacidad', val: '›',   ruta: '/privacidad' },
+                { icon: '📋', label: 'Términos de Uso',    val: '›',       ruta: '/terminos' },
+                { icon: '💬', label: 'Soporte',            val: '›',       ruta: null },
               ].map((item, i, arr) => (
                 <button
                   key={item.label}
+                  onClick={() => item.ruta && history.push(item.ruta)}
                   className="w-full flex items-center gap-3 px-4 py-4 text-left"
                   style={{
                     background:   'var(--bg-card)',
                     borderBottom: i < arr.length - 1 ? '1px solid var(--border-color)' : 'none',
+                    cursor:       item.ruta ? 'pointer' : 'default',
                   }}
                 >
                   <span className="text-lg">{item.icon}</span>
                   <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{item.label}</span>
-                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.val}</span>
+                  <span className="text-sm" style={{ color: item.ruta ? '#00E5FF' : 'var(--text-secondary)' }}>{item.val}</span>
                 </button>
               ))}
             </div>

@@ -19,6 +19,7 @@ import { useHistory, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useGuest } from '../context/GuestContext';
 import logoImg from '../assets/logo.png';
+import ConsentCheckbox from '../components/legal/ConsentCheckbox';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECS = 30;
@@ -181,6 +182,7 @@ const Login: React.FC = () => {
   const [showRecuperar, setShowRecuperar] = useState(false);
   const [showPwd,       setShowPwd]       = useState(false);
   const [showConf,      setShowConf]      = useState(false);
+  const [consentOk,     setConsentOk]     = useState(false);
 
   // Leer modo desde query param (?mode=login | ?mode=register)
   useEffect(() => {
@@ -235,6 +237,11 @@ const Login: React.FC = () => {
     if (isDisabled) return;
     setLoading(true); setError(''); setSuccess('');
 
+    if (!isLogin && !consentOk) {
+      setError('Debes aceptar los Términos de Uso y la Política de Privacidad para continuar.');
+      setLoading(false); return;
+    }
+
     if (isLogin) {
       const { data: loginData, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
@@ -272,6 +279,13 @@ const Login: React.FC = () => {
           id: data.user.id, email,
           nombre: nombre || email.split('@')[0],
         });
+        // Guardar consentimiento
+        await supabase.from('consentimientos').insert({
+          user_id: data.user.id,
+          tipo: 'registro',
+          aceptado: true,
+        });
+        localStorage.setItem('epetplace_consent', JSON.stringify({ accepted: true, date: new Date().toISOString() }));
         setSuccess('¡Cuenta creada! Revisa tu email para confirmar.');
       }
     }
@@ -281,6 +295,7 @@ const Login: React.FC = () => {
   const switchMode = (login: boolean) => {
     setIsLogin(login); setError(''); setSuccess('');
     setConfirmPwd(''); setShowPwd(false); setShowConf(false);
+    setConsentOk(false);
     if (!login) { setAttempts(0); setLockout(0); }
   };
 
@@ -474,8 +489,13 @@ const Login: React.FC = () => {
                   }}>{success}</div>
                 )}
 
+                {/* Consentimiento (solo registro) */}
+                {!isLogin && (
+                  <ConsentCheckbox checked={consentOk} onChange={setConsentOk} />
+                )}
+
                 {/* Submit */}
-                <button type="submit" disabled={isDisabled} className="btn-brand"
+                <button type="submit" disabled={isDisabled || (!isLogin && !consentOk)} className="btn-brand"
                   style={{
                     width: '100%', padding: '16px 0', borderRadius: 14,
                     fontSize: 16, marginTop: 2,

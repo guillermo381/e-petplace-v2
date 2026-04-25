@@ -29,6 +29,10 @@ import Cart              from './pages/Cart';
 import Checkout          from './pages/Checkout';
 import MisPedidos        from './pages/MisPedidos';
 import ResetPassword     from './pages/ResetPassword';
+import PrivacyPolicy     from './pages/legal/PrivacyPolicy';
+import TermsOfService    from './pages/legal/TermsOfService';
+import CookiesPolicy     from './pages/legal/CookiesPolicy';
+import ConsentBanner     from './components/legal/ConsentBanner';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -101,6 +105,9 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/vet"         render={() => <Vet        session={session} />} />
       <Route exact path="/adopcion"    render={() => <Adopcion   session={session} />} />
       <Route exact path="/mis-pedidos" render={() => <MisPedidos session={session} />} />
+      <Route exact path="/privacidad"  render={() => <PrivacyPolicy />} />
+      <Route exact path="/terminos"    render={() => <TermsOfService />} />
+      <Route exact path="/cookies"     render={() => <CookiesPolicy />} />
       <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
       <Route exact path="/biopet/:id" render={(props) => {
         const id = props.match.params.id;
@@ -157,8 +164,11 @@ const GuestContent: React.FC = () => (
         <Route exact path="/tienda"   render={() => <Store    session={null} />} />
         <Route exact path="/vet"      render={() => <Vet      session={null} />} />
         <Route exact path="/adopcion" render={() => <Adopcion session={null} />} />
-        <Route exact path="/carrito"  render={() => <Cart     session={null} />} />
-        <Route exact path="/checkout" render={() => <Checkout session={null} />} />
+        <Route exact path="/carrito"   render={() => <Cart     session={null} />} />
+        <Route exact path="/checkout"  render={() => <Checkout session={null} />} />
+        <Route exact path="/privacidad" render={() => <PrivacyPolicy />} />
+        <Route exact path="/terminos"   render={() => <TermsOfService />} />
+        <Route exact path="/cookies"    render={() => <CookiesPolicy />} />
         <Route render={() => <Redirect to="/tienda" />} />
       </IonRouterOutlet>
 
@@ -200,6 +210,9 @@ const AppContent: React.FC<{ session: Session | null }> = ({ session }) => {
       <Route exact path="/reset-password" render={() => <ResetPassword />} />
       <Route exact path="/welcome"        render={() => <Welcome />} />
       <Route exact path="/login"          render={() => <Login />} />
+      <Route exact path="/privacidad"     render={() => <PrivacyPolicy />} />
+      <Route exact path="/terminos"       render={() => <TermsOfService />} />
+      <Route exact path="/cookies"        render={() => <CookiesPolicy />} />
       <Route render={() => <Redirect to="/welcome" />} />
     </IonRouterOutlet>
   );
@@ -235,6 +248,7 @@ const AppInner: React.FC = () => {
         <AppContent session={session} />
         <GuestPromptBridge session={session} />
         <FloatingCart />
+        <ConsentBanner />
       </IonReactRouter>
     </IonApp>
   );
