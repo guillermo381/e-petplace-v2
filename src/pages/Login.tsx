@@ -234,10 +234,11 @@ const Login: React.FC = () => {
 
   /* ── Migrar pedidos y citas huérfanos al nuevo user_id ──────── */
   const migrarDatosHuerfanos = async (userId: string, userEmail: string): Promise<boolean> => {
+    const normalizedEmail = userEmail.toLowerCase().trim();
     const { data: pedidos } = await supabase
       .from('pedidos')
       .select('id')
-      .eq('guest_email', userEmail)
+      .eq('guest_email', normalizedEmail)
       .is('user_id', null);
 
     const hayPedidos = !!(pedidos && pedidos.length > 0);
@@ -246,14 +247,14 @@ const Login: React.FC = () => {
       await supabase
         .from('pedidos')
         .update({ user_id: userId })
-        .eq('guest_email', userEmail)
+        .eq('guest_email', normalizedEmail)
         .is('user_id', null);
     }
 
     await supabase
       .from('citas')
       .update({ user_id: userId })
-      .eq('guest_email', userEmail)
+      .eq('guest_email', normalizedEmail)
       .is('user_id', null);
 
     return hayPedidos;
@@ -322,14 +323,14 @@ const Login: React.FC = () => {
         const { data: pedidosHuerfanos, error: errorBusqueda } = await supabase
           .from('pedidos')
           .select('id, guest_email, user_id')
-          .eq('guest_email', freshUser?.email)
+          .eq('guest_email', freshUser?.email?.toLowerCase().trim())
           .is('user_id', null);
         console.log('Pedidos huérfanos encontrados:', pedidosHuerfanos, 'Error:', errorBusqueda);
 
         const { data: updateData, error: updateError } = await supabase
           .from('pedidos')
           .update({ user_id: freshUser?.id })
-          .eq('guest_email', freshUser?.email)
+          .eq('guest_email', freshUser?.email?.toLowerCase().trim())
           .is('user_id', null)
           .select();
         console.log('Resultado update:', updateData, 'Error update:', updateError);

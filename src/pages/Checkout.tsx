@@ -201,7 +201,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
       } else {
         await supabase.from('pedidos').insert({
           user_id:      null,
-          guest_email:  guestEmail.trim() || null,
+          guest_email:  guestEmail.toLowerCase().trim() || null,
           items:        itemsSnapshot,
           total:        totalSnapshot,
           direccion:    dir,
