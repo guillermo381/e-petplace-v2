@@ -7,7 +7,7 @@ CREATE POLICY "Guest pedidos insert" ON pedidos
 */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { IonPage, IonContent, IonLoading } from '@ionic/react';
+import { IonPage, IonContent, IonLoading, useIonViewWillEnter } from '@ionic/react';
 import { useHistory, Link } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -122,12 +122,17 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [termsError,     setTermsError]     = useState(false);
 
-  useEffect(() => {
-    orderSnapshotRef.current = null;
-    setPagoProcesado(false);
-    setSaving(false);
-    setStep(1);
-  }, []);
+  useIonViewWillEnter(() => {
+    if (items.length > 0) {
+      setStep(1);
+      setPagoProcesado(false);
+      setSaving(false);
+      orderSnapshotRef.current = null;
+      setGuestEmail(localStorage.getItem('guest_email_checkout') || '');
+    } else if (!orderSnapshotRef.current) {
+      history.replace('/tienda');
+    }
+  });
 
   useEffect(() => {
     if (!session) return;
@@ -241,7 +246,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
 
   const volverInicio = () => {
     clearCart();
-    history.push(session ? '/home' : '/tienda');
+    history.push('/tienda');
   };
 
   /* ── PASO 1: RESUMEN ────────────────────────────────────────── */
