@@ -8,7 +8,7 @@ ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS estado text DEFAULT 'confirmado';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { IonPage, IonContent, IonModal, IonLoading } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import { Session, RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -88,14 +88,23 @@ function esActivo(estado: string) {
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const MisPedidos: React.FC<Props> = ({ session }) => {
-  const history = useHistory();
-  const [pedidos,       setPedidos]       = useState<Pedido[]>([]);
-  const [loading,       setLoading]       = useState(true);
-  const [filtro,        setFiltro]        = useState<Filtro>('Todos');
+  const history  = useHistory();
+  const location = useLocation<{ pedidosMigrados?: boolean }>();
+  const [pedidos,        setPedidos]        = useState<Pedido[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [filtro,         setFiltro]         = useState<Filtro>('Todos');
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
-  const [toast,         setToast]         = useState('');
+  const [toast,          setToast]          = useState('');
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
+
+  /* Mostrar toast si llegamos desde migración de pedidos huérfanos */
+  useEffect(() => {
+    if (location.state?.pedidosMigrados) {
+      showToast('¡Bienvenido! Encontramos tu pedido anterior 🎉');
+      history.replace('/mis-pedidos', {});   // limpiar el state para no re-disparar
+    }
+  }, []);
 
   /* ── Fetch pedidos ─────────────────────────────────────────── */
   const fetchPedidos = useCallback(async () => {

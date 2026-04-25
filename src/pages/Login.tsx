@@ -231,6 +231,33 @@ const Login: React.FC = () => {
     if (err) { setError('Error al conectar con Google'); setGoogleLoading(false); }
   };
 
+  /* ── Migrar pedidos y citas huérfanos al nuevo user_id ──────── */
+  const migrarDatosHuerfanos = async (userId: string, userEmail: string): Promise<boolean> => {
+    const { data: pedidos } = await supabase
+      .from('pedidos')
+      .select('id')
+      .eq('guest_email', userEmail)
+      .is('user_id', null);
+
+    const hayPedidos = !!(pedidos && pedidos.length > 0);
+
+    if (hayPedidos) {
+      await supabase
+        .from('pedidos')
+        .update({ user_id: userId })
+        .eq('guest_email', userEmail)
+        .is('user_id', null);
+    }
+
+    await supabase
+      .from('citas')
+      .update({ user_id: userId })
+      .eq('guest_email', userEmail)
+      .is('user_id', null);
+
+    return hayPedidos;
+  };
+
   /* ── Email/password ────────────────────────────────────────── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +280,9 @@ const Login: React.FC = () => {
         } else {
           setError(`Email o contraseña incorrectos. (${next}/${MAX_ATTEMPTS} intentos)`);
         }
+      } else if (loginData.user) {
+        const hayPedidos = await migrarDatosHuerfanos(loginData.user.id, email.trim());
+        if (hayPedidos) history.replace('/mis-pedidos', { pedidosMigrados: true });
       }
     } else {
       if (password.length < 8) {
@@ -279,14 +309,17 @@ const Login: React.FC = () => {
           id: data.user.id, email,
           nombre: nombre || email.split('@')[0],
         });
-        // Guardar consentimiento
         await supabase.from('consentimientos').insert({
-          user_id: data.user.id,
-          tipo: 'registro',
-          aceptado: true,
+          user_id: data.user.id, tipo: 'registro', aceptado: true,
         });
         localStorage.setItem('epetplace_consent', JSON.stringify({ accepted: true, date: new Date().toISOString() }));
-        setSuccess('¡Cuenta creada! Revisa tu email para confirmar.');
+
+        const hayPedidos = await migrarDatosHuerfanos(data.user.id, email.trim());
+        if (hayPedidos) {
+          history.replace('/mis-pedidos', { pedidosMigrados: true });
+        } else {
+          setSuccess('¡Cuenta creada! Revisa tu email para confirmar.');
+        }
       }
     }
     setLoading(false);
