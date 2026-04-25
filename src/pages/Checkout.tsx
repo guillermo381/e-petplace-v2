@@ -6,12 +6,12 @@ CREATE POLICY "Guest pedidos insert" ON pedidos
   FOR INSERT WITH CHECK (user_id IS NULL);
 */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { IonPage, IonContent, IonLoading } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { useCart } from '../context/CartContext';
+import { useCart, CartItem } from '../context/CartContext';
 
 interface Props { session: Session | null }
 
@@ -93,7 +93,6 @@ const Checkout: React.FC<Props> = ({ session }) => {
 
   // Guest
   const [guestEmail,   setGuestEmail]   = useState('');
-  const [crearCuenta,  setCrearCuenta]  = useState(true);
 
   // Pago
   const [metodo,   setMetodo]   = useState<MetodoPago>('tarjeta');
@@ -105,7 +104,9 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [saveCard, setSaveCard] = useState(false);
 
   // Confirmación
-  const [numOrden, setNumOrden] = useState('');
+  const [pagoProcesado,   setPagoProcesado]  = useState(false);
+  const [payError,        setPayError]        = useState('');
+  const orderSnapshotRef = useRef<{ items: CartItem[]; total: number; numeroOrden: string } | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -122,67 +123,73 @@ const Checkout: React.FC<Props> = ({ session }) => {
   };
 
   const confirmarPago = async () => {
+    if (saving || pagoProcesado) return;
     setSaving(true);
-    const orden = `EPP-${Math.floor(100000 + Math.random() * 900000)}`;
 
-    if (session) {
-      await supabase.from('pedidos').insert({
-        user_id:      session.user.id,
-        items,
-        total:        totalPrice,
-        direccion:    dir,
-        ciudad,
-        metodo_pago:  metodo,
-        numero_orden: orden,
-        estado:       'confirmado',
-      });
-    } else {
-      // Crear cuenta si el usuario lo solicitó
-      if (crearCuenta && guestEmail) {
-        await supabase.auth.signUp({
-          email: guestEmail.trim(),
-          password: crypto.randomUUID(),
-        });
-        // Supabase envía email de confirmación; ignoramos error si ya existe
+    try {
+      // 1. Sesión real en este momento (una sola llamada para todo el proceso)
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const currentUserId = currentSession?.user?.id ?? null;
+
+      // 2. Snapshot del carrito ANTES de cualquier mutación
+      const itemsSnapshot = [...items];
+      const totalSnapshot = totalPrice;
+      const numeroOrden   = `EPP-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      // 3. Confirmar citas (solo usuarios autenticados pueden tener citas en el carrito)
+      if (currentUserId) {
+        const citaItems = itemsSnapshot.filter(i => i.tipo === 'cita');
+        for (const item of citaItems) {
+          const cita_id = item.metadata?.cita_id;
+          if (cita_id) {
+            const { error: updError } = await supabase.from('citas')
+              .update({ estado_reserva: 'confirmada', expira_en: null, estado: 'confirmada' })
+              .eq('id', cita_id)
+              .eq('user_id', currentUserId);
+            if (updError) console.error('Error actualizando cita:', updError);
+          }
+        }
       }
 
-      // Guardar pedido de invitado con guest_email
-      await supabase.from('pedidos').insert({
-        user_id:      null,
-        guest_email:  guestEmail.trim(),
-        items,
-        total:        totalPrice,
-        direccion:    dir,
-        ciudad,
-        metodo_pago:  metodo,
-        numero_orden: orden,
-        estado:       'confirmado',
-      });
-    }
+      // 4. Guardar pedido en Supabase
+      if (currentUserId) {
+        await supabase.from('pedidos').insert({
+          user_id:      currentUserId,
+          items:        itemsSnapshot,
+          total:        totalSnapshot,
+          direccion:    dir,
+          ciudad,
+          metodo_pago:  metodo,
+          numero_orden: numeroOrden,
+          estado:       'confirmado',
+        });
+      } else {
+        await supabase.from('pedidos').insert({
+          user_id:      null,
+          guest_email:  guestEmail.trim() || null,
+          items:        itemsSnapshot,
+          total:        totalSnapshot,
+          direccion:    dir,
+          ciudad,
+          metodo_pago:  metodo,
+          numero_orden: numeroOrden,
+          estado:       'confirmado',
+        });
+      }
 
-    // Confirmar citas: INSERT por cada item de tipo 'cita'
-    const citaItems = items.filter(i => i.tipo === 'cita');
-    for (const item of citaItems) {
-      const meta = item.metadata ?? {};
-      const [hh, mm] = (meta.hora ?? '').split(':');
-      const horaFmt = `${(hh ?? '00').padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
-      await supabase.from('citas').insert({
-        user_id:            session?.user.id ?? null,
-        guest_email:        session ? null : (guestEmail.trim() || null),
-        veterinario_nombre: meta.veterinario_nombre ?? '',
-        clinica:            meta.clinica ?? '',
-        fecha:              meta.fecha ?? '',
-        hora:               horaFmt,
-        motivo:             meta.motivo ?? '',
-        precio:             item.precio,
-        estado:             'confirmada',
-        mascota_id:         null,
-      });
-    }
+      // 5. Todo exitoso — marcar como procesado, limpiar y navegar
+      setPagoProcesado(true);
+      orderSnapshotRef.current = { items: itemsSnapshot, total: totalSnapshot, numeroOrden };
+      clearCart();
+      setSaving(false);
+      setStep(4);
 
-    setSaving(false);
-    setNumOrden(orden);
-    setStep(4);
+    } catch (err) {
+      console.error('Error al confirmar pago:', err);
+      setPayError('Ocurrió un error al procesar el pago. Intenta de nuevo.');
+      setSaving(false);
+      setPagoProcesado(false);
+    }
   };
 
   const volverInicio = () => {
@@ -284,31 +291,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
                   )}
                 </Field>
 
-                {/* Checkbox crear cuenta  */}
-                <div
-                  onClick={() => setCrearCuenta(s => !s)}
-                  style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10,
-                    cursor: 'pointer', marginTop: 4,
-                  }}
-                >
-                  <div style={{
-                    width: 18, height: 18, borderRadius: 5, flexShrink: 0, marginTop: 1,
-                    background: crearCuenta ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#222',
-                    border: crearCuenta ? 'none' : '1px solid #444',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 700, color: '#000',
-                  }}>{crearCuenta ? '✓' : ''}</div>
-                  <div>
-                    <p style={{ color: '#ccc', fontSize: 13, margin: 0, fontWeight: 600 }}>
-                      Crear cuenta gratis con este email
-                    </p>
-                    <p style={{ color: '#444', fontSize: 11, margin: '2px 0 0' }}>
-                      Recibirás un email para configurar tu contraseña
-                    </p>
-                  </div>
-                </div>
-                </div>
+</div>
               </div>
             )}
 
@@ -492,13 +475,25 @@ const Checkout: React.FC<Props> = ({ session }) => {
             </div>
           )}
 
+          {payError && (
+            <div style={{
+              margin: '16px 0 0', padding: '12px 16px', borderRadius: 12,
+              background: 'rgba(255,45,155,0.08)', border: '1px solid rgba(255,45,155,0.3)',
+              color: '#FF7EB3', fontSize: 13,
+            }}>
+              {payError}
+            </div>
+          )}
+
           <button
-            onClick={confirmarPago}
+            onClick={() => { setPayError(''); confirmarPago(); }}
+            disabled={saving}
             className="btn-brand"
-            style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16, marginTop: 24,
-              boxShadow: '0 0 30px rgba(0,229,255,0.2)' }}
+            style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16, marginTop: 16,
+              boxShadow: saving ? 'none' : '0 0 30px rgba(0,229,255,0.2)',
+              opacity: saving ? 0.6 : 1, cursor: saving ? 'not-allowed' : 'pointer' }}
           >
-            Pagar ${totalPrice.toFixed(2)}
+            {saving ? 'Procesando...' : `Pagar $${totalPrice.toFixed(2)}`}
           </button>
         </div>
         <IonLoading isOpen={saving} message="Procesando pago..." />
@@ -507,6 +502,13 @@ const Checkout: React.FC<Props> = ({ session }) => {
   );
 
   /* ── PASO 4: CONFIRMACIÓN ───────────────────────────────────── */
+  // Prevenir acceso directo al paso 4 sin haber completado el pago
+  if (step === 4 && !orderSnapshotRef.current) {
+    history.replace('/tienda');
+    return null;
+  }
+
+  const snap              = orderSnapshotRef.current!;
   const emailConfirmacion = session ? (session.user.email ?? email) : guestEmail;
 
   return (
@@ -537,7 +539,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
               Número de orden
             </p>
             <p style={{ color: '#00E5FF', fontWeight: 900, fontSize: 18, margin: 0 }}>
-              #{numOrden}
+              #{snap.numeroOrden}
             </p>
           </div>
 
@@ -563,7 +565,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
               textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 12px' }}>
               Tu pedido
             </p>
-            {items.map(item => (
+            {snap.items.map(item => (
               <div key={item.producto_id} style={{ display: 'flex', justifyContent: 'space-between',
                 marginBottom: 6 }}>
                 <span style={{ color: '#888', fontSize: 13 }}>{item.imagen_emoji} {item.nombre} x{item.cantidad}</span>
@@ -575,7 +577,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
             <div style={{ borderTop: '1px solid #222', paddingTop: 10, marginTop: 10,
               display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#fff', fontWeight: 700 }}>Total</span>
-              <span style={{ color: '#00E5FF', fontWeight: 900 }}>${totalPrice.toFixed(2)}</span>
+              <span style={{ color: '#00E5FF', fontWeight: 900 }}>${snap.total.toFixed(2)}</span>
             </div>
           </div>
 

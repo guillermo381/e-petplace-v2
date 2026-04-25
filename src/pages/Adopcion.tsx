@@ -82,6 +82,7 @@ const Adopcion: React.FC<Props> = ({ session }) => {
   const [formModal,    setFormModal]    = useState<PetAdopcion | null>(null);
   const [toast,        setToast]        = useState('');
   const [saving,       setSaving]       = useState(false);
+  const [authWall,     setAuthWall]     = useState(false);
 
   // Perfil pre-llenado
   const [nombreForm,   setNombreForm]   = useState('');
@@ -123,6 +124,7 @@ const Adopcion: React.FC<Props> = ({ session }) => {
 
   /* ── Abrir formulario ──────────────────────────────────────── */
   const abrirFormulario = (pet: PetAdopcion) => {
+    if (!session) { setAuthWall(true); return; }
     setFormModal(pet);
     setMotivoForm('');
     setAcuerdo(false);
@@ -558,6 +560,45 @@ const Adopcion: React.FC<Props> = ({ session }) => {
                 </button>
               </>
             )}
+          </div>
+        </IonModal>
+
+        {/* Auth wall para invitados que intentan adoptar */}
+        <IonModal
+          isOpen={authWall}
+          onDidDismiss={() => setAuthWall(false)}
+          breakpoints={[0, 0.45]}
+          initialBreakpoint={0.45}
+        >
+          <div style={{ background:'#0d0d0d', height:'100%', padding:'32px 24px 48px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+            <div style={{
+              width:64, height:64, borderRadius:'50%', marginBottom:16,
+              background:'linear-gradient(135deg,rgba(255,45,155,0.2),rgba(124,58,237,0.2))',
+              border:'1px solid rgba(255,45,155,0.3)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
+            }}>🐾</div>
+            <h3 style={{ color:'#fff', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
+              Necesitas una cuenta
+            </h3>
+            <p style={{ color:'#555', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
+              Para enviar una solicitud de adopción necesitamos verificar tu identidad y contactarte.
+            </p>
+            <button
+              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              className="btn-brand"
+              style={{ width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, marginBottom:12 }}
+            >
+              Crear cuenta gratis
+            </button>
+            <button
+              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              style={{
+                width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
+                background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',
+              }}
+            >
+              Ya tengo cuenta
+            </button>
           </div>
         </IonModal>
 

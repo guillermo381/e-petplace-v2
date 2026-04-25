@@ -15,15 +15,19 @@ CREATE TABLE citas (
 );
 ALTER TABLE citas ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users manage own citas" ON citas USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
--- Soporte para citas de invitados (ejecutar si aún no existe):
+-- Soporte para citas de invitados y reserva temporal:
 ALTER TABLE citas ADD COLUMN IF NOT EXISTS guest_email text;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS estado_reserva text DEFAULT 'confirmada';
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS expira_en timestamptz;
 CREATE POLICY "Guest citas insert" ON citas FOR INSERT WITH CHECK (user_id IS NULL);
+CREATE POLICY "Guest citas update" ON citas FOR UPDATE USING (user_id IS NULL);
 */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   IonPage, IonContent, IonModal, IonSegment, IonSegmentButton,
   IonLabel, IonSelect, IonSelectOption, IonTextarea, IonLoading,
+  IonAlert, IonToast,
 } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
@@ -41,6 +45,7 @@ interface Cita {
   id: string; veterinario_nombre: string; clinica: string;
   fecha: string; hora: string; motivo: string; precio: number;
   estado: string; mascota_id: string;
+  estado_reserva?: string; expira_en?: string;
 }
 interface Props { session: Session | null }
 
@@ -60,9 +65,11 @@ const MOTIVOS  = ['Consulta general', 'Vacunación', 'Control de peso', 'Síntom
 
 const ESTADO_COLOR: Record<string, string> = {
   pendiente:  '#FFE600',
-  confirmada: '#00E5FF',
-  completada: '#00F5A0',
-  cancelada:  '#555',
+  confirmada:      '#00E5FF',
+  completada:      '#00F5A0',
+  cancelada:       '#555',
+  pendiente_pago:  '#FFE600',
+  expirada:        '#444',
 };
 
 /* ── Helpers ─────────────────────────────────────────────────── */
@@ -77,6 +84,21 @@ function getProximos7Dias() {
     dias.push({ label, value });
   }
   return dias;
+}
+
+function formatearFechaInteligente(fecha: string): string {
+  const DIAS_ES   = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const MESES_ES  = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const hoy       = new Date(); hoy.setHours(0,0,0,0);
+  const manana    = new Date(hoy); manana.setDate(hoy.getDate() + 1);
+  const finSemana = new Date(hoy); finSemana.setDate(hoy.getDate() + 6);
+  // Parse as local date (avoid UTC shift)
+  const [y, m, d] = fecha.split('-').map(Number);
+  const target    = new Date(y, m - 1, d);
+  if (target.getTime() === hoy.getTime())    return 'hoy';
+  if (target.getTime() === manana.getTime()) return 'mañana';
+  if (target <= finSemana)                   return `este ${DIAS_ES[target.getDay()]}`;
+  return `${target.getDate()} de ${MESES_ES[target.getMonth()]}`;
 }
 
 /* ── Componentes pequeños ────────────────────────────────────── */
@@ -110,6 +132,12 @@ const Vet: React.FC<Props> = ({ session }) => {
   const [horaSel,      setHoraSel]      = useState('');
   const [motivoSel,    setMotivoSel]    = useState('');
   const [notas,        setNotas]        = useState('');
+  const [errores,      setErrores]      = useState<Record<string, string>>({});
+  const [shake,        setShake]        = useState(false);
+  const [alertaHoy,    setAlertaHoy]    = useState(false);
+  const [toastCita,    setToastCita]    = useState({ open: false, msg: '' });
+  const [ahora,        setAhora]        = useState(() => Date.now());
+  const [authWall,     setAuthWall]     = useState(false);
 
   const dias = getProximos7Dias();
 
@@ -131,6 +159,12 @@ const Vet: React.FC<Props> = ({ session }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // Actualizar ahora cada 60s para recalcular tiempo restante
+  useEffect(() => {
+    const id = setInterval(() => setAhora(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   /* ── Filtrado ──────────────────────────────────────────────── */
   const vetsFiltrados = VETS.filter(v => {
     const matchFiltro = filtro === 'Todos' || v.especialidades.includes(filtro);
@@ -142,23 +176,45 @@ const Vet: React.FC<Props> = ({ session }) => {
 
   /* ── Abrir modal ───────────────────────────────────────────── */
   const abrirModal = (vet: Vet) => {
+    if (!session) { setAuthWall(true); return; }
     setVetModal(vet);
     setMascotaSel(mascotas[0]?.id ?? '');
     setFechaSel(dias[0].value);
     setHoraSel('');
     setMotivoSel('');
     setNotas('');
+    setErrores({});
   };
 
-  /* ── Confirmar cita → agregar al carrito ──────────────────── */
-  const confirmarCita = () => {
-    if (!vetModal || !fechaSel || !horaSel || !motivoSel) {
-      showToast('Completa todos los campos requeridos');
-      return;
-    }
+  /* ── Ejecutar el add al carrito (tras validar y/o confirmar) ── */
+  const ejecutarAddCita = async () => {
+    if (!vetModal) return;
+
+    const expira_en = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+    const [hh, mm]  = horaSel.split(':');
+    const horaFmt   = `${(hh ?? '00').padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
+
+    // Solo usuarios autenticados llegan aquí (guests son bloqueados en abrirModal)
+    const { data: citaData } = await supabase
+      .from('citas')
+      .insert({
+        user_id:            session!.user.id,
+        veterinario_nombre: vetModal.nombre,
+        clinica:            vetModal.clinica,
+        fecha:              fechaSel,
+        hora:               horaFmt,
+        motivo:             motivoSel,
+        precio:             vetModal.precio,
+        estado:             'pendiente',
+        estado_reserva:     'pendiente_pago',
+        expira_en,
+      })
+      .select('id')
+      .single();
+    const cita_id = citaData?.id ?? '';
+    fetchData();
 
     const fechaLabel = dias.find(d => d.value === fechaSel)?.label ?? fechaSel;
-
     addToCart({
       producto_id:  `cita-${vetModal.id}-${Date.now()}`,
       nombre:       `Cita Veterinaria — ${vetModal.nombre}`,
@@ -172,11 +228,52 @@ const Vet: React.FC<Props> = ({ session }) => {
         fecha:              fechaSel,
         hora:               horaSel,
         motivo:             motivoSel,
+        ...(cita_id ? { cita_id } : {}),
       },
     });
 
+    const fechaInteligente = formatearFechaInteligente(fechaSel);
+    setToastCita({ open: true, msg: `🗓️ Cita agendada para ${fechaInteligente} a las ${horaSel} con ${vetModal.nombre}` });
     setVetModal(null);
-    showToast('¡Cita agregada al carrito! Procede al pago para confirmarla 🗓️');
+  };
+
+  /* ── Confirmar cita → validar → carrito ───────────────────── */
+  const confirmarCita = () => {
+    const nuevosErrores: Record<string, string> = {};
+    if (!fechaSel)  nuevosErrores.fecha  = 'Selecciona una fecha';
+    if (!horaSel)   nuevosErrores.hora   = 'Selecciona un horario';
+    if (!motivoSel) nuevosErrores.motivo = 'Selecciona el motivo de consulta';
+
+    // Validar hora pasada si la fecha es hoy
+    if (fechaSel && horaSel) {
+      const hoyStr = new Date().toISOString().split('T')[0];
+      if (fechaSel === hoyStr) {
+        const [hh, mm] = horaSel.split(':').map(Number);
+        const ahora     = new Date();
+        const citaMs    = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), hh, mm).getTime();
+        const limiteMs  = ahora.getTime() + 60 * 60 * 1000; // +1 hora
+        if (citaMs < limiteMs) {
+          nuevosErrores.hora = 'Este horario ya pasó, selecciona otro';
+        }
+      }
+    }
+
+    if (Object.keys(nuevosErrores).length > 0) {
+      setErrores(nuevosErrores);
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      return;
+    }
+    setErrores({});
+
+    // Si la fecha es hoy y la hora es válida → pedir confirmación
+    const hoyStr = new Date().toISOString().split('T')[0];
+    if (fechaSel === hoyStr) {
+      setAlertaHoy(true);
+      return;
+    }
+
+    ejecutarAddCita();
   };
 
   /* ── Cancelar cita ─────────────────────────────────────────── */
@@ -189,6 +286,16 @@ const Vet: React.FC<Props> = ({ session }) => {
   /* ── Render ────────────────────────────────────────────────── */
   return (
     <IonPage>
+      <style>{`
+        @keyframes vet-shake {
+          0%,100% { transform: translateX(0); }
+          20%      { transform: translateX(-6px); }
+          40%      { transform: translateX(6px); }
+          60%      { transform: translateX(-4px); }
+          80%      { transform: translateX(4px); }
+        }
+        .vet-shake { animation: vet-shake 0.45s ease; }
+      `}</style>
       <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
         <div style={{ paddingBottom: 80 }}>
 
@@ -337,7 +444,9 @@ const Vet: React.FC<Props> = ({ session }) => {
 
             /* ── ZONA 5: MIS CITAS ──────────────────────────────── */
             <div style={{ padding:'0 20px' }}>
-              {citas.length === 0 ? (
+              {!session ? (
+                <AuthWallInline onLogin={() => history.push('/login')} />
+              ) : citas.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0', color:'#444' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>📅</div>
                   <p style={{ fontWeight:600, fontSize:16 }}>Sin citas agendadas</p>
@@ -351,13 +460,32 @@ const Vet: React.FC<Props> = ({ session }) => {
                 <div style={{ display:'flex', flexDirection:'column', gap:12, marginTop:20 }}>
                   {citas.map(cita => {
                     const mascota = mascotas.find(m => m.id === cita.mascota_id);
+
+                    // Calcular estado efectivo y tiempo restante
+                    const minRestantes = cita.expira_en
+                      ? Math.floor((new Date(cita.expira_en).getTime() - ahora) / 60_000)
+                      : null;
+                    const efectivoReserva =
+                      cita.estado_reserva === 'pendiente_pago' && minRestantes !== null && minRestantes <= 0
+                        ? 'expirada'
+                        : (cita.estado_reserva ?? cita.estado);
+
+                    const badgeCfg: Record<string, { color: string; label: string }> = {
+                      pendiente_pago: { color: '#FFE600', label: '⏳ Pendiente de pago' },
+                      confirmada:     { color: '#00F5A0', label: '✅ Confirmada' },
+                      expirada:       { color: '#555',    label: '❌ Expirada' },
+                      completada:     { color: '#00E5FF', label: '✓ Completada' },
+                      cancelada:      { color: '#444',    label: 'Cancelada' },
+                    };
+                    const badge = badgeCfg[efectivoReserva] ?? { color: '#888', label: efectivoReserva };
+
                     return (
                       <div key={cita.id} style={{
                         background:'#111', borderRadius:16, padding:16,
-                        border:`1px solid ${ESTADO_COLOR[cita.estado] ?? '#222'}22`,
+                        border:`1px solid ${badge.color}22`,
                       }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                          <div>
+                          <div style={{ flex:1, minWidth:0 }}>
                             <p style={{ color:'#fff', fontWeight:700, fontSize:15, margin:0 }}>
                               {cita.veterinario_nombre}
                             </p>
@@ -373,16 +501,40 @@ const Vet: React.FC<Props> = ({ session }) => {
                             <p style={{ color:'#666', fontSize:12, margin:'2px 0 0' }}>
                               {cita.motivo} · ${cita.precio}
                             </p>
+
+                            {/* Tiempo restante para pendiente_pago */}
+                            {efectivoReserva === 'pendiente_pago' && minRestantes !== null && minRestantes > 0 && (
+                              <p style={{
+                                fontSize:11, fontWeight:600, margin:'6px 0 0',
+                                color: minRestantes < 10 ? '#FF453A' : '#888',
+                              }}>
+                                🕐 Expira en {minRestantes} {minRestantes === 1 ? 'minuto' : 'minutos'}
+                              </p>
+                            )}
                           </div>
-                          <div style={{ textAlign:'right' }}>
+
+                          <div style={{ textAlign:'right', flexShrink:0, marginLeft:12 }}>
                             <span style={{
                               fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:20,
-                              background: `${ESTADO_COLOR[cita.estado]}18`,
-                              color: ESTADO_COLOR[cita.estado] ?? '#888',
+                              background: `${badge.color}18`, color: badge.color,
+                              whiteSpace:'nowrap',
                             }}>
-                              {cita.estado.charAt(0).toUpperCase() + cita.estado.slice(1)}
+                              {badge.label}
                             </span>
-                            {cita.estado === 'pendiente' && (
+
+                            {efectivoReserva === 'pendiente_pago' && (
+                              <button
+                                onClick={() => history.push('/carrito')}
+                                style={{
+                                  display:'block', marginTop:8, marginLeft:'auto',
+                                  background:'rgba(255,230,0,0.12)', border:'1px solid rgba(255,230,0,0.3)',
+                                  borderRadius:8, color:'#FFE600', fontSize:12, fontWeight:700,
+                                  padding:'5px 12px', cursor:'pointer', whiteSpace:'nowrap',
+                                }}
+                              >Pagar ahora →</button>
+                            )}
+
+                            {cita.estado === 'pendiente' && !cita.estado_reserva && (
                               <button
                                 onClick={() => cancelarCita(cita.id)}
                                 style={{
@@ -451,9 +603,10 @@ const Vet: React.FC<Props> = ({ session }) => {
                 <ModalSection title="Selecciona fecha">
                   <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4 }} className="no-scrollbar">
                     {dias.map(d => (
-                      <button key={d.value} onClick={() => setFechaSel(d.value)} style={{
+                      <button key={d.value} onClick={() => { setFechaSel(d.value); setErrores(e => ({ ...e, fecha: '' })); }} style={{
                         flexShrink:0, padding:'10px 14px', borderRadius:12,
-                        fontSize:13, fontWeight:600, cursor:'pointer', border:'none',
+                        fontSize:13, fontWeight:600, cursor:'pointer',
+                        border: errores.fecha ? '1px solid rgba(255,69,58,0.5)' : 'none',
                         background: fechaSel === d.value
                           ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
                           : '#1a1a1a',
@@ -461,15 +614,19 @@ const Vet: React.FC<Props> = ({ session }) => {
                       }}>{d.label}</button>
                     ))}
                   </div>
+                  {errores.fecha && (
+                    <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.fecha}</p>
+                  )}
                 </ModalSection>
 
                 {/* Hora */}
                 <ModalSection title="Selecciona hora">
                   <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                     {HORARIOS.map(h => (
-                      <button key={h} onClick={() => setHoraSel(h)} style={{
+                      <button key={h} onClick={() => { setHoraSel(h); setErrores(e => ({ ...e, hora: '' })); }} style={{
                         padding:'10px 16px', borderRadius:12, fontSize:13, fontWeight:600,
-                        cursor:'pointer', border:'none',
+                        cursor:'pointer',
+                        border: errores.hora ? '1px solid rgba(255,69,58,0.5)' : 'none',
                         background: horaSel === h
                           ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
                           : '#1a1a1a',
@@ -477,18 +634,22 @@ const Vet: React.FC<Props> = ({ session }) => {
                       }}>{h}</button>
                     ))}
                   </div>
+                  {errores.hora && (
+                    <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.hora}</p>
+                  )}
                 </ModalSection>
 
                 {/* Motivo */}
                 <ModalSection title="Motivo de consulta">
                   <div style={{
-                    background:'#111', border:'1px solid #222', borderRadius:12,
-                    overflow:'hidden',
+                    background:'#111',
+                    border: errores.motivo ? '1px solid rgba(255,69,58,0.5)' : '1px solid #222',
+                    borderRadius:12, overflow:'hidden',
                   }}>
                     <IonSelect
                       value={motivoSel}
                       placeholder="Seleccionar motivo..."
-                      onIonChange={e => setMotivoSel(e.detail.value)}
+                      onIonChange={e => { setMotivoSel(e.detail.value); setErrores(err => ({ ...err, motivo: '' })); }}
                       style={{ '--color':'#fff', '--placeholder-color':'#555', padding:'4px 0' } as React.CSSProperties}
                     >
                       {MOTIVOS.map(m => (
@@ -496,6 +657,9 @@ const Vet: React.FC<Props> = ({ session }) => {
                       ))}
                     </IonSelect>
                   </div>
+                  {errores.motivo && (
+                    <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.motivo}</p>
+                  )}
                 </ModalSection>
 
                 {/* Notas */}
@@ -514,7 +678,7 @@ const Vet: React.FC<Props> = ({ session }) => {
                 {/* Confirmar */}
                 <button
                   onClick={confirmarCita}
-                  className="btn-brand"
+                  className={`btn-brand${shake ? ' vet-shake' : ''}`}
                   disabled={saving}
                   style={{
                     width:'100%', marginTop:24, padding:'16px 0',
@@ -532,10 +696,93 @@ const Vet: React.FC<Props> = ({ session }) => {
         <IonLoading isOpen={saving} message="Agendando cita..." />
 
         {toast && <Toast msg={toast} />}
+
+        {/* Auth wall para invitados que intentan agendar */}
+        <IonModal
+          isOpen={authWall}
+          onDidDismiss={() => setAuthWall(false)}
+          breakpoints={[0, 0.45]}
+          initialBreakpoint={0.45}
+        >
+          <div style={{ background:'#0d0d0d', height:'100%', padding:'32px 24px 48px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+            <div style={{
+              width:64, height:64, borderRadius:'50%', marginBottom:16,
+              background:'linear-gradient(135deg,rgba(255,45,155,0.2),rgba(0,229,255,0.2))',
+              border:'1px solid rgba(0,229,255,0.3)',
+              display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
+            }}>🔐</div>
+            <h3 style={{ color:'#fff', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
+              Necesitas una cuenta
+            </h3>
+            <p style={{ color:'#555', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
+              Las citas veterinarias requieren una cuenta para gestionar tu historial y recibir recordatorios.
+            </p>
+            <button
+              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              className="btn-brand"
+              style={{ width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, marginBottom:12 }}
+            >
+              Crear cuenta gratis
+            </button>
+            <button
+              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              style={{
+                width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
+                background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',
+              }}
+            >
+              Ya tengo cuenta
+            </button>
+          </div>
+        </IonModal>
+
+        {/* Alerta confirmación cita de hoy */}
+        <IonAlert
+          isOpen={alertaHoy}
+          onDidDismiss={() => setAlertaHoy(false)}
+          header="Cita para hoy"
+          message={vetModal ? `Estás agendando una cita para HOY a las ${horaSel} con ${vetModal.nombre}. ¿Confirmas?` : ''}
+          buttons={[
+            { text: 'Cancelar', role: 'cancel' },
+            { text: 'Sí, confirmar', handler: () => { ejecutarAddCita(); } },
+          ]}
+        />
+
+        {/* Toast inteligente de cita agregada */}
+        <IonToast
+          isOpen={toastCita.open}
+          onDidDismiss={() => setToastCita({ open: false, msg: '' })}
+          message={toastCita.msg}
+          duration={4000}
+          position="top"
+          color="success"
+        />
       </IonContent>
     </IonPage>
   );
 };
+
+/* ── Auth wall inline (tab Mis Citas para invitados) ─────────── */
+const AuthWallInline: React.FC<{ onLogin: () => void }> = ({ onLogin }) => (
+  <div style={{ textAlign:'center', padding:'60px 20px', display:'flex', flexDirection:'column', alignItems:'center' }}>
+    <div style={{
+      width:72, height:72, borderRadius:'50%', marginBottom:20,
+      background:'linear-gradient(135deg,rgba(255,45,155,0.15),rgba(0,229,255,0.15))',
+      border:'1px solid rgba(0,229,255,0.25)',
+      display:'flex', alignItems:'center', justifyContent:'center', fontSize:32,
+    }}>🔐</div>
+    <p style={{ color:'#fff', fontWeight:700, fontSize:17, margin:'0 0 8px' }}>
+      Crea una cuenta para ver tus citas
+    </p>
+    <p style={{ color:'#555', fontSize:13, margin:'0 0 28px', lineHeight:1.5, maxWidth:260 }}>
+      Con tu cuenta puedes gestionar citas, recibir recordatorios y ver el historial veterinario de tus mascotas.
+    </p>
+    <button onClick={onLogin} className="btn-brand"
+      style={{ padding:'13px 32px', borderRadius:12, fontSize:14 }}>
+      Crear cuenta gratis
+    </button>
+  </div>
+);
 
 /* ── Sección del modal ───────────────────────────────────────── */
 const ModalSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (

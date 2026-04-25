@@ -228,7 +228,7 @@ const Login: React.FC = () => {
     setLoading(true); setError(''); setSuccess('');
 
     if (isLogin) {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: loginData, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
         const next = attempts + 1;
         setAttempts(next);
