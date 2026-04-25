@@ -31,6 +31,7 @@ import {
 } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 
@@ -115,7 +116,8 @@ const Toast: React.FC<{ msg: string }> = ({ msg }) => (
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const Vet: React.FC<Props> = ({ session }) => {
-  const history  = useHistory();
+  const history   = useHistory();
+  const router    = useIonRouter();
   const { addToCart } = useCart();
   const [filtro,       setFiltro]       = useState('Todos');
   const [busqueda,     setBusqueda]     = useState('');
@@ -445,7 +447,7 @@ const Vet: React.FC<Props> = ({ session }) => {
             /* ── ZONA 5: MIS CITAS ──────────────────────────────── */
             <div style={{ padding:'0 20px' }}>
               {!session ? (
-                <AuthWallInline onLogin={() => history.push('/login')} />
+                <AuthWallInline onLogin={() => router.push('/login?mode=register')} />
               ) : citas.length === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0', color:'#444' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>📅</div>
@@ -718,14 +720,14 @@ const Vet: React.FC<Props> = ({ session }) => {
               Las citas veterinarias requieren una cuenta para gestionar tu historial y recibir recordatorios.
             </p>
             <button
-              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              onClick={() => { setAuthWall(false); router.push('/login?mode=register'); }}
               className="btn-brand"
               style={{ width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, marginBottom:12 }}
             >
               Crear cuenta gratis
             </button>
             <button
-              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              onClick={() => { setAuthWall(false); router.push('/login?mode=login'); }}
               style={{
                 width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
                 background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',

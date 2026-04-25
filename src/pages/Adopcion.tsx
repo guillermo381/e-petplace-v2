@@ -25,6 +25,7 @@ import {
 } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
+import { useIonRouter } from '@ionic/react';
 import { supabase } from '../lib/supabase';
 
 /* ── Tipos ───────────────────────────────────────────────────── */
@@ -77,6 +78,7 @@ const Chip: React.FC<{ label: string; color?: string }> = ({ label, color = '#33
 ════════════════════════════════════════════════════════════════ */
 const Adopcion: React.FC<Props> = ({ session }) => {
   const history = useHistory();
+  const router  = useIonRouter();
   const [filtro,       setFiltro]       = useState('Todos');
   const [petModal,     setPetModal]     = useState<PetAdopcion | null>(null);
   const [formModal,    setFormModal]    = useState<PetAdopcion | null>(null);
@@ -584,14 +586,14 @@ const Adopcion: React.FC<Props> = ({ session }) => {
               Para enviar una solicitud de adopción necesitamos verificar tu identidad y contactarte.
             </p>
             <button
-              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              onClick={() => { setAuthWall(false); router.push('/login?mode=register'); }}
               className="btn-brand"
               style={{ width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, marginBottom:12 }}
             >
               Crear cuenta gratis
             </button>
             <button
-              onClick={() => { setAuthWall(false); history.push('/login'); }}
+              onClick={() => { setAuthWall(false); router.push('/login?mode=login'); }}
               style={{
                 width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
                 background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',
