@@ -314,6 +314,26 @@ const Login: React.FC = () => {
         });
         localStorage.setItem('epetplace_consent', JSON.stringify({ accepted: true, date: new Date().toISOString() }));
 
+        // ── DEBUG migración pedidos huérfanos ─────────────────────
+        const { data: { user: freshUser } } = await supabase.auth.getUser();
+        console.log('Usuario recién creado:', freshUser?.id, freshUser?.email);
+
+        const { data: pedidosHuerfanos, error: errorBusqueda } = await supabase
+          .from('pedidos')
+          .select('id, guest_email, user_id')
+          .eq('guest_email', freshUser?.email)
+          .is('user_id', null);
+        console.log('Pedidos huérfanos encontrados:', pedidosHuerfanos, 'Error:', errorBusqueda);
+
+        const { data: updateData, error: updateError } = await supabase
+          .from('pedidos')
+          .update({ user_id: freshUser?.id })
+          .eq('guest_email', freshUser?.email)
+          .is('user_id', null)
+          .select();
+        console.log('Resultado update:', updateData, 'Error update:', updateError);
+        // ── FIN DEBUG ─────────────────────────────────────────────
+
         const hayPedidos = await migrarDatosHuerfanos(data.user.id, email.trim());
         if (hayPedidos) {
           history.replace('/mis-pedidos', { pedidosMigrados: true });
