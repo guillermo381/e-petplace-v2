@@ -111,11 +111,11 @@ const Store: React.FC<Props> = ({ session }) => {
   };
 
   const ProductCard = ({ p }: { p: Producto }) => (
-    <div className="rounded-2xl overflow-hidden" style={{ background: '#141414', border: '1px solid #1e1e1e' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
       {p.imagen_url ? (
         <img src={p.imagen_url} alt={p.nombre} className="w-full h-32 object-cover" />
       ) : (
-        <div className="w-full h-32 flex items-center justify-center text-4xl" style={{ background: '#1a1a1a' }}>
+        <div className="w-full h-32 flex items-center justify-center text-4xl" style={{ background: 'var(--bg-secondary)' }}>
           {CAT_EMOJI[p.categoria] ?? '📦'}
         </div>
       )}
@@ -141,7 +141,7 @@ const Store: React.FC<Props> = ({ session }) => {
   return (
     <IonPage>
       <IonContent fullscreen>
-        <div className="pb-28" style={{ background: '#0a0a0a', minHeight: '100vh' }}>
+        <div className="pb-28" style={{ background: 'var(--bg-primary)', minHeight: '100vh' }}>
 
           {/* ── Header ──────────────────────────────────────────── */}
           <div className="px-5 pt-14 pb-4" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
@@ -151,7 +151,7 @@ const Store: React.FC<Props> = ({ session }) => {
             </div>
             <button
               onClick={() => history.push('/carrito')}
-              style={{ position: 'relative', background: '#111', border: '1px solid #222',
+              style={{ position: 'relative', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
                 borderRadius: 12, width: 42, height: 42, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 20, marginTop: 4, flexShrink: 0 }}
@@ -172,7 +172,7 @@ const Store: React.FC<Props> = ({ session }) => {
           {/* ── Buscador ─────────────────────────────────────────── */}
           <div className="px-5 mb-4">
             <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl"
-              style={{ background: '#141414', border: '1px solid #2a2a2a' }}>
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
               <span className="text-gray-500 flex-shrink-0">🔍</span>
               <input
                 type="text"
@@ -197,9 +197,9 @@ const Store: React.FC<Props> = ({ session }) => {
                   <button key={cat} onClick={() => setCategoria(cat)}
                     className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
                     style={{
-                      background: active ? 'linear-gradient(135deg, #FF2D9B, #00E5FF)' : '#141414',
-                      color:      active ? '#000' : '#666',
-                      border:     `1px solid ${active ? 'transparent' : '#1e1e1e'}`,
+                      background: active ? 'linear-gradient(135deg, #FF2D9B, #00E5FF)' : 'var(--bg-card)',
+                      color:      active ? '#000' : 'var(--text-secondary)',
+                      border:     `1px solid ${active ? 'transparent' : 'var(--border-color)'}`,
                       boxShadow:  active ? '0 0 16px rgba(0,229,255,0.25)' : 'none',
                     }}>
                     <span>{CAT_EMOJI[cat]}</span>
@@ -322,10 +322,10 @@ const Store: React.FC<Props> = ({ session }) => {
           <div
             onClick={e => e.stopPropagation()}
             style={{
-              width: '100%', background: '#111',
+              width: '100%', background: 'var(--bg-secondary)',
               borderRadius: '20px 20px 0 0',
               padding: '20px 20px 44px',
-              border: '1px solid #222',
+              border: '1px solid var(--border-color)',
             }}
           >
             {/* Handle */}

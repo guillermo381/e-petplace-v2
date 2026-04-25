@@ -82,7 +82,7 @@ const FloatingCart: React.FC = () => {
           height: 20,
           borderRadius: 10,
           background: '#FF2D9B',
-          border: '2px solid #000',
+          border: '2px solid var(--bg-primary)',
           color: '#fff',
           fontSize: 10,
           fontWeight: 900,

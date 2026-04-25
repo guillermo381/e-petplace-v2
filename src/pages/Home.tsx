@@ -181,7 +181,7 @@ const Home: React.FC<Props> = ({ session }) => {
           <IonRefresherContent />
         </IonRefresher>
 
-        <div style={{ background:'#000', minHeight:'100vh', paddingBottom:100 }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', paddingBottom:100 }}>
 
           {/* ════════════════════════════════════════════════════════
               ZONA 1 – HEADER
@@ -234,7 +234,7 @@ const Home: React.FC<Props> = ({ session }) => {
             ) : mascotas.length === 0 ? (
               <button onClick={() => history.push('/biopet/new')} style={{
                 width:'100%', padding:'28px 0', borderRadius:18,
-                background:'#0d0d0d', border:'2px dashed #252525',
+                background:'var(--bg-secondary)', border:'2px dashed var(--border-color)',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:10, cursor:'pointer',
               }}>
                 <span style={{ fontSize:38 }}>🐾</span>
@@ -258,7 +258,7 @@ const Home: React.FC<Props> = ({ session }) => {
                 {/* Card "+" */}
                 <button onClick={() => history.push('/biopet/new')} style={{
                   flexShrink:0, width:76, minHeight:160, borderRadius:18,
-                  background:'#0d0d0d', border:'2px dashed #252525',
+                  background:'var(--bg-secondary)', border:'2px dashed var(--border-color)',
                   display:'flex', flexDirection:'column',
                   alignItems:'center', justifyContent:'center', gap:6, cursor:'pointer',
                 }}>
@@ -361,7 +361,7 @@ const Home: React.FC<Props> = ({ session }) => {
             ) : productos.length === 0 ? (
               <button onClick={() => history.push('/tienda')} style={{
                 width:'100%', padding:'24px 0', borderRadius:16,
-                background:'#0d0d0d', border:'1px solid #1a1a1a',
+                background:'var(--bg-card)', border:'1px solid var(--border-color)',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:8, cursor:'pointer',
               }}>
                 <span style={{ fontSize:32 }}>🛍️</span>
@@ -405,7 +405,7 @@ const Home: React.FC<Props> = ({ session }) => {
 /* ── Estilos compartidos ─────────────────────────────────────── */
 const iconBtn: React.CSSProperties = {
   width:40, height:40, borderRadius:12,
-  background:'#111', border:'1px solid #222',
+  background:'var(--bg-secondary)', border:'1px solid var(--border-color)',
   display:'flex', alignItems:'center', justifyContent:'center',
   fontSize:18, cursor:'pointer',
 };
@@ -453,7 +453,7 @@ const SectionHeader: React.FC<{
 const PetCardSkeleton: React.FC = () => (
   <div style={{
     flexShrink:0, width:148, borderRadius:18,
-    background:'#0d0d0d', border:'1px solid #1a1a1a',
+    background:'var(--bg-card)', border:'1px solid var(--border-color)',
     padding:'20px 12px', display:'flex', flexDirection:'column', alignItems:'center', gap:10,
   }}>
     <IonSkeletonText animated style={{ width:60, height:60, borderRadius:'50%' } as React.CSSProperties} />
@@ -525,7 +525,7 @@ const PetCard: React.FC<{ m: Mascota; hasAlert: boolean; onClick: () => void }> 
 const ProductCard: React.FC<{ p: Producto; onView: () => void }> = ({ p, onView }) => (
   <button onClick={onView} style={{
     flexShrink:0, width:148, borderRadius:16, overflow:'hidden',
-    background:'#0d0d0d', border:'1px solid #1e1e1e',
+    background:'var(--bg-card)', border:'1px solid var(--border-color)',
     textAlign:'left', cursor:'pointer',
   }}>
     {p.imagen_url ? (

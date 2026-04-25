@@ -17,7 +17,7 @@ const Welcome: React.FC = () => {
     <IonPage>
       <IonContent fullscreen>
         <div style={{
-          background: '#000', minHeight: '100vh',
+          background: 'var(--bg-primary)', minHeight: '100vh',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px 60px',
@@ -31,13 +31,13 @@ const Welcome: React.FC = () => {
 
           {/* Tagline */}
           <p style={{
-            color: '#fff', fontWeight: 800, fontSize: 20,
+            color: 'var(--text-primary)', fontWeight: 800, fontSize: 20,
             margin: '0 0 10px', textAlign: 'center', lineHeight: 1.3,
           }}>
             El ecosistema completo para tu mascota 🐾
           </p>
           <p style={{
-            color: '#555', fontSize: 14, margin: '0 0 44px',
+            color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 44px',
             textAlign: 'center', lineHeight: 1.6, maxWidth: 280,
           }}>
             Nutrición, salud, servicios y adopción en un solo lugar
@@ -77,14 +77,14 @@ const Welcome: React.FC = () => {
                 onClick={handleGuest}
                 style={{
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#ffffff', fontSize: 14, fontWeight: 600,
+                  color: 'var(--text-primary)', fontSize: 14, fontWeight: 600,
                   padding: '0 16px', minHeight: 44,
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}
               >
                 Explorar sin cuenta <span style={{ fontSize: 16 }}>→</span>
               </button>
-              <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0 }}>
                 Sin tarjeta de crédito requerida
               </p>
             </div>

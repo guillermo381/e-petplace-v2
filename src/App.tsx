@@ -13,6 +13,7 @@ import { supabase } from './lib/supabase';
 
 import { CartProvider, useCart } from './context/CartContext';
 import { GuestProvider, useGuest } from './context/GuestContext';
+import { ThemeProvider } from './context/ThemeContext';
 import RegisterPrompt    from './components/RegisterPrompt';
 import GuestHeader       from './components/GuestHeader';
 import FloatingCart      from './components/FloatingCart';
@@ -241,11 +242,13 @@ const AppInner: React.FC = () => {
 
 /* ── App raíz: proveedores ───────────────────────────────────── */
 const App: React.FC = () => (
-  <GuestProvider>
-    <CartProvider>
-      <AppInner />
-    </CartProvider>
-  </GuestProvider>
+  <ThemeProvider>
+    <GuestProvider>
+      <CartProvider>
+        <AppInner />
+      </CartProvider>
+    </GuestProvider>
+  </ThemeProvider>
 );
 
 export default App;

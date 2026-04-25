@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { IonContent, IonPage } from '@ionic/react';
+import { IonContent, IonPage, IonToggle } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useTheme } from '../context/ThemeContext';
 
 interface Profile { id: string; nombre: string; email: string; avatar_url?: string }
 interface Mascota  { id: string; nombre: string; especie: string }
@@ -19,6 +20,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [editing,  setEditing]  = useState(false);
   const [nombre,   setNombre]   = useState('');
   const [saving,   setSaving]   = useState(false);
+  const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     const fetch = async () => {
@@ -64,7 +66,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   return (
     <IonPage>
       <IonContent fullscreen>
-        <div className="pb-28" style={{ background: '#0a0a0a', minHeight: '100vh' }}>
+        <div className="pb-28" style={{ background: 'var(--bg-primary)', minHeight: '100vh' }}>
 
           {/* ── Header ──────────────────────────────────────────── */}
           <div className="px-5 pt-14 pb-6 flex items-center justify-between">
@@ -138,7 +140,7 @@ const Profile: React.FC<Props> = ({ session }) => {
               { label: 'Estado',   val: '✓ Activo',               color: '#00F5A0' },
             ].map(s => (
               <div key={s.label} className="py-4 rounded-2xl flex flex-col items-center gap-1"
-                style={{ background: '#141414', border: '1px solid #1e1e1e' }}>
+                style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
                 <p className="font-bold text-sm text-center leading-tight" style={{ color: s.color }}>{s.val}</p>
                 <p className="text-gray-500 text-xs">{s.label}</p>
               </div>
@@ -154,7 +156,7 @@ const Profile: React.FC<Props> = ({ session }) => {
                   <div
                     key={m.id}
                     className="flex items-center gap-3 px-4 py-3.5 rounded-xl"
-                    style={{ background: '#141414', border: '1px solid #1e1e1e' }}
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
                   >
                     <span className="text-xl">{ESPECIE_EMOJI[m.especie] ?? '🐾'}</span>
                     <div>
@@ -169,8 +171,27 @@ const Profile: React.FC<Props> = ({ session }) => {
 
           {/* ── Info app ─────────────────────────────────────────── */}
           <div className="px-5 mb-6">
-            <h2 className="text-white font-semibold mb-3">Aplicación</h2>
-            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e1e1e' }}>
+            <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Aplicación</h2>
+            <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border-color)' }}>
+              {/* Toggle tema */}
+              <div
+                className="w-full flex items-center gap-3 px-4 py-4"
+                style={{
+                  background:   'var(--bg-card)',
+                  borderBottom: '1px solid var(--border-color)',
+                }}
+              >
+                <span className="text-lg">{isDark ? '🌙' : '☀️'}</span>
+                <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                  {isDark ? 'Modo oscuro' : 'Modo claro'}
+                </span>
+                <IonToggle
+                  checked={isDark}
+                  onIonChange={toggleTheme}
+                  style={{ '--track-background-checked': '#00E5FF', '--handle-background-checked': '#000' } as React.CSSProperties}
+                />
+              </div>
+
               {[
                 { icon: '🌟', label: 'e-PetPlace',  val: 'v1.0.0' },
                 { icon: '🔒', label: 'Privacidad',  val: '›' },
@@ -181,13 +202,13 @@ const Profile: React.FC<Props> = ({ session }) => {
                   key={item.label}
                   className="w-full flex items-center gap-3 px-4 py-4 text-left"
                   style={{
-                    background:   '#141414',
-                    borderBottom: i < arr.length - 1 ? '1px solid #1a1a1a' : 'none',
+                    background:   'var(--bg-card)',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--border-color)' : 'none',
                   }}
                 >
                   <span className="text-lg">{item.icon}</span>
-                  <span className="flex-1 text-white text-sm">{item.label}</span>
-                  <span className="text-gray-500 text-sm">{item.val}</span>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{item.label}</span>
+                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{item.val}</span>
                 </button>
               ))}
             </div>
