@@ -14,6 +14,7 @@ import { CartProvider, useCart } from './context/CartContext';
 import { GuestProvider, useGuest } from './context/GuestContext';
 import RegisterPrompt    from './components/RegisterPrompt';
 import GuestHeader       from './components/GuestHeader';
+import FloatingCart      from './components/FloatingCart';
 import Login             from './pages/Login';
 import Welcome           from './pages/Welcome';
 import Home              from './pages/Home';
@@ -226,6 +227,7 @@ const AppInner: React.FC = () => {
       <IonReactRouter>
         <AppContent session={session} />
         <GuestPromptBridge session={session} />
+        <FloatingCart />
       </IonReactRouter>
     </IonApp>
   );
