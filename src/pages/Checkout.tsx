@@ -123,6 +123,13 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [termsError,     setTermsError]     = useState(false);
 
   useEffect(() => {
+    orderSnapshotRef.current = null;
+    setPagoProcesado(false);
+    setSaving(false);
+    setStep(1);
+  }, []);
+
+  useEffect(() => {
     if (!session) return;
     supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
       .then(({ data }) => {
