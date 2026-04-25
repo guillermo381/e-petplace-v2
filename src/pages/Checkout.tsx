@@ -136,18 +136,15 @@ const Checkout: React.FC<Props> = ({ session }) => {
       const totalSnapshot = totalPrice;
       const numeroOrden   = `EPP-${Math.floor(100000 + Math.random() * 900000)}`;
 
-      // 3. Confirmar citas (solo usuarios autenticados pueden tener citas en el carrito)
+      // 3. Confirmar citas pendientes del usuario al momento del pago
       if (currentUserId) {
-        const citaItems = itemsSnapshot.filter(i => i.tipo === 'cita');
-        for (const item of citaItems) {
-          const cita_id = item.metadata?.cita_id;
-          if (cita_id) {
-            const { error: updError } = await supabase.from('citas')
-              .update({ estado_reserva: 'confirmada', expira_en: null, estado: 'confirmada' })
-              .eq('id', cita_id)
-              .eq('user_id', currentUserId);
-            if (updError) console.error('Error actualizando cita:', updError);
-          }
+        const tieneCitas = itemsSnapshot.some(i => i.tipo === 'cita');
+        if (tieneCitas) {
+          const { error: updError } = await supabase.from('citas')
+            .update({ estado_reserva: 'confirmada', expira_en: null, estado: 'confirmada' })
+            .eq('user_id', currentUserId)
+            .eq('estado_reserva', 'pendiente_pago');
+          if (updError) console.error('Error confirmando citas:', updError);
         }
       }
 
