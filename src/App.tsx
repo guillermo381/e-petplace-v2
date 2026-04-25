@@ -7,9 +7,10 @@ import {
 import { IonReactRouter } from '@ionic/react-router';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
-import { homeOutline, pawOutline, bagHandleOutline, cartOutline, personOutline } from 'ionicons/icons';
+import { homeOutline, pawOutline, bagHandleOutline, cartOutline, personOutline, receiptOutline } from 'ionicons/icons';
 
 import { supabase } from './lib/supabase';
+
 import { CartProvider, useCart } from './context/CartContext';
 import { GuestProvider, useGuest } from './context/GuestContext';
 import RegisterPrompt    from './components/RegisterPrompt';
@@ -25,6 +26,7 @@ import Vet               from './pages/Vet';
 import Adopcion          from './pages/Adopcion';
 import Cart              from './pages/Cart';
 import Checkout          from './pages/Checkout';
+import MisPedidos        from './pages/MisPedidos';
 import ResetPassword     from './pages/ResetPassword';
 
 import '@ionic/react/css/core.css';
@@ -85,18 +87,52 @@ const CartTabButton: React.FC = () => {
   );
 };
 
+/* ── Tab pedidos con badge ───────────────────────────────────── */
+const PedidosTabButton: React.FC<{ session: Session }> = ({ session }) => {
+  const [activos, setActivos] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from('pedidos')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', session.user.id)
+      .not('estado', 'in', '("entregado","cancelado")')
+      .then(({ count }) => setActivos(count ?? 0));
+  }, [session]);
+
+  return (
+    <IonTabButton tab="mis-pedidos" href="/mis-pedidos">
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <IonIcon icon={receiptOutline} />
+        {activos > 0 && (
+          <div style={{
+            position: 'absolute', top: -6, right: -8,
+            width: 16, height: 16, borderRadius: '50%',
+            background: 'linear-gradient(135deg,#FFE600,#FF2D9B)',
+            color: '#000', fontSize: 9, fontWeight: 900,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            lineHeight: 1,
+          }}>{activos > 9 ? '9+' : activos}</div>
+        )}
+      </div>
+      <IonLabel>Pedidos</IonLabel>
+    </IonTabButton>
+  );
+};
+
 /* ── Rutas autenticadas con tabs ─────────────────────────────── */
 const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   <IonTabs>
     <IonRouterOutlet animated={true}>
-      <Route exact path="/home"     render={() => <Home     session={session} />} />
-      <Route exact path="/mascotas" render={() => <BioPet   session={session} />} />
-      <Route exact path="/tienda"   render={() => <Store    session={session} />} />
-      <Route exact path="/perfil"   render={() => <Profile  session={session} />} />
-      <Route exact path="/carrito"  render={() => <Cart     session={session} />} />
-      <Route exact path="/checkout" render={() => <Checkout session={session} />} />
-      <Route exact path="/vet"      render={() => <Vet      session={session} />} />
-      <Route exact path="/adopcion" render={() => <Adopcion session={session} />} />
+      <Route exact path="/home"        render={() => <Home       session={session} />} />
+      <Route exact path="/mascotas"    render={() => <BioPet     session={session} />} />
+      <Route exact path="/tienda"      render={() => <Store      session={session} />} />
+      <Route exact path="/perfil"      render={() => <Profile    session={session} />} />
+      <Route exact path="/carrito"     render={() => <Cart       session={session} />} />
+      <Route exact path="/checkout"    render={() => <Checkout   session={session} />} />
+      <Route exact path="/vet"         render={() => <Vet        session={session} />} />
+      <Route exact path="/adopcion"    render={() => <Adopcion   session={session} />} />
+      <Route exact path="/mis-pedidos" render={() => <MisPedidos session={session} />} />
       <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
       <Route exact path="/biopet/:id" render={(props) => {
         const id = props.match.params.id;
@@ -117,6 +153,7 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
         <IonIcon icon={bagHandleOutline} /><IonLabel>Tienda</IonLabel>
       </IonTabButton>
       <CartTabButton />
+      <PedidosTabButton session={session} />
       <IonTabButton tab="perfil"   href="/perfil">
         <IonIcon icon={personOutline} /><IonLabel>Perfil</IonLabel>
       </IonTabButton>

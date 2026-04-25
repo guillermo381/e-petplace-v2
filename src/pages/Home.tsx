@@ -24,6 +24,13 @@ interface Mascota  {
 }
 interface Producto { id: string; nombre: string; precio: number; imagen_url?: string }
 
+interface PedidoActivo {
+  id: string;
+  estado: string;
+  total: number;
+  created_at: string;
+}
+
 type AlertKind = 'urgente' | 'warning' | 'info';
 interface SmartAlert { kind: AlertKind; title: string; sub: string; mascotaId?: string }
 
@@ -90,12 +97,13 @@ const petHasAlert = (mascota: Mascota): boolean => {
 ════════════════════════════════════════════════════════════════ */
 const Home: React.FC<Props> = ({ session }) => {
   const { totalItems } = useCart();
-  const [loading,   setLoading]   = useState(true);
-  const [profile,   setProfile]   = useState<Profile | null>(null);
-  const [mascotas,  setMascotas]  = useState<Mascota[]>([]);
-  const [alertas,   setAlertas]   = useState<SmartAlert[]>([]);
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [toast,     setToast]     = useState('');
+  const [loading,        setLoading]        = useState(true);
+  const [profile,        setProfile]        = useState<Profile | null>(null);
+  const [mascotas,       setMascotas]       = useState<Mascota[]>([]);
+  const [alertas,        setAlertas]        = useState<SmartAlert[]>([]);
+  const [productos,      setProductos]      = useState<Producto[]>([]);
+  const [pedidoActivo,   setPedidoActivo]   = useState<PedidoActivo | null>(null);
+  const [toast,          setToast]          = useState('');
   const history = useHistory();
 
   /* ── Fetch ───────────────────────────────────────────────────── */
@@ -129,6 +137,15 @@ const Home: React.FC<Props> = ({ session }) => {
     } else {
       setAlertas(buildAlertas([]));
     }
+
+    const { data: pedidos } = await supabase
+      .from('pedidos')
+      .select('id, estado, total, created_at')
+      .eq('user_id', session.user.id)
+      .not('estado', 'in', '("entregado","cancelado")')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    setPedidoActivo(pedidos?.[0] ?? null);
 
     setLoading(false);
   }, [session]);
@@ -296,6 +313,15 @@ const Home: React.FC<Props> = ({ session }) => {
                   >Ver</button>
                 </div>
               </div>
+            </section>
+          )}
+
+          {/* ════════════════════════════════════════════════════════
+              ZONA 3b – PEDIDO ACTIVO
+          ════════════════════════════════════════════════════════ */}
+          {!loading && pedidoActivo && (
+            <section style={{ padding:'0 20px 24px' }}>
+              <ActiveOrderCard pedido={pedidoActivo} onPress={() => history.push('/mis-pedidos')} />
             </section>
           )}
 
@@ -528,5 +554,54 @@ const ProductCard: React.FC<{ p: Producto; onView: () => void }> = ({ p, onView 
     </div>
   </button>
 );
+
+/* ── Active order card ───────────────────────────────────────── */
+const ESTADO_LABEL: Record<string, { label: string; color: string; icon: string }> = {
+  confirmado:   { label: 'Confirmado',      color: '#00E5FF', icon: '✅' },
+  preparando:   { label: 'Preparando',      color: '#FFE600', icon: '📦' },
+  listo_envio:  { label: 'Listo p/ envío',  color: '#A78BFA', icon: '🏷️' },
+  en_camino:    { label: 'En camino',        color: '#00F5A0', icon: '🚚' },
+};
+
+const ActiveOrderCard: React.FC<{ pedido: PedidoActivo; onPress: () => void }> = ({ pedido, onPress }) => {
+  const meta = ESTADO_LABEL[pedido.estado] ?? { label: pedido.estado, color: '#00E5FF', icon: '📋' };
+  return (
+    <div style={{
+      display:'flex', borderRadius:14, overflow:'hidden',
+      border:`1px solid ${meta.color}33`,
+    }}>
+      <div style={{ width:4, background:meta.color, flexShrink:0 }} />
+      <div style={{
+        flex:1, background:'#0a0a14',
+        padding:'14px 16px',
+        display:'flex', alignItems:'center', gap:12,
+      }}>
+        <div style={{
+          width:36, height:36, borderRadius:10, flexShrink:0,
+          background:`${meta.color}18`,
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
+        }}>
+          {meta.icon}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
+            Pedido en curso
+          </p>
+          <p style={{ color: meta.color, fontSize:11, margin:'3px 0 0', fontWeight:600 }}>
+            {meta.label}
+          </p>
+        </div>
+        <button
+          onClick={onPress}
+          style={{
+            background: meta.color, color:'#000', border:'none',
+            borderRadius:8, padding:'6px 14px', fontSize:12,
+            fontWeight:700, cursor:'pointer', flexShrink:0,
+          }}
+        >Ver pedido</button>
+      </div>
+    </div>
+  );
+};
 
 export default Home;
