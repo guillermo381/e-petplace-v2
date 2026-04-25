@@ -19,49 +19,80 @@ import { supabase } from '../lib/supabase';
 interface Props { session: Session }
 
 const TIPOS_MASCOTA = [
-  { id: 'perro',  emoji: '🐕', label: 'Perro'   },
-  { id: 'gato',   emoji: '🐈', label: 'Gato'    },
-  { id: 'ave',    emoji: '🦜', label: 'Ave'     },
-  { id: 'conejo', emoji: '🐇', label: 'Conejo'  },
-  { id: 'pez',    emoji: '🐠', label: 'Pez'     },
-  { id: 'reptil', emoji: '🦎', label: 'Reptil'  },
-  { id: 'otro',   emoji: '🐾', label: 'Otro'    },
+  { id: 'perro',  emoji: '🐕', label: 'Perro'  },
+  { id: 'gato',   emoji: '🐈', label: 'Gato'   },
+  { id: 'ave',    emoji: '🦜', label: 'Ave'    },
+  { id: 'conejo', emoji: '🐇', label: 'Conejo' },
+  { id: 'pez',    emoji: '🐠', label: 'Pez'    },
+  { id: 'reptil', emoji: '🦎', label: 'Reptil' },
+  { id: 'otro',   emoji: '🐾', label: 'Otro'   },
 ];
 
-const CIUDADES_EC = [
-  'Quito','Guayaquil','Cuenca','Manta','Ambato',
-  'Loja','Ibarra','Esmeraldas','Santo Domingo','Otra ciudad',
-];
+const CIUDADES_POR_PAIS: Record<string, string[]> = {
+  Ecuador:  ['Quito','Guayaquil','Cuenca','Manta','Ambato','Loja','Ibarra','Esmeraldas','Santo Domingo','Otra ciudad'],
+  Colombia: ['Bogotá','Medellín','Cali','Barranquilla','Cartagena','Otra ciudad'],
+  Perú:     ['Lima','Arequipa','Trujillo','Otra ciudad'],
+  México:   ['Ciudad de México','Guadalajara','Monterrey','Otra ciudad'],
+  Otro:     [],
+};
 
 const PAISES = ['Ecuador','Colombia','Perú','México','Otro'];
 
+const selectStyle: React.CSSProperties = {
+  width: '100%', boxSizing: 'border-box',
+  background: '#111', border: '1px solid #222', borderRadius: 12,
+  padding: '13px 40px 13px 16px', color: '#fff',
+  fontSize: 14, appearance: 'none', WebkitAppearance: 'none',
+};
+
 const Onboarding: React.FC<Props> = ({ session }) => {
   const history = useHistory();
-  const [paso,          setPaso]          = useState<1 | 2>(1);
-  const [tiposMascota,  setTiposMascota]  = useState<string[]>([]);
-  const [ciudad,        setCiudad]        = useState('');
-  const [pais,          setPais]          = useState('Ecuador');
-  const [saving,        setSaving]        = useState(false);
+  const [paso,         setPaso]         = useState<1 | 2>(1);
+  const [tiposMascota, setTiposMascota] = useState<string[]>([]);
+  const [pais,         setPais]         = useState('Ecuador');
+  const [ciudad,       setCiudad]       = useState('');
+  const [ciudadTexto,  setCiudadTexto]  = useState('');
+  const [saving,       setSaving]       = useState(false);
 
   const nombreUsuario = session.user.user_metadata?.nombre
     ?? session.user.email?.split('@')[0] ?? 'amigo';
 
   const progreso = paso === 1 ? 50 : 100;
+  const ciudades  = CIUDADES_POR_PAIS[pais] ?? [];
 
-  const toggleTipo = (id: string) => {
+  const toggleTipo = (id: string) =>
     setTiposMascota(prev =>
       prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
     );
+
+  const handlePaisChange = (nuevoPais: string) => {
+    setPais(nuevoPais);
+    setCiudad('');
+    setCiudadTexto('');
   };
+
+  const ciudadFinal = pais === 'Otro' ? ciudadTexto.trim() : ciudad;
 
   const completarOnboarding = async (skip = false) => {
     setSaving(true);
-    await supabase.from('profiles').update({
-      ciudad:              skip ? null : ciudad || null,
-      pais:                skip ? null : pais || null,
-      tipo_mascotas:       skip ? null : tiposMascota.length > 0 ? tiposMascota : null,
-      onboarding_completo: true,
-    }).eq('id', session.user.id);
+
+    const updateData: Record<string, unknown> = { onboarding_completo: true };
+    if (!skip) {
+      if (ciudadFinal)              updateData.ciudad         = ciudadFinal;
+      if (pais)                     updateData.pais           = pais;
+      if (tiposMascota.length > 0)  updateData.tipo_mascotas  = tiposMascota;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateData)
+      .eq('id', session.user.id);
+
+    console.log('Onboarding completado:', error ?? 'OK');
+
+    // Guardar en localStorage como respaldo inmediato
+    localStorage.setItem(`onboarding_done_${session.user.id}`, 'true');
+
     setSaving(false);
 
     if (!skip && tiposMascota.length > 0) {
@@ -106,9 +137,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                 Cuéntanos sobre tus mascotas para personalizar tu experiencia
               </p>
 
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 36,
-              }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 36 }}>
                 {TIPOS_MASCOTA.map(t => {
                   const sel = tiposMascota.includes(t.id);
                   return (
@@ -136,10 +165,9 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                         }}>✓</div>
                       )}
                       <span style={{ fontSize: 36, lineHeight: 1 }}>{t.emoji}</span>
-                      <span style={{
-                        color: sel ? '#00E5FF' : '#666',
-                        fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
-                      }}>{t.label}</span>
+                      <span style={{ color: sel ? '#00E5FF' : '#666', fontSize: 12, fontWeight: 700 }}>
+                        {t.label}
+                      </span>
                     </button>
                   );
                 })}
@@ -148,110 +176,97 @@ const Onboarding: React.FC<Props> = ({ session }) => {
               <button
                 onClick={() => setPaso(2)}
                 className="btn-brand"
-                style={{
-                  width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
-                  boxShadow: '0 0 30px rgba(0,229,255,0.15)',
-                }}
+                style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
+                  boxShadow: '0 0 30px rgba(0,229,255,0.15)' }}
               >
                 Continuar →
               </button>
               <button
                 type="button"
                 onClick={() => setPaso(2)}
-                style={{
-                  width: '100%', padding: '13px 0', background: 'none', border: 'none',
-                  color: '#333', fontSize: 13, cursor: 'pointer', marginTop: 10,
-                  fontWeight: 500,
-                }}
+                style={{ width: '100%', padding: '13px 0', background: 'none', border: 'none',
+                  color: '#333', fontSize: 13, cursor: 'pointer', marginTop: 10, fontWeight: 500 }}
               >
                 Omitir por ahora
               </button>
             </>
           )}
 
-          {/* ── PASO 2: Ciudad y país ─────────────────────────────── */}
+          {/* ── PASO 2: País → Ciudad ─────────────────────────────── */}
           {paso === 2 && (
             <>
               <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 24, margin: '0 0 8px' }}>
-                ¿En qué ciudad estás? 📍
+                ¿Dónde estás? 📍
               </h2>
               <p style={{ color: '#555', fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
                 Para mostrarte veterinarios y servicios cercanos
               </p>
 
-              {/* Ciudad */}
+              {/* País — primero */}
               <div style={{ marginBottom: 18 }}>
-                <p style={{ color: '#444', fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>
-                  Ciudad
-                </p>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={ciudad}
-                    onChange={e => setCiudad(e.target.value)}
-                    style={{
-                      width: '100%', boxSizing: 'border-box',
-                      background: '#111', border: '1px solid #222', borderRadius: 12,
-                      padding: '13px 40px 13px 16px', color: ciudad ? '#fff' : '#444',
-                      fontSize: 14, appearance: 'none', WebkitAppearance: 'none',
-                    }}
-                  >
-                    <option value="">Selecciona tu ciudad</option>
-                    {CIUDADES_EC.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <span style={{
-                    position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                    color: '#444', fontSize: 12, pointerEvents: 'none',
-                  }}>▾</span>
-                </div>
-              </div>
-
-              {/* País */}
-              <div style={{ marginBottom: 36 }}>
                 <p style={{ color: '#444', fontSize: 11, fontWeight: 600,
                   letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>
                   País
                 </p>
                 <div style={{ position: 'relative' }}>
-                  <select
-                    value={pais}
-                    onChange={e => setPais(e.target.value)}
+                  <select value={pais} onChange={e => handlePaisChange(e.target.value)} style={selectStyle}>
+                    {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                    color: '#444', fontSize: 12, pointerEvents: 'none' }}>▾</span>
+                </div>
+              </div>
+
+              {/* Ciudad — dinámica según país */}
+              <div style={{ marginBottom: 36 }}>
+                <p style={{ color: '#444', fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' }}>
+                  Ciudad
+                </p>
+
+                {pais === 'Otro' ? (
+                  <input
+                    type="text"
+                    value={ciudadTexto}
+                    onChange={e => setCiudadTexto(e.target.value)}
+                    placeholder="Escribe tu ciudad"
                     style={{
                       width: '100%', boxSizing: 'border-box',
                       background: '#111', border: '1px solid #222', borderRadius: 12,
-                      padding: '13px 40px 13px 16px', color: '#fff',
-                      fontSize: 14, appearance: 'none', WebkitAppearance: 'none',
+                      padding: '13px 16px', color: '#fff', fontSize: 14,
                     }}
-                  >
-                    {PAISES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <span style={{
-                    position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                    color: '#444', fontSize: 12, pointerEvents: 'none',
-                  }}>▾</span>
-                </div>
+                  />
+                ) : (
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={ciudad}
+                      onChange={e => setCiudad(e.target.value)}
+                      style={{ ...selectStyle, color: ciudad ? '#fff' : '#444' }}
+                    >
+                      <option value="">Selecciona tu ciudad</option>
+                      {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+                      color: '#444', fontSize: 12, pointerEvents: 'none' }}>▾</span>
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={() => completarOnboarding(false)}
                 disabled={saving}
                 className="btn-brand"
-                style={{
-                  width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
-                  boxShadow: saving ? 'none' : '0 0 30px rgba(0,229,255,0.15)',
-                  opacity: saving ? 0.7 : 1,
-                }}
+                style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
+                  boxShadow: saving ? 'none' : '0 0 30px rgba(0,229,255,0.15)', opacity: saving ? 0.7 : 1 }}
               >
                 {saving ? 'Guardando…' : '¡Empezar! 🚀'}
               </button>
               <button
                 type="button"
                 onClick={() => completarOnboarding(true)}
-                style={{
-                  width: '100%', padding: '13px 0', background: 'none', border: 'none',
-                  color: '#333', fontSize: 13, cursor: 'pointer', marginTop: 10,
-                  fontWeight: 500,
-                }}
+                disabled={saving}
+                style={{ width: '100%', padding: '13px 0', background: 'none', border: 'none',
+                  color: '#333', fontSize: 13, cursor: 'pointer', marginTop: 10, fontWeight: 500 }}
               >
                 Omitir
               </button>

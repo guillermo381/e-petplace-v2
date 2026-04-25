@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import logoImg from '../assets/logo.png';
 import { useCart } from '../context/CartContext';
 import ServicesGrid from '../components/ServicesGrid';
@@ -109,25 +109,36 @@ const Home: React.FC<Props> = ({ session }) => {
   const [pedidoActivo,   setPedidoActivo]   = useState<PedidoActivo | null>(null);
   const [toast,          setToast]          = useState('');
   const [cardDismissed,  setCardDismissed]  = useState(false);
+  const onboardingOkRef = useRef(false);
   const history = useHistory();
 
   /* ── Fetch ───────────────────────────────────────────────────── */
   const fetchAll = useCallback(async () => {
     setLoading(true);
 
+    const userId   = session.user.id;
+    const lsKey    = `onboarding_done_${userId}`;
+    const lsDone   = !!localStorage.getItem(lsKey);
+    const memoDone = onboardingOkRef.current;
+
     const { data: prof } = await supabase
-      .from('profiles').select('*').eq('id', session.user.id).single();
+      .from('profiles').select('*').eq('id', userId).single();
+
     if (prof) {
-      if (!prof.onboarding_completo) {
+      if (!memoDone && !lsDone && !prof.onboarding_completo) {
         history.replace('/onboarding');
         return;
       }
+      // Marcar como verificado para esta sesión
+      onboardingOkRef.current = true;
+      if (!lsDone) localStorage.setItem(lsKey, 'true');
       setProfile(prof);
     } else {
       const nombre = session.user.user_metadata?.nombre
         ?? session.user.email?.split('@')[0] ?? 'Usuario';
-      const p = { id: session.user.id, email: session.user.email!, nombre, onboarding_completo: false };
-      await supabase.from('profiles').upsert(p);
+      await supabase.from('profiles').upsert({
+        id: userId, email: session.user.email!, nombre, onboarding_completo: false,
+      });
       history.replace('/onboarding');
       return;
     }
