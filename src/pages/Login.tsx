@@ -18,7 +18,7 @@ import { IonContent, IonPage } from '@ionic/react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useGuest } from '../context/GuestContext';
-import logoImg from '../assets/logo.jpg';
+import logoImg from '../assets/logo.png';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECS = 30;

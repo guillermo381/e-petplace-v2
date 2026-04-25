@@ -1,7 +1,7 @@
 import React from 'react';
 import { useHistory } from 'react-router-dom';
 import { useGuest } from '../context/GuestContext';
-import logoImg from '../assets/logo.jpg';
+import logoImg from '../assets/logo.png';
 
 const GuestHeader: React.FC = () => {
   const history = useHistory();

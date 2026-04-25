@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import logoImg from '../assets/logo.jpg';
+import logoImg from '../assets/logo.png';
 import { useCart } from '../context/CartContext';
 import ServicesGrid from '../components/ServicesGrid';
 import {

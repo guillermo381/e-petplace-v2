@@ -2,7 +2,7 @@ import React from 'react';
 import { IonContent, IonPage } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { useGuest } from '../context/GuestContext';
-import logoImg from '../assets/logo.jpg';
+import logoImg from '../assets/logo.png';
 
 const Welcome: React.FC = () => {
   const history = useHistory();

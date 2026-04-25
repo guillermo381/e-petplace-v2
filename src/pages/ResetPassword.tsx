@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { IonContent, IonPage } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import logoImg from '../assets/logo.jpg';
+import logoImg from '../assets/logo.png';
 
 /* ── Fortaleza de contraseña ─────────────────────────────────── */
 interface Strength { score: number; label: string; color: string }
