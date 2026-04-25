@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Redirect, Route } from 'react-router-dom';
+import { Redirect, Route, useLocation } from 'react-router-dom';
 import {
   IonApp, IonIcon, IonLabel, IonRouterOutlet,
   IonTabBar, IonTabButton, IonTabs, setupIonicReact,
@@ -174,11 +174,34 @@ const GuestPromptBridge: React.FC<{ session: Session | null }> = ({ session }) =
   return <RegisterPrompt onDismiss={dismissRegisterPrompt} />;
 };
 
+/* ── Contenido principal (dentro del router, puede usar useLocation) ── */
+const AppContent: React.FC<{ session: Session | null }> = ({ session }) => {
+  const location = useLocation();
+  const { guestMode } = useGuest();
+
+  // Rutas de auth siempre públicas — nunca interceptadas por guestMode
+  const isAuthRoute = ['login', 'welcome', 'reset-password']
+    .some(p => location.pathname.startsWith(`/${p}`));
+
+  if (session) return <AuthedContent session={session} />;
+
+  if (guestMode && !isAuthRoute) return <GuestContent />;
+
+  return (
+    <IonRouterOutlet>
+      <Route exact path="/reset-password" render={() => <ResetPassword />} />
+      <Route exact path="/welcome"        render={() => <Welcome />} />
+      <Route exact path="/login"          render={() => <Login />} />
+      <Route render={() => <Redirect to="/welcome" />} />
+    </IonRouterOutlet>
+  );
+};
+
 /* ── App interno (usa los contextos) ─────────────────────────── */
 const AppInner: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const { guestMode, exitGuest } = useGuest();
+  const { exitGuest } = useGuest();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -201,18 +224,7 @@ const AppInner: React.FC = () => {
   return (
     <IonApp>
       <IonReactRouter>
-        {session ? (
-          <AuthedContent session={session} />
-        ) : guestMode ? (
-          <GuestContent />
-        ) : (
-          <IonRouterOutlet>
-            <Route exact path="/reset-password" render={() => <ResetPassword />} />
-            <Route exact path="/welcome"        render={() => <Welcome />} />
-            <Route exact path="/login"          render={() => <Login />} />
-            <Route render={() => <Redirect to="/welcome" />} />
-          </IonRouterOutlet>
-        )}
+        <AppContent session={session} />
         <GuestPromptBridge session={session} />
       </IonReactRouter>
     </IonApp>
