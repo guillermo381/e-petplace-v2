@@ -559,7 +559,7 @@ const Login: React.FC = () => {
                 )}
 
                 {/* Submit */}
-                <button type="submit" disabled={isDisabled || (!isLogin && !consentOk)} className="btn-brand"
+                <button type="submit" disabled={isDisabled} className="btn-brand"
                   style={{
                     width: '100%', padding: '16px 0', borderRadius: 14,
                     fontSize: 16, marginTop: 2,
