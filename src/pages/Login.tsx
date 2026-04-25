@@ -183,6 +183,7 @@ const Login: React.FC = () => {
   const [showPwd,       setShowPwd]       = useState(false);
   const [showConf,      setShowConf]      = useState(false);
   const [consentOk,     setConsentOk]     = useState(false);
+  const [errorTerminos, setErrorTerminos] = useState(false);
 
   // Leer modo desde query param (?mode=login | ?mode=register)
   useEffect(() => {
@@ -265,7 +266,7 @@ const Login: React.FC = () => {
     setLoading(true); setError(''); setSuccess('');
 
     if (!isLogin && !consentOk) {
-      setError('Debes aceptar los Términos de Uso y la Política de Privacidad para continuar.');
+      setErrorTerminos(true);
       setLoading(false); return;
     }
 
@@ -544,7 +545,17 @@ const Login: React.FC = () => {
 
                 {/* Consentimiento (solo registro) */}
                 {!isLogin && (
-                  <ConsentCheckbox checked={consentOk} onChange={setConsentOk} />
+                  <div>
+                    <ConsentCheckbox
+                      checked={consentOk}
+                      onChange={val => { setConsentOk(val); setErrorTerminos(false); }}
+                    />
+                    {errorTerminos && (
+                      <p style={{ color: '#FF2D9B', fontSize: 12, marginTop: 4, margin: '4px 0 0' }}>
+                        ⚠️ Debes aceptar los términos y política de privacidad para continuar
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Submit */}
