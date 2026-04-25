@@ -87,39 +87,6 @@ const CartTabButton: React.FC = () => {
   );
 };
 
-/* ── Tab pedidos con badge ───────────────────────────────────── */
-const PedidosTabButton: React.FC<{ session: Session }> = ({ session }) => {
-  const [activos, setActivos] = useState(0);
-
-  useEffect(() => {
-    supabase
-      .from('pedidos')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', session.user.id)
-      .not('estado', 'in', '("entregado","cancelado")')
-      .then(({ count }) => setActivos(count ?? 0));
-  }, [session]);
-
-  return (
-    <IonTabButton tab="mis-pedidos" href="/mis-pedidos">
-      <div style={{ position: 'relative', display: 'inline-flex' }}>
-        <IonIcon icon={receiptOutline} />
-        {activos > 0 && (
-          <div style={{
-            position: 'absolute', top: -6, right: -8,
-            width: 16, height: 16, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#FFE600,#FF2D9B)',
-            color: '#000', fontSize: 9, fontWeight: 900,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            lineHeight: 1,
-          }}>{activos > 9 ? '9+' : activos}</div>
-        )}
-      </div>
-      <IonLabel>Pedidos</IonLabel>
-    </IonTabButton>
-  );
-};
-
 /* ── Rutas autenticadas con tabs ─────────────────────────────── */
 const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   <IonTabs>
@@ -153,7 +120,9 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
         <IonIcon icon={bagHandleOutline} /><IonLabel>Tienda</IonLabel>
       </IonTabButton>
       <CartTabButton />
-      <PedidosTabButton session={session} />
+      <IonTabButton tab="pedidos" href="/mis-pedidos">
+        <IonIcon icon={receiptOutline} /><IonLabel>Pedidos</IonLabel>
+      </IonTabButton>
       <IonTabButton tab="perfil"   href="/perfil">
         <IonIcon icon={personOutline} /><IonLabel>Perfil</IonLabel>
       </IonTabButton>
