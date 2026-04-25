@@ -314,45 +314,27 @@ const Login: React.FC = () => {
         setError(err.message);
       } else if (data.user) {
         await supabase.from('profiles').upsert({
-          id: data.user.id, email,
+          id: data.user.id,
+          email,
           nombre: nombre || email.split('@')[0],
+          onboarding_completo: false,
+          created_at: new Date().toISOString(),
         });
         await supabase.from('consentimientos').insert({
           user_id: data.user.id, tipo: 'registro', aceptado: true,
         });
         localStorage.setItem('epetplace_consent', JSON.stringify({ accepted: true, date: new Date().toISOString() }));
 
-        // ── DEBUG migración pedidos huérfanos ─────────────────────
-        const { data: { user: freshUser } } = await supabase.auth.getUser();
-        console.log('Usuario recién creado:', freshUser?.id, freshUser?.email);
-
-        const { data: pedidosHuerfanos, error: errorBusqueda } = await supabase
-          .from('pedidos')
-          .select('id, guest_email, user_id')
-          .eq('guest_email', freshUser?.email?.toLowerCase().trim())
-          .is('user_id', null);
-        console.log('Pedidos huérfanos encontrados:', pedidosHuerfanos, 'Error:', errorBusqueda);
-
-        const { data: updateData, error: updateError } = await supabase
-          .from('pedidos')
-          .update({ user_id: freshUser?.id })
-          .eq('guest_email', freshUser?.email?.toLowerCase().trim())
-          .is('user_id', null)
-          .select();
-        console.log('Resultado update:', updateData, 'Error update:', updateError);
-        // ── FIN DEBUG ─────────────────────────────────────────────
-
         const emailSignUp = email.toLowerCase().trim();
         const emailLS     = localStorage.getItem('guest_email_checkout') || '';
-        const hayPedidos  = await migrarDatosHuerfanos(data.user.id, emailSignUp)
-          || (emailLS && emailLS !== emailSignUp
-            ? await migrarDatosHuerfanos(data.user.id, emailLS)
-            : false);
+        migrarDatosHuerfanos(data.user.id, emailSignUp);
+        if (emailLS && emailLS !== emailSignUp) migrarDatosHuerfanos(data.user.id, emailLS);
         localStorage.removeItem('guest_email_checkout');
-        if (hayPedidos) {
-          history.replace('/mis-pedidos', { pedidosMigrados: true });
+
+        if (data.session) {
+          history.replace('/onboarding');
         } else {
-          setSuccess('¡Cuenta creada! Revisa tu email para confirmar.');
+          setSuccess('¡Cuenta creada! Revisa tu email para confirmar tu acceso.');
         }
       }
     }
@@ -456,7 +438,7 @@ const Login: React.FC = () => {
               }}>
                 {!isLogin && (
                   <InputField label="Tu nombre" type="text" value={nombre}
-                    onChange={setNombre} placeholder="Ej: María García" />
+                    onChange={setNombre} placeholder="¿Cómo te llamamos?" />
                 )}
 
                 <InputField label="Email" type="email" value={email}

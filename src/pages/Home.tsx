@@ -16,7 +16,11 @@ import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
 /* ── Tipos ───────────────────────────────────────────────────── */
-interface Profile  { id: string; nombre: string; email: string }
+interface Profile  {
+  id: string; nombre: string; email: string;
+  ciudad?: string; telefono?: string; foto_url?: string;
+  onboarding_completo?: boolean;
+}
 interface Vacuna   { id: string; nombre: string; fecha_proxima: string }
 interface Mascota  {
   id: string; nombre: string; especie: string; raza?: string;
@@ -104,6 +108,7 @@ const Home: React.FC<Props> = ({ session }) => {
   const [productos,      setProductos]      = useState<Producto[]>([]);
   const [pedidoActivo,   setPedidoActivo]   = useState<PedidoActivo | null>(null);
   const [toast,          setToast]          = useState('');
+  const [cardDismissed,  setCardDismissed]  = useState(false);
   const history = useHistory();
 
   /* ── Fetch ───────────────────────────────────────────────────── */
@@ -113,13 +118,18 @@ const Home: React.FC<Props> = ({ session }) => {
     const { data: prof } = await supabase
       .from('profiles').select('*').eq('id', session.user.id).single();
     if (prof) {
+      if (!prof.onboarding_completo) {
+        history.replace('/onboarding');
+        return;
+      }
       setProfile(prof);
     } else {
       const nombre = session.user.user_metadata?.nombre
         ?? session.user.email?.split('@')[0] ?? 'Usuario';
-      const p = { id: session.user.id, email: session.user.email!, nombre };
+      const p = { id: session.user.id, email: session.user.email!, nombre, onboarding_completo: false };
       await supabase.from('profiles').upsert(p);
-      setProfile(p);
+      history.replace('/onboarding');
+      return;
     }
 
     const { data: mascs } = await supabase
@@ -217,6 +227,65 @@ const Home: React.FC<Props> = ({ session }) => {
               </div>
             </div>
           </div>
+
+          {/* ════════════════════════════════════════════════════════
+              ZONA 1b – COMPLETAR PERFIL
+          ════════════════════════════════════════════════════════ */}
+          {!loading && !cardDismissed && profile && (() => {
+            let pct = 0;
+            if (profile.nombre)   pct += 20;
+            if (profile.ciudad)   pct += 20;
+            if (mascotas.length > 0) pct += 30;
+            if (profile.telefono) pct += 15;
+            if (profile.foto_url) pct += 15;
+            if (pct >= 100) return null;
+            return (
+              <section style={{ padding:'0 20px 20px' }}>
+                <div style={{
+                  background:'var(--bg-secondary)', borderRadius:16,
+                  border:'1px solid var(--border-color)', padding:'14px 16px',
+                  position:'relative', overflow:'hidden',
+                }}>
+                  <div style={{
+                    position:'absolute', top:0, left:0, right:0, height:2,
+                    background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+                  }} />
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+                    <div style={{ flex:1 }}>
+                      <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:13, margin:'0 0 2px' }}>
+                        Completa tu perfil
+                      </p>
+                      <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0 }}>
+                        Para mejores recomendaciones · {pct}% completado
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setCardDismissed(true)}
+                      style={{ background:'none', border:'none', color:'#333',
+                        fontSize:18, cursor:'pointer', padding:'0 0 0 12px', lineHeight:1 }}
+                    >×</button>
+                  </div>
+                  <div style={{ height:4, background:'var(--border-color)', borderRadius:4, marginBottom:12 }}>
+                    <div style={{
+                      height:'100%', borderRadius:4,
+                      background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+                      width:`${pct}%`, transition:'width 0.4s ease',
+                    }} />
+                  </div>
+                  <button
+                    onClick={() => history.push('/perfil')}
+                    style={{
+                      background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+                      border:'none', borderRadius:10, padding:'9px 20px',
+                      color:'#000', fontWeight:700, fontSize:13, cursor:'pointer',
+                    }}
+                  >
+                    Completar ahora →
+                  </button>
+                </div>
+              </section>
+            );
+          })()}
 
           {/* ════════════════════════════════════════════════════════
               ZONA 2 – MIS MASCOTAS

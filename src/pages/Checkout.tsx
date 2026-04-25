@@ -149,10 +149,22 @@ const Checkout: React.FC<Props> = ({ session }) => {
 
   useEffect(() => {
     if (!session) return;
-    supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
+    supabase.from('profiles')
+      .select('nombre,email,telefono,direccion_principal,ciudad')
+      .eq('id', session.user.id).single()
       .then(({ data }) => {
-        if (data) { setNombre(data.nombre ?? ''); setEmail(data.email ?? session.user.email ?? ''); }
-        else setEmail(session.user.email ?? '');
+        if (data) {
+          setNombre(data.nombre ?? '');
+          setEmail(data.email ?? session.user.email ?? '');
+          if (data.telefono) setTelefono(data.telefono);
+          if (data.direccion_principal) {
+            setDir(data.direccion_principal);
+            if (data.ciudad) setCiudad(data.ciudad);
+            setMostrarFormEnvio(false);
+          }
+        } else {
+          setEmail(session.user.email ?? '');
+        }
       });
   }, [session]);
 
@@ -243,7 +255,14 @@ const Checkout: React.FC<Props> = ({ session }) => {
         });
       }
 
-      // 5. Todo exitoso — marcar como procesado, limpiar y navegar
+      // 5. Guardar dirección en profile si es usuario autenticado
+      if (currentUserId && dir) {
+        supabase.from('profiles').update({
+          direccion_principal: dir, ciudad,
+        }).eq('id', currentUserId);
+      }
+
+      // 6. Todo exitoso — marcar como procesado, limpiar y navegar
       setPagoProcesado(true);
       orderSnapshotRef.current = { items: itemsSnapshot, total: totalSnapshot, numeroOrden };
       clearCart();

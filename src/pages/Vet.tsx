@@ -138,6 +138,8 @@ const Vet: React.FC<Props> = ({ session }) => {
   const [toastCita,    setToastCita]    = useState({ open: false, msg: '' });
   const [ahora,        setAhora]        = useState(() => Date.now());
   const [authWall,     setAuthWall]     = useState(false);
+  const [perfilTelefono, setPerfilTelefono] = useState('');
+  const [telefonoInput,  setTelefonoInput]  = useState('');
 
   const dias = getProximos7Dias();
 
@@ -149,12 +151,14 @@ const Vet: React.FC<Props> = ({ session }) => {
   const fetchData = useCallback(async () => {
     if (!session) return;
     const uid = session.user.id;
-    const [{ data: m }, { data: c }] = await Promise.all([
+    const [{ data: m }, { data: c }, { data: prof }] = await Promise.all([
       supabase.from('mascotas').select('id,nombre,especie').eq('user_id', uid).order('nombre'),
       supabase.from('citas').select('*').eq('user_id', uid).order('fecha', { ascending: false }),
+      supabase.from('profiles').select('telefono').eq('id', uid).single(),
     ]);
-    if (m) setMascotas(m);
-    if (c) setCitas(c);
+    if (m)    setMascotas(m);
+    if (c)    setCitas(c);
+    if (prof?.telefono) setPerfilTelefono(prof.telefono);
   }, [session?.user.id]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -212,6 +216,13 @@ const Vet: React.FC<Props> = ({ session }) => {
       .select('id')
       .single();
     const cita_id = citaData?.id ?? '';
+
+    // Guardar teléfono en profile si fue ingresado ahora
+    if (!perfilTelefono && telefonoInput.trim() && session) {
+      await supabase.from('profiles').update({ telefono: telefonoInput.trim() }).eq('id', session.user.id);
+      setPerfilTelefono(telefonoInput.trim());
+    }
+
     fetchData();
 
     const fechaLabel = dias.find(d => d.value === fechaSel)?.label ?? fechaSel;
@@ -243,6 +254,7 @@ const Vet: React.FC<Props> = ({ session }) => {
     if (!fechaSel)  nuevosErrores.fecha  = 'Selecciona una fecha';
     if (!horaSel)   nuevosErrores.hora   = 'Selecciona un horario';
     if (!motivoSel) nuevosErrores.motivo = 'Selecciona el motivo de consulta';
+    if (!perfilTelefono && !telefonoInput.trim()) nuevosErrores.telefono = 'Ingresa tu teléfono para confirmar la cita';
 
     // Validar hora pasada si la fecha es hoy
     if (fechaSel && horaSel) {
@@ -661,6 +673,29 @@ const Vet: React.FC<Props> = ({ session }) => {
                     <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.motivo}</p>
                   )}
                 </ModalSection>
+
+                {/* Teléfono — solo si no está en el perfil */}
+                {!perfilTelefono && (
+                  <ModalSection title="Tu teléfono 📱">
+                    <p style={{ color:'#555', fontSize:12, margin:'0 0 8px' }}>
+                      Para confirmarte la cita necesitamos tu teléfono
+                    </p>
+                    <input
+                      type="tel"
+                      value={telefonoInput}
+                      onChange={e => { setTelefonoInput(e.target.value); setErrores(err => ({ ...err, telefono: '' })); }}
+                      placeholder="+593 99 000 0000"
+                      style={{
+                        width:'100%', boxSizing:'border-box',
+                        background:'#111', border: errores.telefono ? '1px solid rgba(255,69,58,0.5)' : '1px solid #222',
+                        borderRadius:12, padding:'12px 16px', color:'#fff', fontSize:14,
+                      }}
+                    />
+                    {errores.telefono && (
+                      <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.telefono}</p>
+                    )}
+                  </ModalSection>
+                )}
 
                 {/* Notas */}
                 <ModalSection title="Notas adicionales (opcional)">

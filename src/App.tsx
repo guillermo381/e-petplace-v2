@@ -28,6 +28,7 @@ import Adopcion          from './pages/Adopcion';
 import Cart              from './pages/Cart';
 import Checkout          from './pages/Checkout';
 import MisPedidos        from './pages/MisPedidos';
+import Onboarding        from './pages/Onboarding';
 import ResetPassword     from './pages/ResetPassword';
 import PrivacyPolicy     from './pages/legal/PrivacyPolicy';
 import TermsOfService    from './pages/legal/TermsOfService';
@@ -104,6 +105,7 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/vet"         render={() => <Vet        session={session} />} />
       <Route exact path="/adopcion"    render={() => <Adopcion   session={session} />} />
       <Route exact path="/mis-pedidos" render={() => <MisPedidos session={session} />} />
+      <Route exact path="/onboarding"  render={() => <Onboarding session={session} />} />
       <Route exact path="/privacidad"  render={() => <PrivacyPolicy />} />
       <Route exact path="/terminos"    render={() => <TermsOfService />} />
       <Route exact path="/cookies"     render={() => <CookiesPolicy />} />
