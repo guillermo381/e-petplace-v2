@@ -283,7 +283,13 @@ const Login: React.FC = () => {
           setError(`Email o contraseña incorrectos. (${next}/${MAX_ATTEMPTS} intentos)`);
         }
       } else if (loginData.user) {
-        const hayPedidos = await migrarDatosHuerfanos(loginData.user.id, email.trim());
+        const emailLogin = email.toLowerCase().trim();
+        const emailLS    = localStorage.getItem('guest_email_checkout') || '';
+        const hayPedidos = await migrarDatosHuerfanos(loginData.user.id, emailLogin)
+          || (emailLS && emailLS !== emailLogin
+            ? await migrarDatosHuerfanos(loginData.user.id, emailLS)
+            : false);
+        localStorage.removeItem('guest_email_checkout');
         if (hayPedidos) history.replace('/mis-pedidos', { pedidosMigrados: true });
       }
     } else {
@@ -336,7 +342,13 @@ const Login: React.FC = () => {
         console.log('Resultado update:', updateData, 'Error update:', updateError);
         // ── FIN DEBUG ─────────────────────────────────────────────
 
-        const hayPedidos = await migrarDatosHuerfanos(data.user.id, email.trim());
+        const emailSignUp = email.toLowerCase().trim();
+        const emailLS     = localStorage.getItem('guest_email_checkout') || '';
+        const hayPedidos  = await migrarDatosHuerfanos(data.user.id, emailSignUp)
+          || (emailLS && emailLS !== emailSignUp
+            ? await migrarDatosHuerfanos(data.user.id, emailLS)
+            : false);
+        localStorage.removeItem('guest_email_checkout');
         if (hayPedidos) {
           history.replace('/mis-pedidos', { pedidosMigrados: true });
         } else {

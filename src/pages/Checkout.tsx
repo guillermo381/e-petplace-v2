@@ -93,7 +93,9 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [refs,     setRefs]     = useState('');
 
   // Guest
-  const [guestEmail,   setGuestEmail]   = useState('');
+  const [guestEmail,   setGuestEmail]   = useState(
+    localStorage.getItem('guest_email_checkout') || ''
+  );
 
   // Pago
   const [metodo,   setMetodo]   = useState<MetodoPago>('tarjeta');
@@ -137,7 +139,9 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const checkEmailYContinuar = async () => {
     setCheckingEmail(true);
     setLoginError('');
-    const { data: existe } = await supabase.rpc('email_exists', { check_email: guestEmail.trim() });
+    const normalizedEmail = guestEmail.toLowerCase().trim();
+    localStorage.setItem('guest_email_checkout', normalizedEmail);
+    const { data: existe } = await supabase.rpc('email_exists', { check_email: normalizedEmail });
     setCheckingEmail(false);
     if (existe) {
       setEmailExiste(true);
@@ -199,9 +203,10 @@ const Checkout: React.FC<Props> = ({ session }) => {
           estado:       'confirmado',
         });
       } else {
+        const emailFinal = guestEmail.toLowerCase().trim() || localStorage.getItem('guest_email_checkout') || '';
         await supabase.from('pedidos').insert({
           user_id:      null,
-          guest_email:  guestEmail.toLowerCase().trim() || null,
+          guest_email:  emailFinal || null,
           items:        itemsSnapshot,
           total:        totalSnapshot,
           direccion:    dir,
