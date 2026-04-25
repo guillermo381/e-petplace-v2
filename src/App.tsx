@@ -32,7 +32,6 @@ import ResetPassword     from './pages/ResetPassword';
 import PrivacyPolicy     from './pages/legal/PrivacyPolicy';
 import TermsOfService    from './pages/legal/TermsOfService';
 import CookiesPolicy     from './pages/legal/CookiesPolicy';
-import ConsentBanner     from './components/legal/ConsentBanner';
 
 import '@ionic/react/css/core.css';
 import '@ionic/react/css/normalize.css';
@@ -248,7 +247,6 @@ const AppInner: React.FC = () => {
         <AppContent session={session} />
         <GuestPromptBridge session={session} />
         <FloatingCart />
-        <ConsentBanner />
       </IonReactRouter>
     </IonApp>
   );

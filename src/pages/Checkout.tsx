@@ -8,7 +8,7 @@ CREATE POLICY "Guest pedidos insert" ON pedidos
 
 import React, { useState, useEffect, useRef } from 'react';
 import { IonPage, IonContent, IonLoading } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, Link } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useCart, CartItem } from '../context/CartContext';
@@ -320,6 +320,20 @@ const Checkout: React.FC<Props> = ({ session }) => {
                     <p style={{ color: '#00F5A0', fontSize: 11, margin: '5px 0 0' }}>✓ Válido</p>
                   )}
                 </Field>
+
+                {/* Aviso legal inline */}
+                {isValidEmail(guestEmail) && !emailExiste && (
+                  <p style={{ color: '#555', fontSize: 11, margin: '6px 0 0', lineHeight: 1.6 }}>
+                    Al continuar aceptas nuestros{' '}
+                    <Link to="/terminos" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
+                      Términos de Uso
+                    </Link>
+                    {' '}y{' '}
+                    <Link to="/privacidad" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
+                      Política de Privacidad
+                    </Link>
+                  </p>
+                )}
 
                 {/* Campo contraseña si el email ya tiene cuenta */}
                 {emailExiste && (

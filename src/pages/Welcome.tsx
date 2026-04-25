@@ -1,6 +1,6 @@
 import React from 'react';
 import { IonContent, IonPage } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, Link } from 'react-router-dom';
 import { useGuest } from '../context/GuestContext';
 import logoImg from '../assets/logo.png';
 
@@ -99,6 +99,21 @@ const Welcome: React.FC = () => {
               }} />
             ))}
           </div>
+
+          {/* Aviso legal */}
+          <p style={{
+            marginTop: 24, textAlign: 'center', fontSize: 11,
+            color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 300,
+          }}>
+            Al usar e-PetPlace aceptas nuestros{' '}
+            <Link to="/terminos" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
+              Términos de Uso
+            </Link>
+            {' '}y{' '}
+            <Link to="/privacidad" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
+              Política de Privacidad
+            </Link>
+          </p>
         </div>
       </IonContent>
     </IonPage>
