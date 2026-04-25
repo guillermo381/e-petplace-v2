@@ -78,11 +78,11 @@ ion-tab-button ion-label {
 
 /* ── Transiciones de navegación ─────────────────────────────── */
 ion-router-outlet {
-  --ion-transition-duration: 200ms;
+  --ion-transition-duration: 10ms;
 }
 
 .ion-page {
-  animation-duration: 200ms !important;
+  animation-duration: 10ms !important;
   animation-timing-function: ease-out !important;
 }
 
