@@ -12,6 +12,7 @@ import { useHistory, Link } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useCart, CartItem } from '../context/CartContext';
+import ConsentCheckbox from '../components/legal/ConsentCheckbox';
 
 interface Props { session: Session | null }
 
@@ -109,11 +110,15 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const orderSnapshotRef = useRef<{ items: CartItem[]; total: number; numeroOrden: string } | null>(null);
 
   // Detección de email existente
-  const [emailExiste,   setEmailExiste]   = useState(false);
-  const [checkingEmail, setCheckingEmail] = useState(false);
-  const [guestPassword, setGuestPassword] = useState('');
-  const [showGuestPwd,  setShowGuestPwd]  = useState(false);
-  const [loginError,    setLoginError]    = useState('');
+  const [emailExiste,    setEmailExiste]    = useState(false);
+  const [checkingEmail,  setCheckingEmail]  = useState(false);
+  const [guestPassword,  setGuestPassword]  = useState('');
+  const [showGuestPwd,   setShowGuestPwd]   = useState(false);
+  const [loginError,     setLoginError]     = useState('');
+
+  // Consentimiento de términos (solo invitados)
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
+  const [termsError,     setTermsError]     = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -321,18 +326,19 @@ const Checkout: React.FC<Props> = ({ session }) => {
                   )}
                 </Field>
 
-                {/* Aviso legal inline */}
+                {/* Consentimiento de términos (solo cuando hay email válido y no es cuenta existente) */}
                 {isValidEmail(guestEmail) && !emailExiste && (
-                  <p style={{ color: '#555', fontSize: 11, margin: '6px 0 0', lineHeight: 1.6 }}>
-                    Al continuar aceptas nuestros{' '}
-                    <Link to="/terminos" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
-                      Términos de Uso
-                    </Link>
-                    {' '}y{' '}
-                    <Link to="/privacidad" style={{ color: '#00E5FF', textDecoration: 'none', fontWeight: 600 }}>
-                      Política de Privacidad
-                    </Link>
-                  </p>
+                  <div style={{ marginTop: 10 }}>
+                    <ConsentCheckbox
+                      checked={aceptaTerminos}
+                      onChange={v => { setAceptaTerminos(v); if (v) setTermsError(false); }}
+                    />
+                    {termsError && (
+                      <p style={{ color: '#FF7EB3', fontSize: 12, margin: '6px 0 0' }}>
+                        Debes aceptar los términos para continuar
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Campo contraseña si el email ya tiene cuenta */}
@@ -381,7 +387,11 @@ const Checkout: React.FC<Props> = ({ session }) => {
             )}
 
             <button
-              onClick={emailExiste ? loginYContinuar : checkEmailYContinuar}
+              onClick={() => {
+                if (!session && !aceptaTerminos) { setTermsError(true); return; }
+                if (emailExiste) loginYContinuar();
+                else checkEmailYContinuar();
+              }}
               disabled={!canContinue || checkingEmail}
               className="btn-brand"
               style={{
