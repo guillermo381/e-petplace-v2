@@ -84,17 +84,23 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [step,    setStep]    = useState<Step>(1);
   const [saving,  setSaving]  = useState(false);
 
+  // Datos persistidos de checkout anterior
+  const savedEnvio = (() => {
+    try { return JSON.parse(localStorage.getItem('checkout_envio') || '{}'); } catch { return {}; }
+  })();
+
   // Envío
-  const [nombre,   setNombre]   = useState('');
+  const [nombre,   setNombre]   = useState(savedEnvio.nombre      || '');
   const [email,    setEmail]    = useState('');
-  const [telefono, setTelefono] = useState('');
-  const [dir,      setDir]      = useState('');
-  const [ciudad,   setCiudad]   = useState('Quito');
-  const [refs,     setRefs]     = useState('');
+  const [telefono, setTelefono] = useState(savedEnvio.telefono    || '');
+  const [dir,      setDir]      = useState(savedEnvio.direccion   || '');
+  const [ciudad,   setCiudad]   = useState(savedEnvio.ciudad      || 'Quito');
+  const [refs,     setRefs]     = useState(savedEnvio.referencias || '');
+  const [mostrarFormEnvio, setMostrarFormEnvio] = useState(!savedEnvio.nombre);
 
   // Guest
-  const [guestEmail,   setGuestEmail]   = useState(
-    localStorage.getItem('guest_email_checkout') || ''
+  const [guestEmail, setGuestEmail] = useState(
+    localStorage.getItem('checkout_email') || localStorage.getItem('guest_email_checkout') || ''
   );
 
   // Pago
@@ -124,11 +130,18 @@ const Checkout: React.FC<Props> = ({ session }) => {
 
   useIonViewWillEnter(() => {
     if (items.length > 0) {
-      setStep(1);
       setPagoProcesado(false);
       setSaving(false);
       orderSnapshotRef.current = null;
-      setGuestEmail(localStorage.getItem('guest_email_checkout') || '');
+      const savedEmail = localStorage.getItem('checkout_email') || localStorage.getItem('guest_email_checkout') || '';
+      setGuestEmail(savedEmail);
+      // Auto-saltar paso 1 si ya tenemos email válido guardado (ya aceptó términos antes)
+      if (!session && savedEmail && isValidEmail(savedEmail)) {
+        setAceptaTerminos(true);
+        setStep(2);
+      } else {
+        setStep(1);
+      }
     } else if (!orderSnapshotRef.current) {
       history.replace('/tienda');
     }
@@ -152,6 +165,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
     setCheckingEmail(true);
     setLoginError('');
     const normalizedEmail = guestEmail.toLowerCase().trim();
+    localStorage.setItem('checkout_email', normalizedEmail);
     localStorage.setItem('guest_email_checkout', normalizedEmail);
     const { data: existe } = await supabase.rpc('email_exists', { check_email: normalizedEmail });
     setCheckingEmail(false);
@@ -426,66 +440,113 @@ const Checkout: React.FC<Props> = ({ session }) => {
   }
 
   /* ── PASO 2: ENVÍO ──────────────────────────────────────────── */
-  if (step === 2) return (
-    <IonPage>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
-        <div style={{ padding: '52px 20px 40px' }}>
-          <BackBtn onClick={() => setStep(1)} />
-          <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 20, margin: '0 0 24px' }}>
-            Datos de envío
-          </h2>
-          <StepBar step={2} />
+  if (step === 2) {
+    const envioCompleto = !!(nombre && dir && ciudad);
+    const avanzarConEnvio = () => {
+      localStorage.setItem('checkout_envio', JSON.stringify({
+        nombre, telefono, direccion: dir, ciudad, referencias: refs,
+      }));
+      setMostrarFormEnvio(false);
+      setStep(3);
+    };
 
-          {/* Upsell invitado */}
-          {!session && (
-            <div style={{
-              padding: '12px 16px', borderRadius: 14, marginBottom: 20,
-              background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.2)',
-            }}>
-              <p style={{ color: '#00E5FF', fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>
-                💡 Guarda tu historial de compras
-              </p>
-              <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
-                Crea tu cuenta gratis y accede a tus pedidos cuando quieras
-              </p>
-            </div>
-          )}
+    return (
+      <IonPage>
+        <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
+          <div style={{ padding: '52px 20px 40px' }}>
+            <BackBtn onClick={() => setStep(1)} />
+            <h2 style={{ color: '#fff', fontWeight: 800, fontSize: 20, margin: '0 0 24px' }}>
+              Datos de envío
+            </h2>
+            <StepBar step={2} />
 
-          <Field label="Nombre completo">
-            <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" style={iStyle} />
-          </Field>
-          <Field label="Email">
-            <input
-              value={session ? email : guestEmail}
-              onChange={e => session ? setEmail(e.target.value) : setGuestEmail(e.target.value)}
-              type="email" placeholder="tu@email.com" style={iStyle}
-              readOnly={!session && isValidEmail(guestEmail)}
-            />
-          </Field>
-          <Field label="Teléfono">
-            <input value={telefono} onChange={e => setTelefono(e.target.value)} type="tel" placeholder="+593 99 000 0000" style={iStyle} />
-          </Field>
-          <Field label="Dirección principal">
-            <input value={dir} onChange={e => setDir(e.target.value)} placeholder="Calle, número, sector" style={iStyle} />
-          </Field>
-          <Field label="Ciudad">
-            <select value={ciudad} onChange={e => setCiudad(e.target.value)}
-              style={{ ...iStyle, appearance: 'none', WebkitAppearance: 'none' }}>
-              {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-          <Field label="Referencias adicionales (opcional)">
-            <input value={refs} onChange={e => setRefs(e.target.value)} placeholder="Ej: Frente al parque, piso 3" style={iStyle} />
-          </Field>
+            {/* Card resumen de envío guardado */}
+            {envioCompleto && !mostrarFormEnvio ? (
+              <>
+                <div style={{
+                  background: '#111', borderRadius: 16, padding: '16px 18px',
+                  border: '1px solid #222', marginBottom: 16,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                    <p style={{ color: '#555', fontSize: 11, fontWeight: 700,
+                      textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+                      Enviar a
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarFormEnvio(true)}
+                      style={{ background: 'none', border: 'none', color: '#00E5FF',
+                        fontSize: 12, cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                  <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, margin: '0 0 4px' }}>{nombre}</p>
+                  <p style={{ color: '#888', fontSize: 13, margin: '0 0 2px' }}>{dir}</p>
+                  <p style={{ color: '#888', fontSize: 13, margin: 0 }}>{ciudad}</p>
+                  {telefono && <p style={{ color: '#555', fontSize: 12, margin: '6px 0 0' }}>{telefono}</p>}
+                </div>
 
-          <button onClick={() => setStep(3)} className="btn-brand"
-            style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16, marginTop: 8 }}>
-            Continuar →
-          </button>
-        </div>
-      </IonContent>
-    </IonPage>
-  );
+                <button onClick={avanzarConEnvio} className="btn-brand"
+                  style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16 }}>
+                  Usar estos datos →
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Upsell invitado */}
+                {!session && (
+                  <div style={{
+                    padding: '12px 16px', borderRadius: 14, marginBottom: 20,
+                    background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.2)',
+                  }}>
+                    <p style={{ color: '#00E5FF', fontSize: 13, fontWeight: 700, margin: '0 0 2px' }}>
+                      💡 Guarda tu historial de compras
+                    </p>
+                    <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
+                      Crea tu cuenta gratis y accede a tus pedidos cuando quieras
+                    </p>
+                  </div>
+                )}
+
+                <Field label="Nombre completo">
+                  <input value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Tu nombre" style={iStyle} />
+                </Field>
+                <Field label="Email">
+                  <input
+                    value={session ? email : guestEmail}
+                    onChange={e => session ? setEmail(e.target.value) : setGuestEmail(e.target.value)}
+                    type="email" placeholder="tu@email.com" style={iStyle}
+                    readOnly={!session && isValidEmail(guestEmail)}
+                  />
+                </Field>
+                <Field label="Teléfono">
+                  <input value={telefono} onChange={e => setTelefono(e.target.value)} type="tel" placeholder="+593 99 000 0000" style={iStyle} />
+                </Field>
+                <Field label="Dirección principal">
+                  <input value={dir} onChange={e => setDir(e.target.value)} placeholder="Calle, número, sector" style={iStyle} />
+                </Field>
+                <Field label="Ciudad">
+                  <select value={ciudad} onChange={e => setCiudad(e.target.value)}
+                    style={{ ...iStyle, appearance: 'none', WebkitAppearance: 'none' }}>
+                    {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Referencias adicionales (opcional)">
+                  <input value={refs} onChange={e => setRefs(e.target.value)} placeholder="Ej: Frente al parque, piso 3" style={iStyle} />
+                </Field>
+
+                <button onClick={avanzarConEnvio} className="btn-brand"
+                  style={{ width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16, marginTop: 8 }}>
+                  Continuar →
+                </button>
+              </>
+            )}
+          </div>
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   /* ── PASO 3: PAGO ───────────────────────────────────────────── */
   if (step === 3) return (
