@@ -108,6 +108,13 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [payError,        setPayError]        = useState('');
   const orderSnapshotRef = useRef<{ items: CartItem[]; total: number; numeroOrden: string } | null>(null);
 
+  // Detección de email existente
+  const [emailExiste,   setEmailExiste]   = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
+  const [guestPassword, setGuestPassword] = useState('');
+  const [showGuestPwd,  setShowGuestPwd]  = useState(false);
+  const [loginError,    setLoginError]    = useState('');
+
   useEffect(() => {
     if (!session) return;
     supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
@@ -120,6 +127,35 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const formatCard = (v: string) => {
     const digits = v.replace(/\D/g, '').slice(0, 16);
     return digits.replace(/(.{4})/g, '$1 ').trim();
+  };
+
+  const checkEmailYContinuar = async () => {
+    setCheckingEmail(true);
+    setLoginError('');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: guestEmail.trim(),
+      password: '__email_check__',
+    });
+    setCheckingEmail(false);
+    if (error?.message === 'Invalid login credentials') {
+      setEmailExiste(true);
+    } else {
+      setEmailExiste(false);
+      setStep(2);
+    }
+  };
+
+  const loginYContinuar = async () => {
+    setLoginError('');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: guestEmail.trim(),
+      password: guestPassword,
+    });
+    if (error) {
+      setLoginError('Contraseña incorrecta. Intenta de nuevo.');
+      return;
+    }
+    // onAuthStateChange dispara → App re-renderiza con sesión → Checkout remonta como usuario autenticado
   };
 
   const confirmarPago = async () => {
@@ -270,7 +306,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
                   <input
                     type="email"
                     value={guestEmail}
-                    onChange={e => setGuestEmail(e.target.value)}
+                    onChange={e => { setGuestEmail(e.target.value); setEmailExiste(false); setLoginError(''); }}
                     placeholder="tu@email.com"
                     style={{
                       ...iStyle,
@@ -283,26 +319,67 @@ const Checkout: React.FC<Props> = ({ session }) => {
                       Email inválido
                     </p>
                   )}
-                  {isValidEmail(guestEmail) && (
+                  {isValidEmail(guestEmail) && !emailExiste && (
                     <p style={{ color: '#00F5A0', fontSize: 11, margin: '5px 0 0' }}>✓ Válido</p>
                   )}
                 </Field>
+
+                {/* Campo contraseña si el email ya tiene cuenta */}
+                {emailExiste && (
+                  <div style={{
+                    marginTop: 4, padding: '14px 16px', borderRadius: 12,
+                    background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.25)',
+                  }}>
+                    <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 13, margin: '0 0 12px' }}>
+                      🔐 Ya tienes cuenta con este email
+                    </p>
+                    <Field label="Contraseña">
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type={showGuestPwd ? 'text' : 'password'}
+                          value={guestPassword}
+                          onChange={e => setGuestPassword(e.target.value)}
+                          placeholder="Tu contraseña"
+                          style={{ ...iStyle, paddingRight: 44 }}
+                          autoFocus
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowGuestPwd(s => !s)}
+                          style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                            background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#555' }}
+                        >{showGuestPwd ? '🙈' : '👁️'}</button>
+                      </div>
+                    </Field>
+                    {loginError && (
+                      <p style={{ color: '#FF7EB3', fontSize: 12, margin: '-8px 0 0' }}>{loginError}</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setEmailExiste(false); setGuestPassword(''); setLoginError(''); setStep(2); }}
+                      style={{ background: 'none', border: 'none', color: '#555', fontSize: 12,
+                        cursor: 'pointer', padding: '8px 0 0', textDecoration: 'underline' }}
+                    >
+                      Continuar sin cuenta →
+                    </button>
+                  </div>
+                )}
 
 </div>
               </div>
             )}
 
             <button
-              onClick={() => setStep(2)}
-              disabled={!canContinue}
+              onClick={emailExiste ? loginYContinuar : checkEmailYContinuar}
+              disabled={!canContinue || checkingEmail}
               className="btn-brand"
               style={{
                 width: '100%', padding: '16px 0', borderRadius: 14, fontSize: 16,
-                opacity: canContinue ? 1 : 0.4,
-                cursor: canContinue ? 'pointer' : 'not-allowed',
+                opacity: canContinue && !checkingEmail ? 1 : 0.4,
+                cursor: canContinue && !checkingEmail ? 'pointer' : 'not-allowed',
               }}
             >
-              Continuar →
+              {checkingEmail ? 'Verificando...' : emailExiste ? 'Iniciar sesión y continuar →' : 'Continuar →'}
             </button>
           </div>
         </IonContent>
@@ -617,7 +694,10 @@ const Checkout: React.FC<Props> = ({ session }) => {
                 Con tu cuenta puedes rastrear pedidos, guardar mascotas y acceder a recomendaciones personalizadas.
               </p>
               <button
-                onClick={() => { clearCart(); history.replace('/'); }}
+                onClick={() => {
+                  localStorage.setItem('prefill_email', guestEmail);
+                  history.push('/login?mode=register');
+                }}
                 className="btn-brand"
                 style={{ width: '100%', padding: '13px 0', borderRadius: 12, fontSize: 14,
                   boxShadow: '0 0 20px rgba(0,229,255,0.15)' }}

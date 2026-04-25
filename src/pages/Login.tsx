@@ -185,8 +185,16 @@ const Login: React.FC = () => {
   // Leer modo desde query param (?mode=login | ?mode=register)
   useEffect(() => {
     const mode = new URLSearchParams(location.search).get('mode');
-    if (mode === 'register') setIsLogin(false);
-    else if (mode === 'login') setIsLogin(true);
+    if (mode === 'register') {
+      setIsLogin(false);
+      const prefill = localStorage.getItem('prefill_email');
+      if (prefill) {
+        setEmail(prefill);
+        localStorage.removeItem('prefill_email');
+      }
+    } else if (mode === 'login') {
+      setIsLogin(true);
+    }
   }, [location.search]);
 
   // Rate limiting
