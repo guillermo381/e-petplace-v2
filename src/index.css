@@ -76,6 +76,20 @@ ion-tab-button ion-label {
   font-weight: 600;
 }
 
+/* ── Transiciones de navegación ─────────────────────────────── */
+ion-router-outlet {
+  --ion-transition-duration: 200ms;
+}
+
+.ion-page {
+  animation-duration: 200ms !important;
+  animation-timing-function: ease-out !important;
+}
+
+ion-router-outlet > .ion-page-invisible {
+  opacity: 0;
+}
+
 /* ── Pages & content ─────────────────────────────────────────── */
 ion-content {
   --background: #000000;

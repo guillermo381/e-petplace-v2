@@ -87,7 +87,7 @@ const CartTabButton: React.FC = () => {
 /* ── Rutas autenticadas con tabs ─────────────────────────────── */
 const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   <IonTabs>
-    <IonRouterOutlet>
+    <IonRouterOutlet animated={true}>
       <Route exact path="/home"     render={() => <Home     session={session} />} />
       <Route exact path="/mascotas" render={() => <BioPet   session={session} />} />
       <Route exact path="/tienda"   render={() => <Store    session={session} />} />
@@ -145,7 +145,7 @@ const GuestContent: React.FC = () => (
   <>
     <GuestHeader />
     <IonTabs>
-      <IonRouterOutlet>
+      <IonRouterOutlet animated={true}>
         <Route exact path="/tienda"   render={() => <Store    session={null} />} />
         <Route exact path="/vet"      render={() => <Vet      session={null} />} />
         <Route exact path="/adopcion" render={() => <Adopcion session={null} />} />
@@ -188,7 +188,7 @@ const AppContent: React.FC<{ session: Session | null }> = ({ session }) => {
   if (guestMode && !isAuthRoute) return <GuestContent />;
 
   return (
-    <IonRouterOutlet>
+    <IonRouterOutlet animated={true}>
       <Route exact path="/reset-password" render={() => <ResetPassword />} />
       <Route exact path="/welcome"        render={() => <Welcome />} />
       <Route exact path="/login"          render={() => <Login />} />
