@@ -107,7 +107,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
         referencias: savedEnvio.referencias || '',
         ciudad:      savedEnvio.ciudad      || '',
         apto:        savedEnvio.apto        || '',
-        guardadaComo: savedEnvio.guardadaComo || 'casa',
+        guardadoComo: savedEnvio.guardadoComo || 'casa',
       };
     }
     return {};
@@ -189,7 +189,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
               ciudad:      ciudad,
               pais:        data.direccion_pais        ?? '',
               codigoPostal:data.direccion_codigo_postal ?? '',
-              guardadaComo:(data.direccion_guardada_como as AddressValue['guardadaComo']) ?? 'casa',
+              guardadoComo:(data.direccion_guardada_como as AddressValue['guardadoComo']) ?? 'casa',
             });
             setMostrarFormEnvio(false);
           }
@@ -298,7 +298,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
           direccion_ciudad:        ciudadFinal,
           direccion_pais:          addressVal.pais         ?? '',
           direccion_codigo_postal: addressVal.codigoPostal ?? '',
-          direccion_guardada_como: addressVal.guardadaComo ?? 'casa',
+          direccion_guardada_como: addressVal.guardadoComo ?? 'casa',
           ciudad:                  ciudadFinal,
         }).eq('id', currentUserId);
       }
@@ -510,7 +510,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
         ciudad:       ciudadFinal,
         referencias:  addressVal.referencias || refs,
         apto:         addressVal.apto        || '',
-        guardadaComo: addressVal.guardadaComo ?? 'casa',
+        guardadoComo: addressVal.guardadoComo ?? 'casa',
       }));
       setMostrarFormEnvio(false);
       setStep(3);

@@ -5,11 +5,18 @@ import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
-import AddressInput, { AddressValue } from '../components/AddressInput';
+import AddressInput, { AddressValue, getAliasIcon, getAliasLabel } from '../components/AddressInput';
 
 interface Profile {
   id: string; nombre: string; email: string; avatar_url?: string;
   telefono?: string; direccion_principal?: string;
+  direccion_completa?:     string;
+  direccion_linea1?:       string;
+  direccion_apto?:         string;
+  direccion_referencias?:  string;
+  direccion_ciudad?:       string;
+  direccion_pais?:         string;
+  direccion_guardada_como?: string;
 }
 interface Mascota  { id: string; nombre: string; especie: string; foto_url?: string }
 
@@ -31,7 +38,8 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [editTelefonoTipo,   setEditTelefonoTipo]   = useState<'whatsapp' | 'llamada'>('whatsapp');
   const [editDir,            setEditDir]            = useState('');
   const [editAddress,        setEditAddress]        = useState<Partial<AddressValue>>({});
-  const [activeField,  setActiveField]  = useState<'telefono' | 'direccion' | null>(null);
+  const [activeField,      setActiveField]      = useState<'telefono' | 'direccion' | null>(null);
+  const [editingDireccion, setEditingDireccion] = useState(false);
   const [savingField,  setSavingField]  = useState(false);
   const [toast,        setToast]        = useState('');
   const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set());
@@ -57,7 +65,7 @@ const Profile: React.FC<Props> = ({ session }) => {
             ciudad:       prof.direccion_ciudad     ?? '',
             pais:         prof.direccion_pais       ?? '',
             codigoPostal: prof.direccion_codigo_postal ?? '',
-            guardadaComo: (prof.direccion_guardada_como as AddressValue['guardadaComo']) ?? 'casa',
+            guardadoComo: (prof.direccion_guardada_como as AddressValue['guardadoComo']) ?? 'casa',
           });
         }
       } else {
@@ -84,23 +92,33 @@ const Profile: React.FC<Props> = ({ session }) => {
   };
 
   const saveCampo = async (campo: 'telefono' | 'direccion') => {
-    const valor = campo === 'telefono' ? editTelefono.trim() : (editAddress.completa ?? editDir).trim();
+    if (campo === 'direccion') {
+      console.log('Guardando dirección:', editAddress);
+    }
+    const valor = campo === 'telefono'
+      ? editTelefono.trim()
+      : (editAddress.completa || editAddress.linea1 || editDir).trim();
     if (!valor) return;
     setSavingField(true);
     const updateObj: Record<string, unknown> = campo === 'telefono'
       ? { telefono: valor, telefono_codigo_pais: editTelefonoCodigo, telefono_tipo: editTelefonoTipo }
       : {
-          direccion_completa:      editAddress.completa    ?? editDir.trim(),
-          direccion_linea1:        editAddress.linea1      ?? '',
-          direccion_referencias:   editAddress.referencias ?? '',
-          direccion_guardada_como: editAddress.guardadaComo ?? 'casa',
+          direccion_completa:      editAddress.completa    || editAddress.linea1 || editDir.trim(),
+          direccion_linea1:        editAddress.linea1      || '',
+          direccion_apto:          editAddress.apto        || '',
+          direccion_referencias:   editAddress.referencias || '',
+          direccion_ciudad:        editAddress.ciudad      || '',
+          direccion_pais:          editAddress.pais        || '',
+          direccion_guardada_como: editAddress.guardadoComo || 'casa',
         };
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles').update(updateObj)
       .eq('id', session.user.id).select().single();
+    console.log('Resultado guardar dirección:', { data: !!data, error });
     if (data) setProfile(data);
     setSavingField(false);
     setActiveField(null);
+    setEditingDireccion(false);
     showToast(`¡Perfil actualizado! +15 puntos 🎉`);
   };
 
@@ -187,8 +205,8 @@ const Profile: React.FC<Props> = ({ session }) => {
           {/* ── Completar perfil ─────────────────────────────────── */}
           {(() => {
             const faltantes: { key: string; icon: string; label: string; action: 'telefono' | 'direccion' | 'mascota' }[] = [];
-            if (!profile?.telefono)           faltantes.push({ key:'telefono',  icon:'📱', label:'Agrega tu teléfono',         action:'telefono'  });
-            if (!profile?.direccion_principal) faltantes.push({ key:'direccion', icon:'📍', label:'Agrega tu dirección',        action:'direccion' });
+            if (!profile?.telefono)                                             faltantes.push({ key:'telefono',  icon:'📱', label:'Agrega tu teléfono',  action:'telefono'  });
+            if (!profile?.direccion_completa && !profile?.direccion_principal) faltantes.push({ key:'direccion', icon:'📍', label:'Agrega tu dirección', action:'direccion' });
             if (mascotas.length === 0)         faltantes.push({ key:'mascotas',  icon:'🐾', label:'Agrega tu primera mascota',  action:'mascota'   });
 
             if (faltantes.length === 0) return (
@@ -304,7 +322,6 @@ const Profile: React.FC<Props> = ({ session }) => {
                             <AddressInput
                               value={editAddress}
                               onChange={v => { setEditAddress(v); setEditDir(v.completa); }}
-                              compact
                             />
                             <button
                               onClick={() => saveCampo('direccion')}
@@ -326,6 +343,108 @@ const Profile: React.FC<Props> = ({ session }) => {
               </div>
             );
           })()}
+
+          {/* ── Mi dirección guardada ───────────────────────────── */}
+          {profile?.direccion_completa && (
+            <div className="px-5 mb-5">
+              <h2 className="font-semibold mb-3" style={{ color:'var(--text-primary)', fontSize:14 }}>
+                Mi dirección
+              </h2>
+
+              {/* Card de la dirección guardada */}
+              {!editingDireccion ? (
+                <div style={{
+                  background:'var(--bg-card)', borderRadius:16,
+                  border:'1px solid var(--border-color)', padding:'14px 16px',
+                }}>
+                  {/* Cabecera: alias + botón editar */}
+                  <div style={{ display:'flex', alignItems:'flex-start', gap:12, marginBottom:8 }}>
+                    <span style={{ fontSize:28, flexShrink:0 }}>
+                      {getAliasIcon(profile.direccion_guardada_como)}
+                    </span>
+                    <div style={{ flex:1 }}>
+                      <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:13, margin:'0 0 2px' }}>
+                        {getAliasLabel(profile.direccion_guardada_como)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditingDireccion(true);
+                        setEditAddress({
+                          completa:    profile.direccion_completa    || '',
+                          linea1:      profile.direccion_linea1      || '',
+                          apto:        profile.direccion_apto        || '',
+                          referencias: profile.direccion_referencias || '',
+                          ciudad:      profile.direccion_ciudad      || '',
+                          pais:        profile.direccion_pais        || '',
+                          guardadoComo: profile.direccion_guardada_como || 'casa',
+                        });
+                      }}
+                      style={{
+                        background:'none', border:'1px solid #333', borderRadius:8,
+                        padding:'5px 12px', color:'#00E5FF', fontSize:12, cursor:'pointer', flexShrink:0,
+                      }}
+                    >Editar</button>
+                  </div>
+
+                  {/* Datos de la dirección */}
+                  <div style={{ background:'var(--bg-secondary)', borderRadius:10, padding:12, marginBottom:8 }}>
+                    <p style={{ color:'var(--text-primary)', fontSize:13, margin:'0 0 4px', lineHeight:1.5 }}>
+                      {profile.direccion_completa}
+                    </p>
+                    {profile.direccion_apto && (
+                      <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'0 0 4px' }}>
+                        {profile.direccion_apto}
+                      </p>
+                    )}
+                    {profile.direccion_referencias && (
+                      <p style={{ color:'#888', fontSize:11, margin:0 }}>
+                        📝 {profile.direccion_referencias}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Botón agregar otra dirección */}
+                  <button
+                    onClick={() => showToast('Múltiples direcciones — próximamente 🔜')}
+                    style={{
+                      marginTop:12, width:'100%', background:'none',
+                      border:'1px dashed #333', borderRadius:10, padding:'9px 12px',
+                      color:'#444', fontSize:12, cursor:'pointer', fontWeight:600,
+                    }}
+                  >
+                    + Agregar otra dirección
+                  </button>
+                </div>
+              ) : (
+                /* Formulario edición de dirección existente */
+                <div style={{ background:'var(--bg-card)', borderRadius:16, border:'1px solid var(--border-color)', padding:'14px 16px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12 }}>
+                    <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:13, margin:0 }}>Editar dirección</p>
+                    <button
+                      onClick={() => setEditingDireccion(false)}
+                      style={{ background:'none', border:'none', color:'#555', fontSize:12, cursor:'pointer' }}
+                    >Cancelar</button>
+                  </div>
+                  <AddressInput
+                    value={editAddress}
+                    onChange={v => { setEditAddress(v); setEditDir(v.completa); }}
+                  />
+                  <button
+                    onClick={() => saveCampo('direccion')}
+                    disabled={savingField || !editAddress.completa}
+                    style={{
+                      marginTop:12, width:'100%',
+                      background:'#00F5A0', border:'none', borderRadius:10,
+                      padding:'10px 14px', color:'#000', fontWeight:800,
+                      fontSize:13, cursor:'pointer',
+                      opacity: savingField || !editAddress.completa ? 0.5 : 1,
+                    }}
+                  >{savingField ? '…' : 'Guardar dirección'}</button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Stats ────────────────────────────────────────────── */}
           <div className="px-5 mb-6 grid grid-cols-3 gap-3">
