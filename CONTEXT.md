@@ -1,5 +1,5 @@
 # CONTEXT.md — e-PetPlace
-> Fuente de verdad para retomar el desarrollo. Actualizado: 25 de abril de 2026.
+> Fuente de verdad para retomar el desarrollo. Actualizado: 26 de abril de 2026.
 
 ---
 
@@ -74,7 +74,8 @@ e-petplace/
 │   │   └── ThemeContext.tsx       # Tema dark/light: isDark, toggleTheme, persist en localStorage
 │   │
 │   ├── data/
-│   │   └── servicios.ts           # Array SERVICIOS con colores, iconos, rutas, disponibilidad
+│   │   ├── servicios.ts           # Array SERVICIOS con colores, iconos, rutas, disponibilidad
+│   │   └── paises.ts              # PAISES_SOPORTADOS (6) + TODOS_LOS_PAISES (12) con banderas y ciudades
 │   │
 │   ├── db/
 │   │   ├── schema.sql             # DDL completo de Supabase
@@ -101,6 +102,7 @@ e-petplace/
 │   └── components/
 │       ├── FloatingCart.tsx       # Botón flotante carrito (fixed, z-index 9999)
 │       ├── GuestHeader.tsx        # Header especial para modo invitado
+│       ├── PhoneInput.tsx         # Input de teléfono con selector de país, toggle WhatsApp/Llamada, geo-detección
 │       ├── RegisterPrompt.tsx     # Modal de registro para invitados (tras 3 interacciones)
 │       ├── ServicesGrid.tsx       # Grid 2 columnas de servicios (Home + Store)
 │       └── legal/
@@ -149,13 +151,22 @@ Las rutas legales `/privacidad`, `/terminos`, `/cookies` están definidas en los
 
 | Tabla | Descripción |
 |---|---|
-| `profiles` | id (FK auth.users), email, nombre, avatar_url |
-| `mascotas` | user_id, nombre, especie, raza, fecha_nacimiento, peso, foto_url, notas |
+| `profiles` | id (FK auth.users), email, nombre, avatar_url, ciudad, pais, pais_codigo, telefono, telefono_codigo_pais, telefono_tipo, direccion_principal, onboarding_completo, foto_url |
+| `mascotas` | user_id, nombre, especie, raza, fecha_nacimiento, peso, foto_url, notas, sexo |
 | `vacunas` | mascota_id, nombre, fecha_aplicada, fecha_proxima, veterinario |
 | `productos` | nombre, categoria, precio, imagen_url, descripcion, para_especie |
 | `pedidos` | user_id (nullable para guests), guest_email, items (jsonb), total, estado, numero_orden, direccion, ciudad, metodo_pago |
-| `citas` | user_id, veterinario_nombre, clinica, fecha, hora, motivo, estado_reserva, expira_en, estado |
+| `citas` | user_id, veterinario_nombre, clinica, fecha, hora, motivo, estado_reserva, expira_en, estado, guest_email |
 | `solicitudes_adopcion` | (estructura exacta pendiente de verificar en Supabase) |
+
+### Columnas adicionales en `profiles` (SQL pendiente de ejecutar)
+
+```sql
+-- ⚠️ Pendiente — ejecutar en Supabase SQL Editor
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_codigo_pais text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_tipo text DEFAULT 'whatsapp';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pais_codigo text DEFAULT 'EC';
+```
 
 ### Columnas adicionales en `pedidos` (SQL pendiente de ejecutar)
 
@@ -232,16 +243,18 @@ Al crear un usuario en `auth.users`, el trigger `on_auth_user_created` llama a `
 | Feature | Qué falta |
 |---|---|
 | Google OAuth | Configurar en Supabase Dashboard (Authentication → Providers → Google) + credenciales en Google Cloud Console |
+| Columnas teléfono en profiles | Ejecutar el ALTER TABLE (ver sección 4) — `telefono_codigo_pais`, `telefono_tipo`, `pais_codigo` |
 | Columnas VTEX en pedidos | Ejecutar el ALTER TABLE (ver sección 4) |
 | Tabla consentimientos | Ejecutar CREATE TABLE (ver sección 4) |
 | Realtime en MisPedidos | Requiere habilitar Realtime en la tabla `pedidos` desde Supabase Dashboard |
+| Bucket Storage mascotas | Supabase Dashboard → Storage → New bucket: nombre `mascotas`, Public: ✅. Luego ejecutar policies INSERT/SELECT (ver comentario en Onboarding.tsx) |
 
 ### ❌ No implementado / Marcado "Próximamente"
 
 - Guardería, Grooming, Paseos, Seguros, Wearables (servicios en `data/servicios.ts` con `disponible: false`)
 - Pasarela de pago real (actualmente es un mock/simulación)
 - Notificaciones push
-- Upload de fotos de mascotas a Supabase Storage (el campo `foto_url` existe en DB pero el upload no está implementado)
+- Upload de foto de perfil de usuario (campo `avatar_url` existe en DB, no hay UI de upload)
 - Panel de administración / Seller Portal
 - Integración VTEX (campos preparados en DB, lógica pendiente)
 - Adopción: el formulario de solicitud se guarda pero no hay flujo de aprobación
@@ -249,9 +262,65 @@ Al crear un usuario en `auth.users`, el trigger `on_auth_user_created` llama a `
 
 ---
 
-## 6. Lo que se Trabajó en Esta Sesión
+## 6. Historial de Sesiones
 
-Esta sesión (25 abril 2026) fue de construcción de features completos:
+### Sesión 26 abril 2026 — PhoneInput, validaciones, bug fixes
+
+**Features nuevos:**
+
+1. **`src/data/paises.ts`** — nuevo archivo de datos:
+   - `PAISES_SOPORTADOS`: Ecuador, Colombia, Perú, México, Argentina, Chile — con banderas, código de país, código telefónico y array de ciudades
+   - `TODOS_LOS_PAISES`: agrega US, España, Venezuela, Bolivia, Paraguay, Uruguay
+
+2. **`src/components/PhoneInput.tsx`** — componente reutilizable completo:
+   - Selector de país via IonActionSheet con banderas y códigos
+   - Input numérico de teléfono con placeholder dinámico según dígitos del país
+   - Geo-detección de país: primero Supabase `profiles.pais_codigo`, luego IP (`ipapi.co/json/`), fallback Ecuador
+   - Toggle "¿Cómo prefieres que te contactemos?" con opciones WhatsApp / Llamada tradicional
+   - Props: `value`, `codigoPais`, `tipo`, `onChange`, `error`, `clearError`, `compact`, `session?`
+   - Exporta `PhoneInputValue { fullNumber, codigoPais, tipo }`
+
+3. **Onboarding.tsx paso 2 (ubicación)** — actualizado:
+   - Selector de país usa `PAISES_SOPORTADOS` con banderas (`🇪🇨 Ecuador`, etc.)
+   - Ciudades se cargan dinámicamente del array del país seleccionado
+   - Seleccionar "Otra" en ciudades muestra input de texto libre
+   - Guarda `pais`, `pais_codigo` y `ciudad` en `profiles`
+
+4. **Integración PhoneInput en 3 páginas:**
+   - `Profile.tsx`: sección "Completar perfil" → campo teléfono usa PhoneInput; guarda `telefono_codigo_pais` y `telefono_tipo`
+   - `Checkout.tsx`: paso 2 "Datos de envío" → campo teléfono usa PhoneInput; persiste en localStorage
+   - `Vet.tsx`: modal "Agendar cita" → campo teléfono usa PhoneInput; guarda `telefono_codigo_pais` y `telefono_tipo`
+
+**Bug fixes:**
+
+5. **FIX 1 — Mascotas en Profile.tsx sin navegación**: Las cards de mascotas en "Mis Mascotas" eran `<div>` sin onClick. Cambiadas a `<button>` con `onClick={() => history.push('/biopet/${m.id}')}` y flecha `›`.
+
+6. **FIX 4 — Progress bar nunca llegaba a 100%**: `Home.tsx` usaba `profile.foto_url` en el cálculo del progreso, pero el campo real en la tabla es `avatar_url`. Corregido a `profile.avatar_url`. Ahora cuando los 5 campos están completos el progreso llega a 100% y la barra se oculta automáticamente (`if (pct >= 100) return null`).
+
+7. **FIX 4b — Profile.tsx pedía "segunda mascota" incorrectamente**: La condición `mascotas.length < 2` pedía agregar una segunda mascota aunque el usuario ya tuviera una. Corregido a `mascotas.length === 0` con label "Agrega tu primera mascota".
+
+**SQL ejecutado en Supabase (confirmar con el usuario):**
+```sql
+-- Columnas de onboarding (sesión anterior)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nombre text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS onboarding_completo boolean DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS ciudad text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pais text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tipo_mascotas text[];
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_principal text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS foto_url text;
+ALTER TABLE mascotas ADD COLUMN IF NOT EXISTS sexo text;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS guest_email text;
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS estado_reserva text DEFAULT 'confirmada';
+ALTER TABLE citas ADD COLUMN IF NOT EXISTS expira_en timestamptz;
+ALTER TABLE pedidos ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS guest_email text;
+```
+
+---
+
+### Sesión 25 abril 2026 — Tema, páginas legales, fixes
 
 1. **Fix tab "Pedidos" en tab bar** — el wrapper `PedidosTabButton` como componente custom no era reconocido por `IonTabBar`. Solución: IonTabButton directo inline.
 
@@ -260,22 +329,14 @@ Esta sesión (25 abril 2026) fue de construcción de features completos:
 3. **Sistema de tema dark/light (completo)**:
    - `ThemeContext.tsx` con `isDark` persistido en localStorage
    - Variables CSS en `index.css`: `--bg-primary`, `--bg-secondary`, `--bg-card`, `--text-primary`, `--text-secondary`, `--border-color`
-   - Modo light: `body.light { ... }` con overrides de Ionic
-   - Transición `* { transition: background-color 0.3s, color 0.3s, border-color 0.3s }` con excepción para `.ion-page`
    - Toggle `IonToggle` en Profile.tsx → sección "Aplicación"
-   - Componentes actualizados: Home, Store, Welcome, Profile, FloatingCart
 
 4. **Páginas legales (completo)**:
-   - `PrivacyPolicy.tsx` — LOPDP Ecuador, derechos ARCO, cookies, transferencia internacional
-   - `TermsOfService.tsx` — 12 secciones, devoluciones 7 días, vet como intermediario
-   - `CookiesPolicy.tsx` — tabla de cookies, Supabase/Google terceros
-   - `ConsentBanner.tsx` — creado pero luego **desactivado** (ver decisión en sección 7)
-   - `ConsentCheckbox.tsx` — checkbox reutilizable con links inline
-   - Login.tsx: ConsentCheckbox obligatorio en registro, guarda en tabla `consentimientos`
-   - Welcome.tsx: aviso legal discreto al fondo
-   - Checkout.tsx: aviso legal inline debajo del campo email guest
+   - `PrivacyPolicy.tsx`, `TermsOfService.tsx`, `CookiesPolicy.tsx`
+   - `ConsentCheckbox.tsx` — obligatorio en registro
+   - `ConsentBanner.tsx` — creado pero **desactivado** (blocker UX)
 
-5. **Fix sistema de consentimiento** — Se eliminó el `ConsentBanner` del flujo (era un blocker UX). Se adoptó modelo de "consentimiento implícito por uso" + checkbox explícito en registro.
+5. **Fix sistema de consentimiento** — modelo "consentimiento implícito por uso" + checkbox explícito en registro.
 
 ---
 
@@ -284,13 +345,18 @@ Esta sesión (25 abril 2026) fue de construcción de features completos:
 ### P0 — SQL pendiente de ejecutar en Supabase
 
 ```sql
--- 1. Columnas VTEX en pedidos
+-- 1. Columnas de teléfono y país en profiles (nueva — pendiente)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_codigo_pais text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_tipo text DEFAULT 'whatsapp';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pais_codigo text DEFAULT 'EC';
+
+-- 2. Columnas VTEX en pedidos
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS vtex_order_id text;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS tracking_code text;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS courier text;
 ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS estado text DEFAULT 'confirmado';
 
--- 2. Tabla de consentimientos
+-- 3. Tabla de consentimientos
 CREATE TABLE consentimientos (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id uuid REFERENCES auth.users(id),
@@ -300,8 +366,19 @@ CREATE TABLE consentimientos (
   created_at timestamptz DEFAULT now()
 );
 
--- 3. Habilitar Realtime en pedidos (desde Dashboard o SQL)
+-- 4. Habilitar Realtime en pedidos (desde Dashboard o SQL)
 ALTER PUBLICATION supabase_realtime ADD TABLE pedidos;
+```
+
+### P0b — Supabase Storage (bucket mascotas)
+
+1. Dashboard → Storage → New bucket: nombre `mascotas`, Public ✅
+2. SQL Editor:
+```sql
+CREATE POLICY "upload_pet_photos" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'mascotas' AND auth.role() = 'authenticated');
+CREATE POLICY "read_pet_photos" ON storage.objects
+  FOR SELECT USING (bucket_id = 'mascotas');
 ```
 
 ### P1 — Pasarela de pago real
@@ -311,11 +388,11 @@ El checkout actual es una simulación. Se debe integrar una pasarela real. Opcio
 - **Kushki** (regional, bien documentado)
 - El flujo de Checkout.tsx ya tiene la estructura correcta; solo falta reemplazar el bloque `confirmarPago` que actualmente hace un `setTimeout` de 2 segundos.
 
-### P2 — Upload de fotos de mascotas
+### P2 — Upload de fotos (mascotas y perfil)
 
-El campo `foto_url` existe en la tabla `mascotas` pero no hay UI para subirla. Se debe:
-1. Crear bucket `mascotas-fotos` en Supabase Storage (público o con policy de lectura pública)
-2. En `BioPet.tsx` (sección de edición), agregar input `<input type="file">` que suba a Storage y actualice `foto_url`
+El campo `foto_url` en `mascotas` y `avatar_url` en `profiles` existen en la DB pero el upload de foto de perfil de usuario no tiene UI.
+- Mascotas: la lógica `uploadPetPhoto` existe en `BioPet.tsx` y `Onboarding.tsx`, solo falta que el bucket esté correctamente configurado (ver P0b)
+- Perfil: no hay UI para subir foto de perfil del usuario (`avatar_url`)
 
 ### P3 — Seller Portal / Panel de administración
 
@@ -567,9 +644,133 @@ Gradiente texto: `linear-gradient(90deg, #FF2D9B, #00E5FF, #FFE600)`
 | `guest_mode` | `'true'` | Flag de modo invitado |
 | `prefill_email` | `string` | Email para prellenar en Login desde Checkout paso 4 |
 | `register_prompt_shown` | `'true'` | Flag para no mostrar el RegisterPrompt más de una vez por sesión |
+| `onboarding_done_{userId}` | `'true'` | Evita redirigir al onboarding si ya se completó |
+| `onboarding_postponed` | `'true'` | Flag cuando el usuario eligió "Lo haré después" |
+| `checkout_envio` | JSON | Datos de envío persistidos entre sesiones de checkout |
+| `checkout_email` | `string` | Email de guest persistido en checkout |
 
 `sessionStorage` keys:
 | Key | Descripción |
 |---|---|
 | `epetplace_session_interactions` | Contador de productos añadidos (para disparar RegisterPrompt) |
 | `register_prompt_shown` | Flag de sesión para no repetir el prompt |
+
+---
+
+## 16. Flujo de Onboarding (complejo — leer antes de tocar)
+
+`src/pages/Onboarding.tsx` — se activa automáticamente cuando un usuario nuevo entra a `/home` y `profiles.onboarding_completo` es `false`.
+
+### Cuándo se redirige al onboarding
+
+En `Home.tsx → fetchAll()`:
+```ts
+if (!memoDone && !lsDone && !prof.onboarding_completo) {
+  history.replace('/onboarding');
+  return;
+}
+```
+Donde `lsDone = localStorage.getItem('onboarding_done_${userId}')`.
+
+### Flujo normal (primer ingreso)
+
+```
+1. IonModal de bienvenida (backdropDismiss=false)
+   ├── "¡Empezar ahora!" → cierra el modal → Paso 1
+   └── "Lo haré después" → postergarOnboarding() → /home
+
+2. Paso 1 — Datos de la mascota
+   Campos: foto (opcional), especie*, nombre*, raza (opcional),
+           fecha_nacimiento*, sexo* (condicional por especie), peso (opcional)
+   └── "Continuar →" valida campos obligatorios → Paso 2
+   └── "Omitir este paso →" salta directo a Paso 2 sin validar
+
+3. Paso 2 — Ubicación
+   Campos: país* (PAISES_SOPORTADOS con banderas), ciudad* (array dinámico del país)
+   Si ciudad = "Otra" → aparece input de texto libre
+   └── "¡Empezar! 🚀" → completarOnboarding(false) → guarda todo → /home
+   └── "Omitir este paso →" → completarOnboarding(true) → no guarda ubicación → /home
+```
+
+### Deep link `?step=ciudad`
+
+`/onboarding?step=ciudad` salta directamente al Paso 2, sin mostrar el modal de bienvenida ni el Paso 1. Se usa cuando el usuario ya tiene mascotas pero no tiene ciudad guardada. Lo dispara `Home.tsx` en el botón "Completar ahora":
+```ts
+else if (sinCiudad) history.push('/onboarding?step=ciudad');
+```
+
+Implementado con:
+```ts
+const stepParam = new URLSearchParams(location.search).get('step');
+const esSoloCiudad = stepParam === 'ciudad';
+const [showWelcome, setShowWelcome] = useState(!esSoloCiudad);
+const [paso, setPaso] = useState<1 | 2>(esSoloCiudad ? 2 : 1);
+```
+
+### `postergarOnboarding()` vs `completarOnboarding()`
+
+| Función | Cuándo | Qué hace |
+|---|---|---|
+| `postergarOnboarding()` | Clic en "Lo haré después" en el modal | Escribe `onboarding_completo: true` en DB (fire-and-forget) + `onboarding_done_${id}` en localStorage + `onboarding_postponed: true` → navega a /home |
+| `completarOnboarding(false)` | Botón "¡Empezar!" con ubicación válida | Guarda perfil (ciudad, pais, pais_codigo, tipo_mascotas) + crea mascota en DB + sube foto si hay → navega a /home |
+| `completarOnboarding(true)` | Clic en "Omitir este paso →" en Paso 2 | Igual pero `skipLocation=true`: solo guarda `onboarding_completo: true`, no toca ciudad ni país |
+
+**Por qué dos mecanismos (DB + localStorage):** la DB evita el redirect en sesiones futuras desde otros dispositivos; el localStorage evita el redirect antes de que termine la llamada asíncrona a Supabase (race condition).
+
+---
+
+## 17. BioPet.tsx — Exports y dependencias (cuidado antes de modificar)
+
+`src/pages/BioPet.tsx` exporta **6 cosas**. Tocar este archivo puede romper Onboarding.tsx.
+
+### Exports
+
+| Export | Tipo | Usado en |
+|---|---|---|
+| `default BioPet` | Componente — lista de mascotas en `/mascotas` | App.tsx |
+| `BioPetNew` | Componente — formulario crear mascota `/biopet/new` | App.tsx |
+| `BioPetDetail` | Componente — detalle/edición mascota `/biopet/:id` | App.tsx |
+| `RAZAS` | `Record<string, string[]>` — razas por especie | **Onboarding.tsx** |
+| `TITULO_ESPECIE` | `Record<string, string>` — título del formulario por especie | **Onboarding.tsx** |
+| `RazaInput` | Componente React — autocomplete de razas con dropdown | **Onboarding.tsx** |
+
+### Riesgo de importación circular
+
+`Onboarding.tsx` importa de `BioPet.tsx`:
+```ts
+import { RAZAS, TITULO_ESPECIE, RazaInput } from './BioPet';
+```
+No hay riesgo circular porque `BioPet.tsx` **no** importa nada de `Onboarding.tsx`. Pero si se mueve `RAZAS` o `RazaInput` a otro archivo, hay que actualizar el import en Onboarding.
+
+### `BioPetDetail` con guard interno
+
+```ts
+// En App.tsx
+<Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
+<Route exact path="/biopet/:id" render={(props) => {
+  const id = props.match.params.id;
+  if (!id || id === 'new') return <BioPetNew session={session} />;
+  return <BioPetDetail session={session} petId={id} />;
+}} />
+```
+Y dentro de `BioPetDetail`, hay una segunda guarda:
+```ts
+if (petId === 'new') return <BioPetNew session={session} />;
+```
+Doble protección intencionada.
+
+---
+
+## 18. Decisiones de Diseño del PhoneInput
+
+### Jerarquía de detección de país (en orden de prioridad)
+1. Prop `codigoPais` — el padre ya conoce el país del usuario
+2. `profiles.pais_codigo` en Supabase — si se pasa prop `session`
+3. Geo-detección por IP via `https://ipapi.co/json/`
+4. Ecuador por defecto
+
+### Prop `compact`
+Oculta el subtexto de preferencia de contacto y el aviso de país no soportado. Se usa `compact` en Checkout y Vet (espacio limitado); sin `compact` en Onboarding y Profile.
+
+### Sesión opcional
+`session` es `Session | null | undefined`. Si es null (usuario guest en Checkout), simplemente se salta el paso de Supabase y va directo a la detección por IP. No hay que manejar el caso null especialmente — el `if (session?.user?.id)` lo cubre.

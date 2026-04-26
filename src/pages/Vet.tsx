@@ -33,6 +33,7 @@ import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
+import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
 
 /* ── Tipos ───────────────────────────────────────────────────── */
 interface Vet {
@@ -138,8 +139,10 @@ const Vet: React.FC<Props> = ({ session }) => {
   const [toastCita,    setToastCita]    = useState({ open: false, msg: '' });
   const [ahora,        setAhora]        = useState(() => Date.now());
   const [authWall,     setAuthWall]     = useState(false);
-  const [perfilTelefono, setPerfilTelefono] = useState('');
-  const [telefonoInput,  setTelefonoInput]  = useState('');
+  const [perfilTelefono,  setPerfilTelefono]  = useState('');
+  const [telefonoInput,   setTelefonoInput]   = useState('');
+  const [telefonoCodigo,  setTelefonoCodigo]  = useState('');
+  const [telefonoTipo,    setTelefonoTipo]    = useState<'whatsapp' | 'llamada'>('whatsapp');
 
   const dias = getProximos7Dias();
 
@@ -219,7 +222,11 @@ const Vet: React.FC<Props> = ({ session }) => {
 
     // Guardar teléfono en profile si fue ingresado ahora
     if (!perfilTelefono && telefonoInput.trim() && session) {
-      await supabase.from('profiles').update({ telefono: telefonoInput.trim() }).eq('id', session.user.id);
+      await supabase.from('profiles').update({
+        telefono: telefonoInput.trim(),
+        telefono_codigo_pais: telefonoCodigo,
+        telefono_tipo: telefonoTipo,
+      }).eq('id', session.user.id);
       setPerfilTelefono(telefonoInput.trim());
     }
 
@@ -680,20 +687,20 @@ const Vet: React.FC<Props> = ({ session }) => {
                     <p style={{ color:'#555', fontSize:12, margin:'0 0 8px' }}>
                       Para confirmarte la cita necesitamos tu teléfono
                     </p>
-                    <input
-                      type="tel"
-                      value={telefonoInput}
-                      onChange={e => { setTelefonoInput(e.target.value); setErrores(err => ({ ...err, telefono: '' })); }}
-                      placeholder="+593 99 000 0000"
-                      style={{
-                        width:'100%', boxSizing:'border-box',
-                        background:'#111', border: errores.telefono ? '1px solid rgba(255,69,58,0.5)' : '1px solid #222',
-                        borderRadius:12, padding:'12px 16px', color:'#fff', fontSize:14,
+                    <PhoneInput
+                      value={telefonoInput || undefined}
+                      codigoPais={telefonoCodigo || undefined}
+                      tipo={telefonoTipo}
+                      onChange={(v: PhoneInputValue) => {
+                        setTelefonoInput(v.fullNumber);
+                        setTelefonoCodigo(v.codigoPais);
+                        setTelefonoTipo(v.tipo);
+                        setErrores(err => ({ ...err, telefono: '' }));
                       }}
+                      error={errores.telefono}
+                      clearError={() => setErrores(err => ({ ...err, telefono: '' }))}
+                      compact
                     />
-                    {errores.telefono && (
-                      <p style={{ color:'#FF453A', fontSize:12, margin:'6px 0 0', fontWeight:500 }}>⚠️ {errores.telefono}</p>
-                    )}
                   </ModalSection>
                 )}
 

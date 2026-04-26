@@ -4,12 +4,13 @@ import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
+import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
 
 interface Profile {
   id: string; nombre: string; email: string; avatar_url?: string;
   telefono?: string; direccion_principal?: string;
 }
-interface Mascota  { id: string; nombre: string; especie: string }
+interface Mascota  { id: string; nombre: string; especie: string; foto_url?: string }
 
 interface Props { session: Session }
 
@@ -24,11 +25,14 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [editing,      setEditing]      = useState(false);
   const [nombre,       setNombre]       = useState('');
   const [saving,       setSaving]       = useState(false);
-  const [editTelefono, setEditTelefono] = useState('');
-  const [editDir,      setEditDir]      = useState('');
+  const [editTelefono,       setEditTelefono]       = useState('');
+  const [editTelefonoCodigo, setEditTelefonoCodigo] = useState('');
+  const [editTelefonoTipo,   setEditTelefonoTipo]   = useState<'whatsapp' | 'llamada'>('whatsapp');
+  const [editDir,            setEditDir]            = useState('');
   const [activeField,  setActiveField]  = useState<'telefono' | 'direccion' | null>(null);
   const [savingField,  setSavingField]  = useState(false);
   const [toast,        setToast]        = useState('');
+  const [brokenPhotos, setBrokenPhotos] = useState<Set<string>>(new Set());
   const { isDark, toggleTheme } = useTheme();
   const history = useHistory();
 
@@ -48,7 +52,7 @@ const Profile: React.FC<Props> = ({ session }) => {
         setNombre(fallback);
       }
       const { data: mascs } = await supabase
-        .from('mascotas').select('id, nombre, especie').eq('user_id', session.user.id).order('nombre');
+        .from('mascotas').select('id, nombre, especie, foto_url').eq('user_id', session.user.id).order('nombre');
       if (mascs) setMascotas(mascs as Mascota[]);
     };
     fetch();
@@ -70,15 +74,16 @@ const Profile: React.FC<Props> = ({ session }) => {
     const valor = campo === 'telefono' ? editTelefono.trim() : editDir.trim();
     if (!valor) return;
     setSavingField(true);
-    const col = campo === 'telefono' ? 'telefono' : 'direccion_principal';
+    const updateObj: Record<string, unknown> = campo === 'telefono'
+      ? { telefono: valor, telefono_codigo_pais: editTelefonoCodigo, telefono_tipo: editTelefonoTipo }
+      : { direccion_principal: editDir.trim() };
     const { data } = await supabase
-      .from('profiles').update({ [col]: valor })
+      .from('profiles').update(updateObj)
       .eq('id', session.user.id).select().single();
     if (data) setProfile(data);
     setSavingField(false);
     setActiveField(null);
-    const pts = campo === 'telefono' ? 15 : 15;
-    showToast(`¡Perfil actualizado! +${pts} puntos 🎉`);
+    showToast(`¡Perfil actualizado! +15 puntos 🎉`);
   };
 
   const handleLogout = async () => {
@@ -164,9 +169,9 @@ const Profile: React.FC<Props> = ({ session }) => {
           {/* ── Completar perfil ─────────────────────────────────── */}
           {(() => {
             const faltantes: { key: string; icon: string; label: string; action: 'telefono' | 'direccion' | 'mascota' }[] = [];
-            if (!profile?.telefono)           faltantes.push({ key:'telefono',  icon:'📱', label:'Agrega tu teléfono',        action:'telefono'  });
-            if (!profile?.direccion_principal) faltantes.push({ key:'direccion', icon:'📍', label:'Agrega tu dirección',       action:'direccion' });
-            if (mascotas.length < 2)           faltantes.push({ key:'mascotas',  icon:'🐾', label:'Agrega tu segunda mascota', action:'mascota'   });
+            if (!profile?.telefono)           faltantes.push({ key:'telefono',  icon:'📱', label:'Agrega tu teléfono',         action:'telefono'  });
+            if (!profile?.direccion_principal) faltantes.push({ key:'direccion', icon:'📍', label:'Agrega tu dirección',        action:'direccion' });
+            if (mascotas.length === 0)         faltantes.push({ key:'mascotas',  icon:'🐾', label:'Agrega tu primera mascota',  action:'mascota'   });
 
             if (faltantes.length === 0) return (
               <div className="px-5 mb-5">
@@ -250,13 +255,39 @@ const Profile: React.FC<Props> = ({ session }) => {
                         </div>
 
                         {/* Input inline */}
-                        {activeField === f.action && (f.action === 'telefono' || f.action === 'direccion') && (
+                        {activeField === f.action && f.action === 'telefono' && (
+                          <div>
+                            <PhoneInput
+                              value={editTelefono || undefined}
+                              codigoPais={editTelefonoCodigo || undefined}
+                              tipo={editTelefonoTipo}
+                              onChange={(v: PhoneInputValue) => {
+                                setEditTelefono(v.fullNumber);
+                                setEditTelefonoCodigo(v.codigoPais);
+                                setEditTelefonoTipo(v.tipo);
+                              }}
+                              compact
+                            />
+                            <button
+                              onClick={() => saveCampo('telefono')}
+                              disabled={savingField}
+                              style={{
+                                marginTop:8, width:'100%',
+                                background:'#00F5A0', border:'none', borderRadius:10,
+                                padding:'10px 14px', color:'#000', fontWeight:800,
+                                fontSize:13, cursor:'pointer',
+                                opacity: savingField ? 0.6 : 1,
+                              }}
+                            >{savingField ? '…' : 'Guardar'}</button>
+                          </div>
+                        )}
+                        {activeField === f.action && f.action === 'direccion' && (
                           <div style={{ display:'flex', gap:8 }}>
                             <input
-                              type={f.action === 'telefono' ? 'tel' : 'text'}
-                              value={f.action === 'telefono' ? editTelefono : editDir}
-                              onChange={e => f.action === 'telefono' ? setEditTelefono(e.target.value) : setEditDir(e.target.value)}
-                              placeholder={f.action === 'telefono' ? '+593 99 000 0000' : 'Calle, número, sector'}
+                              type="text"
+                              value={editDir}
+                              onChange={e => setEditDir(e.target.value)}
+                              placeholder="Calle, número, sector"
                               autoFocus
                               style={{
                                 flex:1, background:'#111', border:'1px solid #333', borderRadius:10,
@@ -264,7 +295,7 @@ const Profile: React.FC<Props> = ({ session }) => {
                               }}
                             />
                             <button
-                              onClick={() => saveCampo(f.action as 'telefono' | 'direccion')}
+                              onClick={() => saveCampo('direccion')}
                               disabled={savingField}
                               style={{
                                 background:'#00F5A0', border:'none', borderRadius:10,
@@ -304,17 +335,35 @@ const Profile: React.FC<Props> = ({ session }) => {
               <h2 className="text-white font-semibold mb-3">Mis Mascotas</h2>
               <div className="space-y-2">
                 {mascotas.map(m => (
-                  <div
+                  <button
                     key={m.id}
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl"
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}
+                    onClick={() => history.push(`/biopet/${m.id}`)}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl w-full text-left"
+                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', cursor: 'pointer' }}
                   >
-                    <span className="text-xl">{ESPECIE_EMOJI[m.especie] ?? '🐾'}</span>
+                    {(m.foto_url && !brokenPhotos.has(m.id)) ? (
+                      <img
+                        src={m.foto_url}
+                        alt={m.nombre}
+                        onError={() => setBrokenPhotos(prev => new Set(prev).add(m.id))}
+                        style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+                        background: 'linear-gradient(135deg,#FF2D9B,#00E5FF)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 18, fontWeight: 800, color: '#fff',
+                      }}>
+                        {m.nombre.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="text-white text-sm font-medium">{m.nombre}</p>
                       <p className="text-gray-500 text-xs capitalize">{m.especie}</p>
                     </div>
-                  </div>
+                    <span style={{ color: '#444', fontSize: 16, marginLeft: 'auto' }}>›</span>
+                  </button>
                 ))}
               </div>
             </div>

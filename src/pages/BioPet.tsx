@@ -57,8 +57,33 @@ const ESPECIES = [
   { key:'gato',   label:'Gato',   emoji:'🐈' },
   { key:'ave',    label:'Ave',    emoji:'🦜' },
   { key:'conejo', label:'Conejo', emoji:'🐇' },
+  { key:'pez',    label:'Pez',    emoji:'🐠' },
+  { key:'reptil', label:'Reptil', emoji:'🦎' },
   { key:'otro',   label:'Otro',   emoji:'🐾' },
 ];
+
+export const RAZAS: Record<string, string[]> = {
+  perro:  ['Labrador','Golden Retriever','Bulldog','Poodle','Beagle','Pastor Alemán','Chihuahua',
+            'Dachshund','Boxer','Rottweiler','Shih Tzu','Yorkshire','Bichon Frise','Schnauzer',
+            'American Bully','Bulldog Inglés','Husky Siberiano','Mix/Mestizo'],
+  gato:   ['Siamés','Persa','Maine Coon','Ragdoll','Bengalí','Sphynx','British Shorthair',
+            'Scottish Fold','Doméstico','Mix/Mestizo'],
+  ave:    ['Periquito','Canario','Loro','Cacatúa','Agaporni','Ninfa','Cotorra','Otro'],
+  conejo: ['Holandés enano','Angora','Rex','Belier','Nueva Zelanda','Mix/Mestizo'],
+  pez:    ['Goldfish','Betta','Guppy','Neon','Oscar','Disco','Otro'],
+  reptil: ['Iguana','Gecko','Tortuga','Camaleón','Otro'],
+  otro:   ['Mix/Mestizo','Otro'],
+};
+
+export const TITULO_ESPECIE: Record<string, string> = {
+  perro:  '🐕 Cuéntanos sobre tu compañero canino',
+  gato:   '🐈 Cuéntanos sobre tu amigo felino',
+  ave:    '🦜 Cuéntanos sobre tu amigo emplumado',
+  conejo: '🐇 Cuéntanos sobre tu conejito',
+  pez:    '🐠 Cuéntanos sobre tu compañero acuático',
+  reptil: '🦎 Cuéntanos sobre tu reptil',
+  otro:   '🐾 Cuéntanos sobre tu mascota especial',
+};
 
 /* ── Helpers ─────────────────────────────────────────────────── */
 const calcEdad = (fecha: string): string => {
@@ -80,25 +105,38 @@ const diasRestantes = (fecha?: string): number | null => {
 
 /* ── Supabase Storage: subir foto ────────────────────────────── */
 const uploadPetPhoto = async (file: File, petId: string): Promise<string | null> => {
-  const ext  = file.name.split('.').pop() ?? 'jpg';
-  const path = `${petId}/avatar.${ext}`;
+  const ext      = file.name.split('.').pop() ?? 'jpg';
+  const filePath = `${petId}/avatar.${ext}`;
+
   const { error } = await supabase.storage
     .from('mascotas')
-    .upload(path, file, { upsert: true, contentType: file.type });
-  if (error) { console.error('Storage error:', error.message); return null; }
-  const { data } = supabase.storage.from('mascotas').getPublicUrl(path);
-  return data.publicUrl;
+    .upload(filePath, file, { upsert: true, contentType: file.type });
+
+  if (error) {
+    console.error('[Storage] error — verifica bucket "mascotas" Public:true y policies INSERT/SELECT:', error.message);
+    return null;
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('mascotas')
+    .getPublicUrl(filePath);
+
+  console.log('[Storage] publicUrl guardado:', publicUrl);
+  return publicUrl;
 };
 
 /* ── Avatar con iniciales ────────────────────────────────────── */
 const PetAvatar: React.FC<{ nombre: string; foto_url?: string; size?: number }> = ({
   nombre, foto_url, size = 56,
 }) => {
-  if (foto_url) {
+  const [broken, setBroken] = useState(false);
+
+  if (foto_url && !broken) {
     return (
       <img
         src={foto_url}
         alt={nombre}
+        onError={() => setBroken(true)}
         style={{ width:size, height:size, borderRadius:'50%', objectFit:'cover', flexShrink:0 }}
       />
     );
@@ -267,12 +305,86 @@ const BioPet: React.FC<Props> = ({ session }) => {
    COMPONENTE 2 – FORMULARIO NUEVA MASCOTA  (/biopet/new)
 ════════════════════════════════════════════════════════════════ */
 const EMPTY_FORM = {
-  nombre:'', especie:'perro', raza:'', fecha_nacimiento:'',
+  nombre:'', especie:'', raza:'', fecha_nacimiento:'',
   sexo:'', peso:'', notas:'', foto_url:'',
+};
+
+const validarFechaMascota = (val: string): string => {
+  if (!val) return '⚠️ La fecha de nacimiento es obligatoria';
+  const d   = new Date(val);
+  const now = new Date();
+  const min = new Date(); min.setFullYear(min.getFullYear() - 30);
+  if (d > now) return '⚠️ Verifica la fecha de nacimiento 📅 — no puede ser futura';
+  if (d < min) return '⚠️ Verifica la fecha de nacimiento 📅 — no puede ser más de 30 años';
+  return '';
+};
+
+/* ── Autocomplete de razas ───────────────────────────────────── */
+export const RazaInput: React.FC<{
+  value: string; onChange: (v: string) => void; especie: string; hasError?: boolean;
+}> = ({ value, onChange, especie, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  const lista = RAZAS[especie] ?? [];
+  const filtradas = value.trim()
+    ? lista.filter(r => r.toLowerCase().includes(value.toLowerCase()))
+    : lista;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={wrapRef} style={{ position:'relative' }}>
+      <input
+        type="text"
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder="Ej: Labrador, Mestizo…"
+        style={{
+          width:'100%', background:'#111',
+          border:`1px solid ${hasError ? '#FF2D9B' : '#2a2a2a'}`,
+          borderRadius:12, padding:'13px 14px', color:'#fff',
+          fontSize:14, boxSizing:'border-box', outline:'none',
+        }}
+      />
+      {open && filtradas.length > 0 && (
+        <div style={{
+          position:'absolute', top:'100%', left:0, right:0, zIndex:200,
+          background:'#111', border:'1px solid #2a2a2a', borderRadius:12,
+          marginTop:4, maxHeight:200, overflowY:'auto',
+          boxShadow:'0 8px 32px rgba(0,0,0,0.8)',
+        }}>
+          {filtradas.map(raza => (
+            <button
+              key={raza}
+              type="button"
+              onMouseDown={() => { onChange(raza); setOpen(false); }}
+              style={{
+                display:'block', width:'100%', textAlign:'left',
+                padding:'10px 14px', background:'none', border:'none',
+                borderBottom:'1px solid #1a1a1a', color:'#ddd',
+                fontSize:14, cursor:'pointer',
+              }}
+            >
+              {raza}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 export const BioPetNew: React.FC<Props> = ({ session }) => {
   const [form,         setForm]         = useState({ ...EMPTY_FORM });
+  const [errors,       setErrors]       = useState<Record<string,string>>({});
   const [photoFile,    setPhotoFile]    = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [saving,       setSaving]       = useState(false);
@@ -280,7 +392,14 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
   const fileRef = useRef<HTMLInputElement>(null);
   const history = useHistory();
 
-  const set = (key: string, val: string) => setForm(f => ({ ...f, [key]: val }));
+  const setField = (key: string, val: string) => {
+    setForm(f => {
+      const next = { ...f, [key]: val };
+      if (key === 'especie') next.raza = '';
+      return next;
+    });
+    setErrors(e => { const n = { ...e }; delete n[key]; return n; });
+  };
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
 
@@ -293,8 +412,37 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
     reader.readAsDataURL(file);
   };
 
+  const validate = (): boolean => {
+    const errs: Record<string,string> = {};
+
+    if (!form.nombre.trim())
+      errs.nombre = '⚠️ El nombre de tu mascota es obligatorio';
+
+    if (!form.especie)
+      errs.especie = '⚠️ Selecciona la especie de tu mascota';
+
+    if (!form.raza.trim())
+      errs.raza = '⚠️ La raza es obligatoria — si es mestizo selecciona Mix/Mestizo';
+
+    const errFecha = validarFechaMascota(form.fecha_nacimiento);
+    if (errFecha) errs.fecha_nacimiento = errFecha;
+
+    // Sexo: obligatorio para todos excepto Pez; opcional para Ave
+    if (form.especie !== 'pez' && form.especie !== 'ave' && !form.sexo)
+      errs.sexo = '⚠️ Selecciona el sexo de tu mascota';
+
+    if (form.peso) {
+      const n = parseFloat(form.peso);
+      if (isNaN(n) || n < 0.1 || n > 200)
+        errs.peso = '⚠️ El peso debe estar entre 0.1 y 200 kg';
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSave = async () => {
-    if (!form.nombre.trim()) { showToast('El nombre es obligatorio ⚠️'); return; }
+    if (!validate()) return;
     setSaving(true);
 
     const payload: Record<string, unknown> = {
@@ -308,54 +456,49 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
       notas:            form.notas             || null,
     };
 
-    console.log('[BioPet] INSERT mascotas:', payload);
-
     let savedId: string | null = null;
-
     const { data, error } = await supabase
       .from('mascotas').insert(payload).select('id').single();
 
     if (error) {
-      console.error('[BioPet] INSERT error:', error);
       if (error.message?.includes('sexo')) {
-        // Columna sexo no existe aún — reintentar sin ella
-        const payloadSinSexo = { ...payload };
-        delete payloadSinSexo.sexo;
+        const payloadSinSexo = { ...payload }; delete payloadSinSexo.sexo;
         const retry = await supabase.from('mascotas').insert(payloadSinSexo).select('id').single();
         if (retry.error) {
-          console.error('[BioPet] RETRY error:', retry.error);
-          const msg = retry.error.code === '42501'
+          showToast(retry.error.code === '42501'
             ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
-            : retry.error.message;
-          showToast(`Error: ${msg}`);
+            : `Error: ${retry.error.message}`);
           setSaving(false); return;
         }
         savedId = retry.data?.id ?? null;
       } else {
-        const msg = error.code === '42501'
+        showToast(error.code === '42501'
           ? 'Sin permisos (RLS). Ejecuta security.sql en Supabase.'
-          : error.message;
-        showToast(`Error: ${msg}`);
+          : `Error: ${error.message}`);
         setSaving(false); return;
       }
     } else {
       savedId = data?.id ?? null;
     }
 
-    if (!savedId) {
-      showToast('Error: no se recibió ID de la mascota guardada');
-      setSaving(false); return;
-    }
+    if (!savedId) { showToast('Error: no se recibió ID'); setSaving(false); return; }
 
-    // Subir foto si hay una seleccionada
     if (photoFile) {
       const url = await uploadPetPhoto(photoFile, savedId);
-      if (url) await supabase.from('mascotas').update({ foto_url: url }).eq('id', savedId);
+      console.log('URL foto guardada:', url);
+      if (url) {
+        const { data: updData, error: updErr } = await supabase
+          .from('mascotas').update({ foto_url: url }).eq('id', savedId).select('id, foto_url').single();
+        console.log('Update mascota resultado:', { data: updData, error: updErr });
+      }
     }
 
     setSaving(false);
     history.replace('/mascotas');
   };
+
+  const hayErrores = Object.keys(errors).length > 0;
+  const titulo = form.especie ? TITULO_ESPECIE[form.especie] : '🐾 Nueva Mascota';
 
   return (
     <IonPage>
@@ -363,10 +506,11 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
         <IonLoading isOpen={saving} message="Guardando mascota…" />
 
         <div style={{ background:'#000', minHeight:'100vh', paddingBottom:120 }}>
+
           {/* Header */}
-          <div style={{ padding:'52px 20px 24px', display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ padding:'52px 20px 16px', display:'flex', alignItems:'center', gap:12 }}>
             <BackBtn onClick={() => history.goBack()} />
-            <h1 style={{ color:'#fff', fontSize:20, fontWeight:800, margin:0 }}>Nueva Mascota</h1>
+            <h1 style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0, lineHeight:1.3 }}>{titulo}</h1>
           </div>
 
           <div style={{ padding:'0 20px', display:'flex', flexDirection:'column', gap:20 }}>
@@ -383,13 +527,9 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                   overflow:'hidden', position:'relative',
                 }}
               >
-                {photoPreview ? (
-                  <img src={photoPreview} alt="preview"
-                    style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                ) : (
-                  <span style={{ fontSize:36 }}>📷</span>
-                )}
-                {/* Overlay */}
+                {photoPreview
+                  ? <img src={photoPreview} alt="preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <span style={{ fontSize:36 }}>📷</span>}
                 <div style={{
                   position:'absolute', inset:0, background:'rgba(0,0,0,0.3)',
                   display:'flex', alignItems:'center', justifyContent:'center',
@@ -398,100 +538,175 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                   <span style={{ color:'#fff', fontSize:20 }}>✎</span>
                 </div>
               </div>
-              <input
-                ref={fileRef} type="file" accept="image/*"
-                style={{ display:'none' }} onChange={handlePhotoChange}
-              />
-              <p style={{ color:'#555', fontSize:12, margin:0 }}>Toca para agregar foto</p>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handlePhotoChange} />
+              <p style={{ color:'#555', fontSize:12, margin:0 }}>
+                Foto <span style={{ color:'#444' }}>(opcional, recomendado)</span>
+              </p>
+              <p style={{ color:'#555', fontSize:12, margin:0, textAlign:'center', lineHeight:1.5, maxWidth:260 }}>
+                Una foto nos ayuda a identificar a tu compañero fácilmente y personalizar su perfil. ¡También es para recordar lo bonito que es! 📸
+              </p>
             </div>
 
             {/* ── Especie ──────────────────────────────────────── */}
-            <Field label="Especie *">
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
-                {ESPECIES.map(e => (
-                  <button
-                    key={e.key}
-                    onClick={() => set('especie', e.key)}
-                    style={{
-                      padding:'10px 0', borderRadius:12,
-                      background: form.especie === e.key
-                        ? 'linear-gradient(135deg,#FF2D9B55,#00E5FF55)'
-                        : '#111',
-                      border: form.especie === e.key
-                        ? '2px solid #00E5FF'
-                        : '1px solid #222',
-                      display:'flex', flexDirection:'column',
-                      alignItems:'center', gap:4, cursor:'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize:20 }}>{e.emoji}</span>
-                    <span style={{ fontSize:9, color: form.especie === e.key ? '#00E5FF' : '#666', fontWeight:600 }}>
-                      {e.label}
-                    </span>
-                  </button>
-                ))}
+            <div>
+              <label style={{
+                display:'block', marginBottom:8,
+                color:'#666', fontSize:11, fontWeight:700,
+                letterSpacing:'0.1em', textTransform:'uppercase',
+              }}>
+                Especie *
+              </label>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+                {ESPECIES.map(e => {
+                  const sel = form.especie === e.key;
+                  return (
+                    <button
+                      key={e.key}
+                      onClick={() => setField('especie', e.key)}
+                      style={{
+                        padding:'12px 0 10px', borderRadius:14,
+                        background: sel ? 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)' : '#111',
+                        border: sel ? '2px solid #00E5FF' : errors.especie ? '1px solid #FF2D9B44' : '1px solid #222',
+                        display:'flex', flexDirection:'column',
+                        alignItems:'center', gap:5, cursor:'pointer',
+                        transition:'all 0.15s', position:'relative',
+                      }}
+                    >
+                      {sel && (
+                        <div style={{
+                          position:'absolute', top:5, right:5,
+                          width:13, height:13, borderRadius:'50%',
+                          background:'linear-gradient(135deg,#FF2D9B,#00E5FF)',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:8, color:'#000', fontWeight:900,
+                        }}>✓</div>
+                      )}
+                      <span style={{ fontSize:22 }}>{e.emoji}</span>
+                      <span style={{ fontSize:10, color: sel ? '#00E5FF' : '#666', fontWeight:700 }}>{e.label}</span>
+                    </button>
+                  );
+                })}
               </div>
-            </Field>
+              {errors.especie
+                ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.especie}</p>
+                : <p style={{ color:'#555', fontSize:12, marginTop:8, lineHeight:1.5 }}>Define qué servicios, productos y veterinarios son los más adecuados para tu compañero</p>
+              }
+            </div>
 
             {/* ── Nombre ───────────────────────────────────────── */}
-            <Field label="Nombre *">
+            <div>
+              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                Nombre *
+              </label>
               <TextInput
-                value={form.nombre} onChange={v => set('nombre', v)}
-                placeholder="Ej: Luna" />
-            </Field>
+                value={form.nombre}
+                onChange={v => setField('nombre', v)}
+                placeholder="Ej: Luna"
+                borderColor={errors.nombre ? '#FF2D9B' : undefined}
+              />
+              {errors.nombre
+                ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.nombre}</p>
+                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>El nombre nos permite personalizar todas las comunicaciones y alertas para tu compañero 🐾</p>
+              }
+            </div>
 
-            {/* ── Raza ─────────────────────────────────────────── */}
-            <Field label="Raza">
-              <TextInput value={form.raza} onChange={v => set('raza', v)} placeholder="Ej: Golden Retriever" />
-            </Field>
+            {/* ── Raza con autocompletado ───────────────────────── */}
+            <div>
+              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                Raza *
+              </label>
+              <RazaInput
+                value={form.raza}
+                onChange={v => setField('raza', v)}
+                especie={form.especie}
+                hasError={!!errors.raza}
+              />
+              {errors.raza
+                ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.raza}</p>
+                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>La raza nos permite recomendarte alimentos específicos, detectar predisposiciones de salud y conectarte con especialistas. Si es mestizo selecciona Mix/Mestizo 🧬</p>
+              }
+            </div>
 
             {/* ── Fecha de nacimiento ───────────────────────────── */}
-            <Field label="Fecha de nacimiento *">
-              <TextInput value={form.fecha_nacimiento} onChange={v => set('fecha_nacimiento', v)} type="date" />
-            </Field>
+            <div>
+              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                Fecha de nacimiento *
+              </label>
+              <TextInput
+                value={form.fecha_nacimiento}
+                onChange={v => setField('fecha_nacimiento', v)}
+                type="date"
+                borderColor={errors.fecha_nacimiento ? '#FF2D9B' : undefined}
+              />
+              {errors.fecha_nacimiento
+                ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.fecha_nacimiento}</p>
+                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>Calculamos su edad exacta, te recordamos vacunas a tiempo y ajustamos las recomendaciones según su etapa de vida 📅</p>
+              }
+            </div>
 
-            {/* ── Sexo ─────────────────────────────────────────── */}
-            <Field label="Sexo">
-              <div style={{ display:'flex', gap:10 }}>
-                {[{ val:'Macho', icon:'♂' }, { val:'Hembra', icon:'♀' }].map(s => (
-                  <button
-                    key={s.val}
-                    onClick={() => set('sexo', form.sexo === s.val ? '' : s.val)}
-                    style={{
-                      flex:1, padding:'12px 0', borderRadius:12, cursor:'pointer',
-                      background: form.sexo === s.val
-                        ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
-                        : '#111',
-                      color: form.sexo === s.val ? '#000' : '#666',
-                      border: form.sexo === s.val ? 'none' : '1px solid #222',
-                      fontWeight:800, fontSize:14,
-                    }}
-                  >
-                    {s.icon} {s.val}
-                  </button>
-                ))}
+            {/* ── Sexo (condicional por especie) ────────────────── */}
+            {form.especie !== 'pez' && (
+              <div>
+                <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                  Sexo {form.especie === 'ave' ? <span style={{ color:'#444', fontWeight:400, textTransform:'none', letterSpacing:0 }}>(opcional)</span> : '*'}
+                </label>
+                <div style={{ display:'flex', gap:10 }}>
+                  {[
+                    { val:'Macho',  icon:'♂' },
+                    { val:'Hembra', icon:'♀' },
+                    ...(form.especie === 'ave' ? [{ val:'No sé', icon:'?' }] : []),
+                  ].map(s => (
+                    <button
+                      key={s.val}
+                      onClick={() => setField('sexo', form.sexo === s.val ? '' : s.val)}
+                      style={{
+                        flex:1, padding:'12px 0', borderRadius:12, cursor:'pointer',
+                        background: form.sexo === s.val ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#111',
+                        color: form.sexo === s.val ? '#000' : '#666',
+                        border: form.sexo === s.val ? 'none' : errors.sexo ? '1px solid #FF2D9B44' : '1px solid #222',
+                        fontWeight:800, fontSize:14, transition:'all 0.15s',
+                      }}
+                    >
+                      {s.icon} {s.val}
+                    </button>
+                  ))}
+                </div>
+                {errors.sexo
+                  ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.sexo}</p>
+                  : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>Importante para recomendaciones de salud preventiva, esterilización y cuidados específicos por género</p>
+                }
               </div>
-            </Field>
+            )}
 
             {/* ── Peso ─────────────────────────────────────────── */}
-            <Field label="Peso actual">
+            <div>
+              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                Peso actual <span style={{ color:'#444', fontWeight:400, textTransform:'none', letterSpacing:0 }}>(opcional)</span>
+              </label>
               <div style={{ position:'relative' }}>
                 <TextInput
-                  value={form.peso} onChange={v => set('peso', v)}
-                  type="number" placeholder="0.0"
+                  value={form.peso}
+                  onChange={v => setField('peso', v)}
+                  type="number"
+                  placeholder="0.0"
+                  borderColor={errors.peso ? '#FF2D9B' : undefined}
                 />
                 <span style={{
                   position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
                   color:'#555', fontSize:13, fontWeight:600, pointerEvents:'none',
                 }}>kg</span>
               </div>
-            </Field>
+              {errors.peso
+                ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.peso}</p>
+                : <p style={{ color:'#444', fontSize:12, marginTop:6, lineHeight:1.5 }}>El peso nos ayuda a calcular las porciones de alimento correctas 🍽️</p>
+              }
+            </div>
 
             {/* ── Notas ────────────────────────────────────────── */}
             <Field label="Notas / Condiciones médicas">
               <textarea
                 value={form.notas}
-                onChange={e => set('notas', e.target.value)}
+                onChange={e => setField('notas', e.target.value)}
                 placeholder="Alergias, medicamentos, condiciones especiales…"
                 rows={4}
                 style={{
@@ -501,6 +716,22 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                 }}
               />
             </Field>
+
+            {/* ── Banner de errores ─────────────────────────────── */}
+            {hayErrores && (
+              <div style={{
+                padding:'14px 16px', borderRadius:14,
+                background:'rgba(255,45,155,0.08)',
+                border:'1px solid rgba(255,45,155,0.25)',
+              }}>
+                <p style={{ color:'#FF2D9B', fontSize:14, fontWeight:700, margin:'0 0 4px' }}>
+                  Completa los datos obligatorios de tu compañero 🐾
+                </p>
+                <p style={{ color:'#884', fontSize:13, margin:0, lineHeight:1.5 }}>
+                  Con estos datos podemos personalizar su cuidado
+                </p>
+              </div>
+            )}
 
             {/* ── Guardar ──────────────────────────────────────── */}
             <button
@@ -856,20 +1087,21 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
 
 const TextInput: React.FC<{
   value: string; onChange: (v: string) => void;
-  placeholder?: string; type?: string;
-}> = ({ value, onChange, placeholder, type = 'text' }) => (
+  placeholder?: string; type?: string; borderColor?: string;
+}> = ({ value, onChange, placeholder, type = 'text', borderColor }) => (
   <input
     type={type}
     value={value}
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
     style={{
-      width:'100%', background:'#111', border:'1px solid #2a2a2a',
+      width:'100%', background:'#111',
+      border:`1px solid ${borderColor ?? '#2a2a2a'}`,
       borderRadius:12, padding:'13px 14px', color:'#fff',
       fontSize:14, boxSizing:'border-box',
     }}
-    onFocus={e  => { e.currentTarget.style.borderColor = '#00E5FF'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,229,255,0.12)'; }}
-    onBlur={e   => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.boxShadow = 'none'; }}
+    onFocus={e => { e.currentTarget.style.borderColor = '#00E5FF'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,229,255,0.12)'; }}
+    onBlur={e  => { e.currentTarget.style.borderColor = borderColor ?? '#2a2a2a'; e.currentTarget.style.boxShadow = 'none'; }}
   />
 );
 

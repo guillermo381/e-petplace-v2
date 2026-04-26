@@ -18,7 +18,7 @@ import { supabase } from '../lib/supabase';
 /* ── Tipos ───────────────────────────────────────────────────── */
 interface Profile  {
   id: string; nombre: string; email: string;
-  ciudad?: string; telefono?: string; foto_url?: string;
+  ciudad?: string; telefono?: string; avatar_url?: string;
   onboarding_completo?: boolean;
 }
 interface Vacuna   { id: string; nombre: string; fecha_proxima: string }
@@ -148,6 +148,7 @@ const Home: React.FC<Props> = ({ session }) => {
       .eq('user_id', session.user.id).order('nombre');
 
     if (mascs) {
+      console.log('Mascotas cargadas:', mascs.map(m => ({ id: m.id, nombre: m.nombre, foto_url: m.foto_url })));
       setMascotas(mascs as Mascota[]);
       setAlertas(buildAlertas(mascs as Mascota[]));
       const especies = [...new Set((mascs as Mascota[]).map(m => m.especie))];
@@ -244,11 +245,11 @@ const Home: React.FC<Props> = ({ session }) => {
           ════════════════════════════════════════════════════════ */}
           {!loading && !cardDismissed && profile && (() => {
             let pct = 0;
-            if (profile.nombre)   pct += 20;
-            if (profile.ciudad)   pct += 20;
+            if (profile.nombre)      pct += 20;
+            if (profile.ciudad)      pct += 20;
             if (mascotas.length > 0) pct += 30;
-            if (profile.telefono) pct += 15;
-            if (profile.foto_url) pct += 15;
+            if (profile.telefono)    pct += 15;
+            if (profile.avatar_url)  pct += 15;
             if (pct >= 100) return null;
             return (
               <section style={{ padding:'0 20px 20px' }}>
@@ -284,7 +285,18 @@ const Home: React.FC<Props> = ({ session }) => {
                     }} />
                   </div>
                   <button
-                    onClick={() => history.push('/perfil')}
+                    onClick={async () => {
+                      const [{ data: prof }, { data: mascs }] = await Promise.all([
+                        supabase.from('profiles').select('ciudad, pais').eq('id', session.user.id).single(),
+                        supabase.from('mascotas').select('id').eq('user_id', session.user.id),
+                      ]);
+                      const sinMascotas = !mascs?.length;
+                      const sinCiudad   = !prof?.ciudad;
+                      if (sinMascotas && sinCiudad) history.push('/onboarding');
+                      else if (sinMascotas)         history.push('/biopet/new');
+                      else if (sinCiudad)           history.push('/onboarding?step=ciudad');
+                      else                          history.push('/perfil');
+                    }}
                     style={{
                       background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
                       border:'none', borderRadius:10, padding:'9px 20px',

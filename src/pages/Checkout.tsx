@@ -13,6 +13,7 @@ import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { useCart, CartItem } from '../context/CartContext';
 import ConsentCheckbox from '../components/legal/ConsentCheckbox';
+import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
 
 interface Props { session: Session | null }
 
@@ -90,9 +91,11 @@ const Checkout: React.FC<Props> = ({ session }) => {
   })();
 
   // Envío
-  const [nombre,   setNombre]   = useState(savedEnvio.nombre      || '');
-  const [email,    setEmail]    = useState('');
-  const [telefono, setTelefono] = useState(savedEnvio.telefono    || '');
+  const [nombre,        setNombre]        = useState(savedEnvio.nombre      || '');
+  const [email,         setEmail]         = useState('');
+  const [telefono,      setTelefono]      = useState(savedEnvio.telefono    || '');
+  const [telefonoCodigo,setTelefonoCodigo]= useState(savedEnvio.telefonoCodigo || '');
+  const [telefonoTipo,  setTelefonoTipo]  = useState<'whatsapp'|'llamada'>(savedEnvio.telefonoTipo || 'whatsapp');
   const [dir,      setDir]      = useState(savedEnvio.direccion   || '');
   const [ciudad,   setCiudad]   = useState(savedEnvio.ciudad      || 'Quito');
   const [refs,     setRefs]     = useState(savedEnvio.referencias || '');
@@ -463,7 +466,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
     const envioCompleto = !!(nombre && dir && ciudad);
     const avanzarConEnvio = () => {
       localStorage.setItem('checkout_envio', JSON.stringify({
-        nombre, telefono, direccion: dir, ciudad, referencias: refs,
+        nombre, telefono, telefonoCodigo, telefonoTipo, direccion: dir, ciudad, referencias: refs,
       }));
       setMostrarFormEnvio(false);
       setStep(3);
@@ -540,7 +543,17 @@ const Checkout: React.FC<Props> = ({ session }) => {
                   />
                 </Field>
                 <Field label="Teléfono">
-                  <input value={telefono} onChange={e => setTelefono(e.target.value)} type="tel" placeholder="+593 99 000 0000" style={iStyle} />
+                  <PhoneInput
+                    value={telefono || undefined}
+                    codigoPais={telefonoCodigo || undefined}
+                    tipo={telefonoTipo}
+                    onChange={(v: PhoneInputValue) => {
+                      setTelefono(v.fullNumber);
+                      setTelefonoCodigo(v.codigoPais);
+                      setTelefonoTipo(v.tipo);
+                    }}
+                    compact
+                  />
                 </Field>
                 <Field label="Dirección principal">
                   <input value={dir} onChange={e => setDir(e.target.value)} placeholder="Calle, número, sector" style={iStyle} />
