@@ -14,6 +14,7 @@ import { supabase } from '../lib/supabase';
 import { useCart, CartItem } from '../context/CartContext';
 import ConsentCheckbox from '../components/legal/ConsentCheckbox';
 import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
+import AddressInput, { AddressValue } from '../components/AddressInput';
 
 interface Props { session: Session | null }
 
@@ -99,6 +100,18 @@ const Checkout: React.FC<Props> = ({ session }) => {
   const [dir,      setDir]      = useState(savedEnvio.direccion   || '');
   const [ciudad,   setCiudad]   = useState(savedEnvio.ciudad      || 'Quito');
   const [refs,     setRefs]     = useState(savedEnvio.referencias || '');
+  const [addressVal, setAddressVal] = useState<Partial<AddressValue>>(() => {
+    if (savedEnvio.direccion) {
+      return {
+        completa:    savedEnvio.direccion   || '',
+        referencias: savedEnvio.referencias || '',
+        ciudad:      savedEnvio.ciudad      || '',
+        apto:        savedEnvio.apto        || '',
+        guardadaComo: savedEnvio.guardadaComo || 'casa',
+      };
+    }
+    return {};
+  });
   const [mostrarFormEnvio, setMostrarFormEnvio] = useState(!savedEnvio.nombre);
 
   // Guest
@@ -153,16 +166,31 @@ const Checkout: React.FC<Props> = ({ session }) => {
   useEffect(() => {
     if (!session) return;
     supabase.from('profiles')
-      .select('nombre,email,telefono,direccion_principal,ciudad')
+      .select('nombre,email,telefono,telefono_codigo_pais,telefono_tipo,direccion_principal,direccion_completa,direccion_apto,direccion_referencias,direccion_ciudad,direccion_pais,direccion_codigo_postal,direccion_guardada_como,ciudad')
       .eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) {
           setNombre(data.nombre ?? '');
           setEmail(data.email ?? session.user.email ?? '');
-          if (data.telefono) setTelefono(data.telefono);
-          if (data.direccion_principal) {
-            setDir(data.direccion_principal);
-            if (data.ciudad) setCiudad(data.ciudad);
+          if (data.telefono) {
+            setTelefono(data.telefono);
+            if (data.telefono_codigo_pais) setTelefonoCodigo(data.telefono_codigo_pais);
+            if (data.telefono_tipo) setTelefonoTipo(data.telefono_tipo as 'whatsapp' | 'llamada');
+          }
+          const dirCompleta = data.direccion_completa || data.direccion_principal;
+          if (dirCompleta) {
+            setDir(dirCompleta);
+            const ciudad = data.direccion_ciudad || data.ciudad || '';
+            if (ciudad) setCiudad(ciudad);
+            setAddressVal({
+              completa:    dirCompleta,
+              apto:        data.direccion_apto        ?? '',
+              referencias: data.direccion_referencias ?? '',
+              ciudad:      ciudad,
+              pais:        data.direccion_pais        ?? '',
+              codigoPostal:data.direccion_codigo_postal ?? '',
+              guardadaComo:(data.direccion_guardada_como as AddressValue['guardadaComo']) ?? 'casa',
+            });
             setMostrarFormEnvio(false);
           }
         } else {
@@ -259,9 +287,19 @@ const Checkout: React.FC<Props> = ({ session }) => {
       }
 
       // 5. Guardar dirección en profile si es usuario autenticado
-      if (currentUserId && dir) {
+      if (currentUserId && (addressVal.completa || dir)) {
+        const dirFinal    = addressVal.completa || dir;
+        const ciudadFinal = addressVal.ciudad   || ciudad;
         supabase.from('profiles').update({
-          direccion_principal: dir, ciudad,
+          direccion_principal:     dirFinal,
+          direccion_completa:      dirFinal,
+          direccion_apto:          addressVal.apto         ?? '',
+          direccion_referencias:   addressVal.referencias  ?? '',
+          direccion_ciudad:        ciudadFinal,
+          direccion_pais:          addressVal.pais         ?? '',
+          direccion_codigo_postal: addressVal.codigoPostal ?? '',
+          direccion_guardada_como: addressVal.guardadaComo ?? 'casa',
+          ciudad:                  ciudadFinal,
         }).eq('id', currentUserId);
       }
 
@@ -463,10 +501,16 @@ const Checkout: React.FC<Props> = ({ session }) => {
 
   /* ── PASO 2: ENVÍO ──────────────────────────────────────────── */
   if (step === 2) {
-    const envioCompleto = !!(nombre && dir && ciudad);
+    const envioCompleto = !!(nombre && (addressVal.completa || dir));
     const avanzarConEnvio = () => {
+      const ciudadFinal = addressVal.ciudad || ciudad;
       localStorage.setItem('checkout_envio', JSON.stringify({
-        nombre, telefono, telefonoCodigo, telefonoTipo, direccion: dir, ciudad, referencias: refs,
+        nombre, telefono, telefonoCodigo, telefonoTipo,
+        direccion:    addressVal.completa    || dir,
+        ciudad:       ciudadFinal,
+        referencias:  addressVal.referencias || refs,
+        apto:         addressVal.apto        || '',
+        guardadaComo: addressVal.guardadaComo ?? 'casa',
       }));
       setMostrarFormEnvio(false);
       setStep(3);
@@ -555,17 +599,16 @@ const Checkout: React.FC<Props> = ({ session }) => {
                     compact
                   />
                 </Field>
-                <Field label="Dirección principal">
-                  <input value={dir} onChange={e => setDir(e.target.value)} placeholder="Calle, número, sector" style={iStyle} />
-                </Field>
-                <Field label="Ciudad">
-                  <select value={ciudad} onChange={e => setCiudad(e.target.value)}
-                    style={{ ...iStyle, appearance: 'none', WebkitAppearance: 'none' }}>
-                    {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Referencias adicionales (opcional)">
-                  <input value={refs} onChange={e => setRefs(e.target.value)} placeholder="Ej: Frente al parque, piso 3" style={iStyle} />
+                <Field label="Dirección de envío">
+                  <AddressInput
+                    value={addressVal}
+                    onChange={v => {
+                      setAddressVal(v);
+                      setDir(v.completa);
+                      if (v.ciudad) setCiudad(v.ciudad);
+                      setRefs(v.referencias);
+                    }}
+                  />
                 </Field>
 
                 <button onClick={avanzarConEnvio} className="btn-brand"

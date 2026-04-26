@@ -5,6 +5,7 @@ import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
+import AddressInput, { AddressValue } from '../components/AddressInput';
 
 interface Profile {
   id: string; nombre: string; email: string; avatar_url?: string;
@@ -29,6 +30,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [editTelefonoCodigo, setEditTelefonoCodigo] = useState('');
   const [editTelefonoTipo,   setEditTelefonoTipo]   = useState<'whatsapp' | 'llamada'>('whatsapp');
   const [editDir,            setEditDir]            = useState('');
+  const [editAddress,        setEditAddress]        = useState<Partial<AddressValue>>({});
   const [activeField,  setActiveField]  = useState<'telefono' | 'direccion' | null>(null);
   const [savingField,  setSavingField]  = useState(false);
   const [toast,        setToast]        = useState('');
@@ -47,6 +49,17 @@ const Profile: React.FC<Props> = ({ session }) => {
         setNombre(prof.nombre ?? '');
         setEditTelefono(prof.telefono ?? '');
         setEditDir(prof.direccion_principal ?? '');
+        if (prof.direccion_completa || prof.direccion_principal) {
+          setEditAddress({
+            completa:     prof.direccion_completa  ?? prof.direccion_principal ?? '',
+            apto:         prof.direccion_apto       ?? '',
+            referencias:  prof.direccion_referencias ?? '',
+            ciudad:       prof.direccion_ciudad     ?? '',
+            pais:         prof.direccion_pais       ?? '',
+            codigoPostal: prof.direccion_codigo_postal ?? '',
+            guardadaComo: (prof.direccion_guardada_como as AddressValue['guardadaComo']) ?? 'casa',
+          });
+        }
       } else {
         const fallback = session.user.user_metadata?.nombre ?? session.user.email?.split('@')[0] ?? 'Usuario';
         setNombre(fallback);
@@ -71,12 +84,21 @@ const Profile: React.FC<Props> = ({ session }) => {
   };
 
   const saveCampo = async (campo: 'telefono' | 'direccion') => {
-    const valor = campo === 'telefono' ? editTelefono.trim() : editDir.trim();
+    const valor = campo === 'telefono' ? editTelefono.trim() : (editAddress.completa ?? editDir).trim();
     if (!valor) return;
     setSavingField(true);
     const updateObj: Record<string, unknown> = campo === 'telefono'
       ? { telefono: valor, telefono_codigo_pais: editTelefonoCodigo, telefono_tipo: editTelefonoTipo }
-      : { direccion_principal: editDir.trim() };
+      : {
+          direccion_principal:      editAddress.completa     ?? editDir.trim(),
+          direccion_completa:       editAddress.completa     ?? editDir.trim(),
+          direccion_apto:           editAddress.apto         ?? '',
+          direccion_referencias:    editAddress.referencias  ?? '',
+          direccion_ciudad:         editAddress.ciudad       ?? '',
+          direccion_pais:           editAddress.pais         ?? '',
+          direccion_codigo_postal:  editAddress.codigoPostal ?? '',
+          direccion_guardada_como:  editAddress.guardadaComo ?? 'casa',
+        };
     const { data } = await supabase
       .from('profiles').update(updateObj)
       .eq('id', session.user.id).select().single();
@@ -282,26 +304,21 @@ const Profile: React.FC<Props> = ({ session }) => {
                           </div>
                         )}
                         {activeField === f.action && f.action === 'direccion' && (
-                          <div style={{ display:'flex', gap:8 }}>
-                            <input
-                              type="text"
-                              value={editDir}
-                              onChange={e => setEditDir(e.target.value)}
-                              placeholder="Calle, número, sector"
-                              autoFocus
-                              style={{
-                                flex:1, background:'#111', border:'1px solid #333', borderRadius:10,
-                                padding:'10px 12px', color:'#fff', fontSize:13, outline:'none',
-                              }}
+                          <div>
+                            <AddressInput
+                              value={editAddress}
+                              onChange={v => { setEditAddress(v); setEditDir(v.completa); }}
+                              compact
                             />
                             <button
                               onClick={() => saveCampo('direccion')}
-                              disabled={savingField}
+                              disabled={savingField || !editAddress.completa}
                               style={{
-                                background:'#00F5A0', border:'none', borderRadius:10,
-                                padding:'10px 14px', color:'#000', fontWeight:800,
-                                fontSize:13, cursor:'pointer', flexShrink:0,
-                                opacity: savingField ? 0.6 : 1,
+                                marginTop: 8, width: '100%',
+                                background: '#00F5A0', border: 'none', borderRadius: 10,
+                                padding: '10px 14px', color: '#000', fontWeight: 800,
+                                fontSize: 13, cursor: 'pointer',
+                                opacity: savingField || !editAddress.completa ? 0.5 : 1,
                               }}
                             >{savingField ? '…' : 'Guardar'}</button>
                           </div>

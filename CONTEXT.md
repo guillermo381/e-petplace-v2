@@ -1,5 +1,5 @@
 # CONTEXT.md — e-PetPlace
-> Fuente de verdad para retomar el desarrollo. Actualizado: 26 de abril de 2026.
+> Fuente de verdad para retomar el desarrollo. Actualizado: 26 de abril de 2026 (sesión 3).
 
 ---
 
@@ -774,3 +774,70 @@ Oculta el subtexto de preferencia de contacto y el aviso de país no soportado. 
 
 ### Sesión opcional
 `session` es `Session | null | undefined`. Si es null (usuario guest en Checkout), simplemente se salta el paso de Supabase y va directo a la detección por IP. No hay que manejar el caso null especialmente — el `if (session?.user?.id)` lo cubre.
+
+---
+
+## 19. AddressInput — Componente de Dirección con Google Places
+
+`src/components/AddressInput.tsx` — reemplaza los campos de dirección manual en Profile.tsx y Checkout.tsx.
+
+### Interface exportada
+
+```ts
+export interface AddressValue {
+  completa:     string;  // dirección formateada por Google
+  apto:         string;  // campo libre "Apto / piso / interior"
+  referencias:  string;  // mínimo 15 chars, obligatorio para entrega
+  ciudad:       string;  // extraída de address_components (locality)
+  pais:         string;  // extraída de address_components (country)
+  codigoPostal: string;  // extraída de address_components (postal_code)
+  guardadaComo: 'casa' | 'trabajo' | 'otro';
+}
+```
+
+### Comportamiento
+1. Input de texto → dispara `AutocompleteService.getPlacePredictions()` al escribir 3+ chars
+2. Dropdown personalizado con sugerencias (cierra al hacer clic fuera)
+3. Al seleccionar: llama `PlacesService.getDetails()` → extrae ciudad/país/CP
+4. Muestra campos adicionales: `apto` (opcional), `referencias` (≥15 chars), `guardadaComo` (toggle, oculto con `compact`)
+5. Checkmark verde en el input cuando hay dirección seleccionada
+
+### Carga del SDK (singleton pattern)
+```ts
+window._gMapsLoaded / _gMapsLoading / _gMapsLoadCallbacks
+```
+Garantiza que el script de Google Maps se carga una sola vez aunque haya múltiples instancias de AddressInput.
+
+### Variable de entorno requerida
+```
+VITE_GOOGLE_PLACES_KEY=<tu clave de Google Maps Platform>
+```
+Sin esta key el componente sigue funcionando (entrada de texto libre) pero sin autocompletado.
+
+### Integración en Profile.tsx
+- Reemplaza el `<input type="text">` del campo `direccion` en "Completar perfil"
+- `saveCampo('direccion')` guarda: `direccion_completa`, `direccion_apto`, `direccion_referencias`, `direccion_ciudad`, `direccion_pais`, `direccion_codigo_postal`, `direccion_guardada_como`, y `direccion_principal` (alias de `completa` para retrocompatibilidad)
+- Se inicializa desde `profiles.direccion_completa ?? profiles.direccion_principal`
+
+### Integración en Checkout.tsx
+- Reemplaza los campos `Dirección principal` + `Ciudad` + `Referencias adicionales` del Paso 2
+- `addressVal` state de tipo `Partial<AddressValue>` persiste en `checkout_envio` localStorage
+- En `confirmarPago()` guarda todos los campos en `profiles`
+- Pre-fill: carga `direccion_completa`, `direccion_ciudad`, `direccion_apto`, etc. desde el perfil
+
+### SQL pendiente (ejecutar en Supabase antes de que la feature funcione en producción)
+```sql
+-- Columnas para AddressInput
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_completa      text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_apto          text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_referencias   text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_ciudad        text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_pais          text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_codigo_postal text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS direccion_guardada_como text DEFAULT 'casa';
+
+-- Columnas para PhoneInput (de sesión anterior, también pendiente)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_codigo_pais text;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS telefono_tipo        text DEFAULT 'whatsapp';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS pais_codigo          text DEFAULT 'EC';
+```
