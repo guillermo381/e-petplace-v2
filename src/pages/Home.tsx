@@ -18,7 +18,7 @@ import { supabase } from '../lib/supabase';
 /* ── Tipos ───────────────────────────────────────────────────── */
 interface Profile  {
   id: string; nombre: string; email: string;
-  ciudad?: string; telefono?: string; avatar_url?: string;
+  ciudad?: string; telefono?: string;
   onboarding_completo?: boolean;
 }
 interface Vacuna   { id: string; nombre: string; fecha_proxima: string }
@@ -148,7 +148,6 @@ const Home: React.FC<Props> = ({ session }) => {
       .eq('user_id', session.user.id).order('nombre');
 
     if (mascs) {
-      console.log('Mascotas cargadas:', mascs.map(m => ({ id: m.id, nombre: m.nombre, foto_url: m.foto_url })));
       setMascotas(mascs as Mascota[]);
       setAlertas(buildAlertas(mascs as Mascota[]));
       const especies = [...new Set((mascs as Mascota[]).map(m => m.especie))];
@@ -246,10 +245,10 @@ const Home: React.FC<Props> = ({ session }) => {
           {!loading && !cardDismissed && profile && (() => {
             let pct = 0;
             if (profile.nombre)      pct += 20;
-            if (profile.ciudad)      pct += 20;
+            if (profile.ciudad)      pct += 30;
             if (mascotas.length > 0) pct += 30;
-            if (profile.telefono)    pct += 15;
-            if (profile.avatar_url)  pct += 15;
+            if (profile.telefono)    pct += 20;
+            // avatar_url excluido: no hay UI de upload de foto de perfil aún
             if (pct >= 100) return null;
             return (
               <section style={{ padding:'0 20px 20px' }}>

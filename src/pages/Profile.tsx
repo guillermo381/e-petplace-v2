@@ -90,14 +90,10 @@ const Profile: React.FC<Props> = ({ session }) => {
     const updateObj: Record<string, unknown> = campo === 'telefono'
       ? { telefono: valor, telefono_codigo_pais: editTelefonoCodigo, telefono_tipo: editTelefonoTipo }
       : {
-          direccion_principal:      editAddress.completa     ?? editDir.trim(),
-          direccion_completa:       editAddress.completa     ?? editDir.trim(),
-          direccion_apto:           editAddress.apto         ?? '',
-          direccion_referencias:    editAddress.referencias  ?? '',
-          direccion_ciudad:         editAddress.ciudad       ?? '',
-          direccion_pais:           editAddress.pais         ?? '',
-          direccion_codigo_postal:  editAddress.codigoPostal ?? '',
-          direccion_guardada_como:  editAddress.guardadaComo ?? 'casa',
+          direccion_completa:      editAddress.completa    ?? editDir.trim(),
+          direccion_linea1:        editAddress.linea1      ?? '',
+          direccion_referencias:   editAddress.referencias ?? '',
+          direccion_guardada_como: editAddress.guardadaComo ?? 'casa',
         };
     const { data } = await supabase
       .from('profiles').update(updateObj)
