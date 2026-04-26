@@ -5,7 +5,10 @@ import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 
-interface Profile { id: string; nombre: string; email: string; avatar_url?: string }
+interface Profile {
+  id: string; nombre: string; email: string; avatar_url?: string;
+  telefono?: string; direccion_principal?: string;
+}
 interface Mascota  { id: string; nombre: string; especie: string }
 
 interface Props { session: Session }
@@ -16,13 +19,20 @@ const ESPECIE_EMOJI: Record<string, string> = {
 const AVATAR_COLORS = ['#7C3AED', '#FF2D9B', '#00E5FF', '#00F5A0'];
 
 const Profile: React.FC<Props> = ({ session }) => {
-  const [profile,  setProfile]  = useState<Profile | null>(null);
-  const [mascotas, setMascotas] = useState<Mascota[]>([]);
-  const [editing,  setEditing]  = useState(false);
-  const [nombre,   setNombre]   = useState('');
-  const [saving,   setSaving]   = useState(false);
+  const [profile,      setProfile]      = useState<Profile | null>(null);
+  const [mascotas,     setMascotas]     = useState<Mascota[]>([]);
+  const [editing,      setEditing]      = useState(false);
+  const [nombre,       setNombre]       = useState('');
+  const [saving,       setSaving]       = useState(false);
+  const [editTelefono, setEditTelefono] = useState('');
+  const [editDir,      setEditDir]      = useState('');
+  const [activeField,  setActiveField]  = useState<'telefono' | 'direccion' | null>(null);
+  const [savingField,  setSavingField]  = useState(false);
+  const [toast,        setToast]        = useState('');
   const { isDark, toggleTheme } = useTheme();
   const history = useHistory();
+
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2600); };
 
   useEffect(() => {
     const fetch = async () => {
@@ -31,6 +41,8 @@ const Profile: React.FC<Props> = ({ session }) => {
       if (prof) {
         setProfile(prof);
         setNombre(prof.nombre ?? '');
+        setEditTelefono(prof.telefono ?? '');
+        setEditDir(prof.direccion_principal ?? '');
       } else {
         const fallback = session.user.user_metadata?.nombre ?? session.user.email?.split('@')[0] ?? 'Usuario';
         setNombre(fallback);
@@ -52,6 +64,21 @@ const Profile: React.FC<Props> = ({ session }) => {
     if (data) setProfile(data);
     setSaving(false);
     setEditing(false);
+  };
+
+  const saveCampo = async (campo: 'telefono' | 'direccion') => {
+    const valor = campo === 'telefono' ? editTelefono.trim() : editDir.trim();
+    if (!valor) return;
+    setSavingField(true);
+    const col = campo === 'telefono' ? 'telefono' : 'direccion_principal';
+    const { data } = await supabase
+      .from('profiles').update({ [col]: valor })
+      .eq('id', session.user.id).select().single();
+    if (data) setProfile(data);
+    setSavingField(false);
+    setActiveField(null);
+    const pts = campo === 'telefono' ? 15 : 15;
+    showToast(`¡Perfil actualizado! +${pts} puntos 🎉`);
   };
 
   const handleLogout = async () => {
@@ -133,6 +160,128 @@ const Profile: React.FC<Props> = ({ session }) => {
               </button>
             </div>
           )}
+
+          {/* ── Completar perfil ─────────────────────────────────── */}
+          {(() => {
+            const faltantes: { key: string; icon: string; label: string; action: 'telefono' | 'direccion' | 'mascota' }[] = [];
+            if (!profile?.telefono)           faltantes.push({ key:'telefono',  icon:'📱', label:'Agrega tu teléfono',        action:'telefono'  });
+            if (!profile?.direccion_principal) faltantes.push({ key:'direccion', icon:'📍', label:'Agrega tu dirección',       action:'direccion' });
+            if (mascotas.length < 2)           faltantes.push({ key:'mascotas',  icon:'🐾', label:'Agrega tu segunda mascota', action:'mascota'   });
+
+            if (faltantes.length === 0) return (
+              <div className="px-5 mb-5">
+                <div style={{
+                  background:'rgba(0,245,160,0.07)', border:'1px solid rgba(0,245,160,0.25)',
+                  borderRadius:16, padding:'14px 18px',
+                  display:'flex', alignItems:'center', gap:12,
+                }}>
+                  <span style={{ fontSize:28 }}>🎉</span>
+                  <div>
+                    <p style={{ color:'#00F5A0', fontWeight:800, fontSize:14, margin:0 }}>¡Perfil completo!</p>
+                    <p style={{ color:'#555', fontSize:12, margin:'2px 0 0' }}>Tienes acceso a todas las recomendaciones</p>
+                  </div>
+                </div>
+              </div>
+            );
+
+            return (
+              <div className="px-5 mb-5">
+                <div style={{
+                  background:'var(--bg-secondary)', borderRadius:16,
+                  border:'1px solid rgba(0,229,255,0.2)', overflow:'hidden',
+                }}>
+                  {/* Cabecera */}
+                  <div style={{
+                    padding:'12px 16px 10px',
+                    borderBottom:'1px solid var(--border-color)',
+                    display:'flex', alignItems:'center', gap:10,
+                  }}>
+                    <div style={{
+                      width:32, height:32, borderRadius:10, flexShrink:0,
+                      background:'rgba(0,229,255,0.1)',
+                      display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
+                    }}>✨</div>
+                    <div style={{ flex:1 }}>
+                      <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:13, margin:0 }}>
+                        Completa tu perfil 🐾
+                      </p>
+                      <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'1px 0 0' }}>
+                        {faltantes.length} {faltantes.length === 1 ? 'campo pendiente' : 'campos pendientes'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Items */}
+                  {faltantes.map((f, i) => (
+                    <div key={f.key}>
+                      <div style={{
+                        padding:'12px 16px',
+                        borderBottom: i < faltantes.length - 1 ? '1px solid var(--border-color)' : 'none',
+                      }}>
+                        {/* Fila principal */}
+                        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom: activeField === f.action ? 10 : 0 }}>
+                          <span style={{ fontSize:18, width:24, textAlign:'center', flexShrink:0 }}>{f.icon}</span>
+                          <p style={{ flex:1, color:'var(--text-primary)', fontSize:13, fontWeight:600, margin:0 }}>
+                            {f.label}
+                          </p>
+                          {f.action === 'mascota' ? (
+                            <button
+                              onClick={() => history.push('/biopet/new')}
+                              style={{
+                                background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+                                border:'none', borderRadius:8, padding:'6px 14px',
+                                color:'#000', fontWeight:700, fontSize:12, cursor:'pointer',
+                              }}
+                            >Agregar +</button>
+                          ) : (
+                            <button
+                              onClick={() => setActiveField(
+                                activeField === (f.action as 'telefono' | 'direccion') ? null : (f.action as 'telefono' | 'direccion')
+                              )}
+                              style={{
+                                background: activeField === f.action ? 'transparent' : 'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+                                border: activeField === f.action ? '1px solid #333' : 'none',
+                                borderRadius:8, padding:'6px 14px',
+                                color: activeField === f.action ? '#555' : '#000',
+                                fontWeight:700, fontSize:12, cursor:'pointer',
+                              }}
+                            >{activeField === f.action ? 'Cancelar' : 'Agregar +'}</button>
+                          )}
+                        </div>
+
+                        {/* Input inline */}
+                        {activeField === f.action && (f.action === 'telefono' || f.action === 'direccion') && (
+                          <div style={{ display:'flex', gap:8 }}>
+                            <input
+                              type={f.action === 'telefono' ? 'tel' : 'text'}
+                              value={f.action === 'telefono' ? editTelefono : editDir}
+                              onChange={e => f.action === 'telefono' ? setEditTelefono(e.target.value) : setEditDir(e.target.value)}
+                              placeholder={f.action === 'telefono' ? '+593 99 000 0000' : 'Calle, número, sector'}
+                              autoFocus
+                              style={{
+                                flex:1, background:'#111', border:'1px solid #333', borderRadius:10,
+                                padding:'10px 12px', color:'#fff', fontSize:13, outline:'none',
+                              }}
+                            />
+                            <button
+                              onClick={() => saveCampo(f.action as 'telefono' | 'direccion')}
+                              disabled={savingField}
+                              style={{
+                                background:'#00F5A0', border:'none', borderRadius:10,
+                                padding:'10px 14px', color:'#000', fontWeight:800,
+                                fontSize:13, cursor:'pointer', flexShrink:0,
+                                opacity: savingField ? 0.6 : 1,
+                              }}
+                            >{savingField ? '…' : 'Guardar'}</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* ── Stats ────────────────────────────────────────────── */}
           <div className="px-5 mb-6 grid grid-cols-3 gap-3">
@@ -235,6 +384,18 @@ const Profile: React.FC<Props> = ({ session }) => {
             </button>
           </div>
         </div>
+
+        {/* Toast */}
+        {toast && (
+          <div style={{
+            position:'fixed', bottom:84, left:'50%', transform:'translateX(-50%)',
+            background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
+            borderRadius:14, padding:'12px 22px',
+            color:'#000', fontSize:14, fontWeight:800,
+            zIndex:9999, whiteSpace:'nowrap',
+            boxShadow:'0 4px 30px rgba(0,229,255,0.35)',
+          }}>{toast}</div>
+        )}
       </IonContent>
     </IonPage>
   );
