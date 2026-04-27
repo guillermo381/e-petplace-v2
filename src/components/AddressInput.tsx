@@ -1,42 +1,26 @@
-/*
--- SQL para múltiples direcciones (activar cuando el usuario agregue la segunda):
--- CREATE TABLE IF NOT EXISTS direcciones (
---   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
---   user_id uuid REFERENCES auth.users(id),
---   alias text DEFAULT 'casa',
---   linea1 text, referencias text, ciudad text, pais text, completa text,
---   es_principal boolean DEFAULT false,
---   created_at timestamptz DEFAULT now()
--- );
--- ALTER TABLE direcciones ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "users_own_direcciones" ON direcciones
---   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-*/
+import React, { useEffect, useRef, useState } from 'react';
 
-import { useEffect, useRef, useState } from 'react';
-
-/* ── Tipos ───────────────────────────────────────────────────── */
 export interface AddressValue {
-  completa:     string;
-  linea1:       string;
-  sector:       string;
-  apto:         string;
-  referencias:  string;
-  ciudad:       string;
-  pais:         string;
-  codigoPostal: string;
-  guardadoComo: string;
+  completa: string; linea1: string; sector: string;
+  apto: string; referencias: string; ciudad: string;
+  pais: string; codigoPostal: string; guardadoComo: string;
 }
-
 interface Props {
-  value?:       Partial<AddressValue>;
-  onChange:     (v: AddressValue) => void;
-  fieldError?:  string;
-  clearError?:  () => void;
-  compact?:     boolean;
+  value?: Partial<AddressValue>;
+  onChange: (v: AddressValue) => void;
+  fieldError?: string;
+  clearError?: () => void;
+  compact?: boolean;
 }
 
-/* ── Alias helpers (usados en Profile.tsx) ───────────────────── */
+interface Sugerencia {
+  placePrediction: {
+    placeId: string;
+    text: { text: string };
+    structuredFormat?: { mainText: { text: string }; secondaryText?: { text: string } };
+  };
+}
+
 const ALIAS_OPTS = [
   { val: 'casa',    icon: '🏠', label: 'Casa'    },
   { val: 'trabajo', icon: '🏢', label: 'Trabajo' },
@@ -46,360 +30,246 @@ const ALIAS_OPTS = [
 export const getAliasIcon  = (v?: string) => ALIAS_OPTS.find(o => o.val === v)?.icon  ?? '📍';
 export const getAliasLabel = (v?: string) => ALIAS_OPTS.find(o => o.val === v)?.label ?? (v || 'Otro');
 
-/* ── Google Maps (global) ────────────────────────────────────── */
-declare global { interface Window { google: any } }
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_PLACES_KEY as string;
 
-/* ════════════════════════════════════════════════════════════════
-   AddressInput
-════════════════════════════════════════════════════════════════ */
 const AddressInput = ({ value, onChange, fieldError, clearError, compact = false }: Props) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [mapsLoaded,       setMapsLoaded]       = useState(false);
-  const [mapsError,        setMapsError]        = useState(false);
-  const [selectedAddress,  setSelectedAddress]  = useState(value?.completa   || '');
-  const [apto,             setApto]             = useState(value?.apto        || '');
-  const [referencias,      setReferencias]      = useState(value?.referencias || '');
-  const [guardadoComo,     setGuardadoComo]     = useState(value?.guardadoComo || 'casa');
-  const [errorRefs,        setErrorRefs]        = useState('');
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // Ref para componer el onChange cuando cambian campos secundarios
-  // sin perder los datos de la dirección principal
-  const addressPartsRef = useRef<Omit<AddressValue, 'apto' | 'referencias' | 'guardadoComo'>>({
-    completa: value?.completa || '', linea1: value?.linea1 || '',
-    sector: value?.sector || '', ciudad: value?.ciudad || '',
-    pais: value?.pais || '', codigoPostal: value?.codigoPostal || '',
-  });
+  const [query,        setQuery]        = useState(value?.completa || '');
+  const [sugerencias,  setSugerencias]  = useState<Sugerencia[]>([]);
+  const [loading,      setLoading]      = useState(false);
+  const [seleccionada, setSeleccionada] = useState<AddressValue | null>(
+    value?.completa ? { completa: value.completa, linea1: value.linea1 || '', sector: value.sector || '', ciudad: value.ciudad || '', pais: value.pais || '', codigoPostal: value.codigoPostal || '', apto: value.apto || '', referencias: value.referencias || '', guardadoComo: value.guardadoComo || 'casa' } : null
+  );
+  const [modoEdicion,  setModoEdicion]  = useState(!value?.completa);
+  const [apto,         setApto]         = useState(value?.apto        || '');
+  const [referencias,  setReferencias]  = useState(value?.referencias || '');
+  const [guardadoComo, setGuardadoComo] = useState(value?.guardadoComo || 'casa');
+  const [errorRefs,    setErrorRefs]    = useState('');
+  const [inputFocused, setInputFocused] = useState(false);
 
-  /* ── Cargar Google Maps ─────────────────────────────────────── */
-  useEffect(() => {
-    const loadMaps = async () => {
-      if (window.google?.maps?.places?.PlaceAutocompleteElement) {
-        setMapsLoaded(true);
-        return;
-      }
+  const aptoRef         = useRef(apto);
+  const referenciasRef  = useRef(referencias);
+  const guardadoComoRef = useRef(guardadoComo);
+  useEffect(() => { aptoRef.current = apto; },                    [apto]);
+  useEffect(() => { referenciasRef.current = referencias; },      [referencias]);
+  useEffect(() => { guardadoComoRef.current = guardadoComo; },    [guardadoComo]);
 
-      const existing = document.querySelector<HTMLScriptElement>('#gmaps-script');
-      if (existing) {
-        existing.addEventListener('load',  () => setMapsLoaded(true));
-        existing.addEventListener('error', () => setMapsError(true));
-        return;
-      }
-
-      const key = import.meta.env.VITE_GOOGLE_PLACES_KEY as string | undefined;
-      if (!key) { setMapsError(true); return; }
-
-      const script  = document.createElement('script');
-      script.id     = 'gmaps-script';
-      script.src    = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&v=weekly&loading=async&language=es`;
-      script.async  = true;
-      script.defer  = true;
-      script.onload = () => setMapsLoaded(true);
-      script.onerror = () => setMapsError(true);
-      document.head.appendChild(script);
-    };
-
-    loadMaps();
-  }, []);
-
-  /* ── Inyectar CSS dark mode (una sola vez) ──────────────────── */
-  useEffect(() => {
-    if (document.querySelector('#gmp-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'gmp-styles';
-    style.textContent = `
-      gmp-placeautocomplete {
-        --gmp-input-background-color: #111111;
-        --gmp-input-border-color: #333333;
-        --gmp-input-color: #ffffff;
-        --gmp-input-font-size: 14px;
-        --gmp-input-padding: 12px;
-        --gmp-input-border-radius: 10px;
-      }
-      .pac-container {
-        background: #111111 !important;
-        border: 1px solid #333 !important;
-        border-radius: 8px !important;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.7) !important;
-        margin-top: 4px !important;
-      }
-      .pac-item {
-        background: #111111 !important;
-        color: #fff !important;
-        padding: 10px 12px !important;
-        border-top: 1px solid #222 !important;
-        cursor: pointer !important;
-        font-size: 13px !important;
-      }
-      .pac-item:hover    { background: #1a1a1a !important; }
-      .pac-item-query    { color: #00E5FF !important; }
-      .pac-matched       { color: #FF2D9B !important; font-weight: 700 !important; }
-      .pac-icon          { display: none !important; }
-    `;
-    document.head.appendChild(style);
-  }, []);
-
-  /* ── Montar PlaceAutocompleteElement ────────────────────────── */
-  useEffect(() => {
-    if (!mapsLoaded || !containerRef.current) return;
-    if (!window.google?.maps?.places?.PlaceAutocompleteElement) {
-      setMapsError(true);
-      return;
-    }
-
-    // Evitar duplicados
-    const existing = containerRef.current.querySelector('gmp-placeautocomplete');
-    if (existing) existing.remove();
-
-    let pa: any;
+  /* ── Autocomplete Places API (New) ───────────────────────────── */
+  const buscarSugerencias = async (texto: string) => {
+    if (texto.length < 3) { setSugerencias([]); return; }
+    setLoading(true);
     try {
-      pa = new window.google.maps.places.PlaceAutocompleteElement({
-        componentRestrictions: { country: ['ec', 'co', 'pe', 'mx', 'ar', 'cl'] },
+      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': GOOGLE_KEY,
+        },
+        body: JSON.stringify({
+          input: texto,
+          languageCode: 'es',
+          includedRegionCodes: ['ec', 'co', 'pe', 'mx', 'ar', 'cl'],
+        }),
       });
-      pa.style.width   = '100%';
-      pa.style.display = 'block';
-      containerRef.current.appendChild(pa);
-
-      pa.addEventListener('gmp-placeselect', async (event: any) => {
-        try {
-          const { place } = event;
-          await place.fetchFields({
-            fields: ['displayName', 'formattedAddress', 'addressComponents'],
-          });
-
-          const comps = place.addressComponents || [];
-          const get   = (type: string) =>
-            comps.find((c: any) => c.types.includes(type))?.longText || '';
-
-          const parts = {
-            completa:     place.formattedAddress || '',
-            linea1:       `${get('route')} ${get('street_number')}`.trim(),
-            sector:       get('sublocality') || get('neighborhood') || '',
-            ciudad:       get('locality') || '',
-            pais:         get('country') || '',
-            codigoPostal: get('postal_code') || '',
-          };
-
-          addressPartsRef.current = parts;
-          setSelectedAddress(parts.completa);
-          clearError?.();
-
-          onChange({
-            ...parts,
-            apto:        apto,
-            referencias: referencias,
-            guardadoComo: guardadoComo,
-          });
-        } catch (e) {
-          console.error('Error gmp-placeselect:', e);
-        }
-      });
+      const data = await res.json();
+      setSugerencias(data.suggestions || []);
     } catch (e) {
-      console.error('Error PlaceAutocompleteElement:', e);
-      setMapsError(true);
+      console.error('Error Places autocomplete:', e);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return () => {
-      try { pa?.remove(); } catch { /* ignorar */ }
-    };
-  }, [mapsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  /* ── Propagar cambios de campos secundarios ─────────────────── */
   useEffect(() => {
-    if (!selectedAddress) return;
-    onChange({
-      ...addressPartsRef.current,
-      apto,
-      referencias,
-      guardadoComo,
-    });
+    if (!modoEdicion) return;
+    const timer = setTimeout(() => {
+      buscarSugerencias(query);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [query, modoEdicion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Obtener detalles del lugar ──────────────────────────────── */
+  const seleccionarLugar = async (placeId: string, descripcion: string) => {
+    try {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
+        headers: {
+          'X-Goog-Api-Key': GOOGLE_KEY,
+          'X-Goog-FieldMask': 'addressComponents,formattedAddress',
+        },
+      });
+      const place = await res.json();
+      console.log('Place response completo:', JSON.stringify(place, null, 2));
+
+      const get = (type: string) => {
+        if (!place.addressComponents) return '';
+        const component = place.addressComponents.find((c: any) => {
+          const types = c.types || c.componentType || [];
+          if (Array.isArray(types)) return types.includes(type);
+          return types === type;
+        });
+        return component?.longText || component?.long_name || '';
+      };
+
+      const dir: AddressValue = {
+        completa:     place.formattedAddress || descripcion,
+        linea1:       `${get('route')} ${get('street_number')}`.trim(),
+        sector:       get('sublocality') || get('neighborhood') || '',
+        ciudad:       get('locality') || get('administrative_area_level_2') || '',
+        pais:         get('country') || '',
+        codigoPostal: get('postal_code') || '',
+        apto:         aptoRef.current,
+        referencias:  referenciasRef.current,
+        guardadoComo: guardadoComoRef.current,
+      };
+
+      setSeleccionada(dir);
+      setQuery(dir.completa);
+      setSugerencias([]);
+      setModoEdicion(false);
+      clearError?.();
+      onChangeRef.current(dir);
+    } catch (e) {
+      console.error('Error obteniendo detalles:', e);
+    }
+  };
+
+  /* ── Propagar campos secundarios ─────────────────────────────── */
+  useEffect(() => {
+    if (!seleccionada) return;
+    const updated = { ...seleccionada, apto, referencias, guardadoComo };
+    setSeleccionada(updated);
+    onChangeRef.current(updated);
   }, [apto, referencias, guardadoComo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Fallback si Maps no cargó ──────────────────────────────── */
-  if (mapsError) {
-    return (
-      <FallbackManual
-        value={value} onChange={onChange}
-        fieldError={fieldError} compact={compact}
-      />
-    );
-  }
-
-  /* ── Render ─────────────────────────────────────────────────── */
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-
-      <p style={{ margin:0, fontSize:13, color:'var(--text-secondary)' }}>
-        📍 Busca tu dirección
-      </p>
-
-      {/* Contenedor de PlaceAutocompleteElement */}
-      <div ref={containerRef} style={{ width:'100%' }}>
-        {!mapsLoaded && (
-          <input
-            placeholder="Cargando buscador…"
-            disabled
-            style={{
-              width:'100%', padding:'12px', background:'#111',
-              border:'1px solid #333', borderRadius:10,
-              color:'#888', fontSize:14, boxSizing:'border-box',
-            }}
-          />
-        )}
-      </div>
-
-      {fieldError && (
-        <p style={{ color:'#FF2D9B', fontSize:12, margin:'-4px 0 0', fontWeight:500 }}>{fieldError}</p>
-      )}
-
-      {/* Dirección seleccionada (confirmación) */}
-      {selectedAddress && (
-        <p style={{ color:'#00F5A0', fontSize:12, margin:'-4px 0 0' }}>✓ {selectedAddress}</p>
-      )}
-
-      {/* Campos adicionales */}
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-
-        {/* Apto / Interior */}
-        <div>
-          <input
-            placeholder="Apto, Casa, Oficina (opcional)"
-            value={apto}
-            onChange={e => setApto(e.target.value)}
-            style={{
-              width:'100%', padding:'12px', boxSizing:'border-box',
-              background:'var(--bg-card)', border:'1px solid #333', borderRadius:10,
-              color:'var(--text-primary)', fontSize:14, outline:'none',
-            }}
-          />
-          <p style={{ margin:'4px 0 0', fontSize:11, color:'#888' }}>
-            Ej: Apto 301, Casa 2, Oficina B
-          </p>
-        </div>
-
-        {/* Referencias */}
-        <div>
-          <textarea
-            placeholder="Referencias para el repartidor…"
-            value={referencias}
-            onChange={e => {
-              setReferencias(e.target.value);
-              if (e.target.value.length >= 10) setErrorRefs('');
-            }}
-            onBlur={() => {
-              if (referencias.length > 0 && referencias.length < 10)
-                setErrorRefs('Agrega al menos 10 caracteres para facilitar la entrega');
-            }}
-            rows={3}
-            style={{
-              width:'100%', padding:'12px', boxSizing:'border-box',
-              background:'var(--bg-card)',
-              border:`1px solid ${errorRefs ? '#FF2D9B' : '#333'}`,
-              borderRadius:10, color:'var(--text-primary)',
-              fontSize:14, resize:'none', outline:'none',
-            }}
-          />
-          {errorRefs && (
-            <p style={{ margin:'4px 0 0', fontSize:11, color:'#FF2D9B' }}>⚠️ {errorRefs}</p>
-          )}
-          <p style={{ margin:'4px 0 0', fontSize:11, color:'#888' }}>
-            ⚡ Ej: Casa azul con reja negra, frente al parque, timbre no funciona
-          </p>
-        </div>
-
-        {/* Alias */}
-        {!compact && (
-          <div>
-            <p style={{ margin:'0 0 8px', fontSize:12, color:'var(--text-secondary)' }}>
-              Guardar como:
-            </p>
-            <div style={{ display:'flex', gap:8 }}>
-              {ALIAS_OPTS.map(opt => (
-                <button
-                  key={opt.val}
-                  type="button"
-                  onClick={() => setGuardadoComo(opt.val)}
-                  style={{
-                    flex:1, padding:'8px 4px', borderRadius:8, cursor:'pointer',
-                    border:`1px solid ${guardadoComo === opt.val ? '#00E5FF' : '#333'}`,
-                    background: guardadoComo === opt.val ? '#0d1a2b' : 'var(--bg-card)',
-                    color: guardadoComo === opt.val ? '#00E5FF' : '#888',
-                    fontSize:11, fontWeight:600,
-                  }}
-                >
-                  {opt.icon} {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/* ════════════════════════════════════════════════════════════════
-   Fallback — input manual cuando Google Maps no está disponible
-════════════════════════════════════════════════════════════════ */
-const FallbackManual = ({
-  value, onChange, fieldError, compact,
-}: {
-  value?: Partial<AddressValue>; onChange: (v: AddressValue) => void;
-  fieldError?: string; compact?: boolean;
-}) => {
-  const [completa,    setCompleta]    = useState(value?.completa    || '');
-  const [apto,        setApto]        = useState(value?.apto        || '');
-  const [referencias, setReferencias] = useState(value?.referencias || '');
-  const [guardadoComo, setGuardadoComo] = useState(value?.guardadoComo || 'casa');
-
-  const emit = (o: Partial<AddressValue> = {}) =>
-    onChange({ completa, linea1:'', sector:'', apto, referencias, ciudad:'', pais:'', codigoPostal:'', guardadoComo, ...o });
-
-  const s: React.CSSProperties = {
-    width:'100%', boxSizing:'border-box', padding:'12px',
-    background:'var(--bg-card)', border:'1px solid #333', borderRadius:10,
-    color:'var(--text-primary)', fontSize:14, outline:'none',
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 12px 12px 36px', boxSizing: 'border-box',
+    background: '#111111', border: `1px solid ${inputFocused ? '#00E5FF' : fieldError ? '#FF2D9B' : '#333'}`,
+    borderRadius: 10, color: '#ffffff', fontSize: 14, outline: 'none', transition: 'border-color 0.2s',
   };
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-      <input type="text" value={completa}
-        onChange={e => { setCompleta(e.target.value); emit({ completa: e.target.value }); }}
-        placeholder="Ingresa tu dirección completa"
-        style={{ ...s, borderColor: fieldError ? '#FF2D9B' : '#333' }}
-      />
-      {fieldError && <p style={{ color:'#FF2D9B', fontSize:12, margin:'-4px 0 0' }}>{fieldError}</p>}
-      <p style={{ fontSize:11, color:'#555', margin:'-4px 0 0' }}>
-        Búsqueda automática no disponible. Ingresa tu dirección manualmente.
-      </p>
-      {completa && (
-        <>
-          <input type="text" value={apto}
-            onChange={e => { setApto(e.target.value); emit({ apto: e.target.value }); }}
-            placeholder="Apto, Casa, Oficina (opcional)" style={s}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* ── Dirección seleccionada (modo lectura) ─────────────────── */}
+      {!modoEdicion && seleccionada ? (
+        <div style={{ background: 'rgba(0,245,160,0.07)', border: '1px solid rgba(0,245,160,0.25)', borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>✅</span>
+            <p style={{ flex: 1, color: '#00F5A0', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+              {seleccionada.completa}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setModoEdicion(true); setQuery(''); setSugerencias([]); }}
+            style={{ marginTop: 8, background: 'none', border: '1px solid #333', borderRadius: 8, padding: '5px 12px', color: '#00E5FF', fontSize: 12, cursor: 'pointer' }}
+          >Cambiar dirección</button>
+        </div>
+
+      ) : (
+        /* ── Buscador ───────────────────────────────────────────── */
+        <div style={{ position: 'relative' }}>
+          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', zIndex: 1 }}>📍</span>
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setTimeout(() => setInputFocused(false), 200)}
+            placeholder="Escribe tu dirección…"
+            autoComplete="off"
+            style={inputStyle}
           />
-          <textarea value={referencias} rows={3}
-            onChange={e => { setReferencias(e.target.value); emit({ referencias: e.target.value }); }}
-            placeholder="Referencias para el repartidor…"
-            style={{ ...s, resize:'none' }}
-          />
-          {!compact && (
-            <div style={{ display:'flex', gap:8 }}>
-              {ALIAS_OPTS.map(opt => (
-                <button key={opt.val} type="button" onClick={() => { setGuardadoComo(opt.val); emit({ guardadoComo: opt.val }); }}
-                  style={{
-                    flex:1, padding:'8px 4px', borderRadius:8, cursor:'pointer', fontSize:11, fontWeight:600,
-                    border:`1px solid ${guardadoComo === opt.val ? '#00E5FF' : '#333'}`,
-                    background: guardadoComo === opt.val ? '#0d1a2b' : 'var(--bg-card)',
-                    color: guardadoComo === opt.val ? '#00E5FF' : '#888',
-                  }}
-                >{opt.icon} {opt.label}</button>
-              ))}
+          {loading && (
+            <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#00E5FF', fontSize: 12 }}>⏳</span>
+          )}
+
+          {/* Dropdown de sugerencias */}
+          {sugerencias.length > 0 && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, right: 0,
+              background: '#111111', border: '1px solid #333',
+              borderRadius: 10, zIndex: 9999,
+              maxHeight: 200, overflowY: 'auto',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.7)', marginTop: 4,
+            }}>
+              {sugerencias.map(s => {
+                const pred    = s.placePrediction;
+                const main    = pred.structuredFormat?.mainText?.text    || pred.text.text;
+                const secondary = pred.structuredFormat?.secondaryText?.text || '';
+                return (
+                  <div
+                    key={pred.placeId}
+                    onMouseDown={e => { e.preventDefault(); seleccionarLugar(pred.placeId, pred.text.text); }}
+                    style={{ padding: '12px 14px', color: '#fff', borderBottom: '1px solid #222', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#1a1a1a')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>📍</span>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 13, color: '#fff', fontWeight: 500 }}>{main}</p>
+                      {secondary && <p style={{ margin: '2px 0 0', fontSize: 11, color: '#888' }}>{secondary}</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-        </>
+
+          {query.length > 0 && query.length < 3 && (
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#555' }}>Escribe al menos 3 caracteres…</p>
+          )}
+          {!loading && query.length >= 3 && sugerencias.length === 0 && (
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#555' }}>Sin resultados. Prueba con el nombre de la calle o un lugar de referencia.</p>
+          )}
+        </div>
+      )}
+
+      {fieldError && <p style={{ color: '#FF2D9B', fontSize: 12, margin: '-4px 0 0', fontWeight: 500 }}>{fieldError}</p>}
+
+      {/* ── Campos adicionales ────────────────────────────────────── */}
+      {seleccionada && !modoEdicion && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <input
+              placeholder="Apto, Casa, Oficina (opcional)"
+              value={apto} onChange={e => setApto(e.target.value)}
+              style={{ width: '100%', padding: '12px', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid #333', borderRadius: 10, color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}
+            />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>Ej: Apto 301, Casa 2, Oficina B</p>
+          </div>
+          <div>
+            <textarea
+              placeholder="Referencias para el repartidor…"
+              value={referencias}
+              onChange={e => { setReferencias(e.target.value); if (e.target.value.length >= 10) setErrorRefs(''); }}
+              onBlur={() => { if (referencias.length > 0 && referencias.length < 10) setErrorRefs('Agrega al menos 10 caracteres'); }}
+              rows={3}
+              style={{ width: '100%', padding: '12px', boxSizing: 'border-box', background: 'var(--bg-card)', border: `1px solid ${errorRefs ? '#FF2D9B' : '#333'}`, borderRadius: 10, color: 'var(--text-primary)', fontSize: 14, resize: 'none', outline: 'none' }}
+            />
+            {errorRefs && <p style={{ margin: '4px 0 0', fontSize: 11, color: '#FF2D9B' }}>⚠️ {errorRefs}</p>}
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>⚡ Ej: Casa azul con reja negra, frente al parque</p>
+          </div>
+          {!compact && (
+            <div>
+              <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-secondary)' }}>Guardar como:</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {ALIAS_OPTS.map(opt => (
+                  <button key={opt.val} type="button" onClick={() => setGuardadoComo(opt.val)}
+                    style={{ flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${guardadoComo === opt.val ? '#00E5FF' : '#333'}`, background: guardadoComo === opt.val ? '#0d1a2b' : 'var(--bg-card)', color: guardadoComo === opt.val ? '#00E5FF' : '#888', fontSize: 11, fontWeight: 600 }}>
+                    {opt.icon} {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
 };
 
+export { ALIAS_OPTS };
 export default AddressInput;

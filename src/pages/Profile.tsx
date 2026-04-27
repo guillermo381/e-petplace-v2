@@ -27,6 +27,31 @@ const ESPECIE_EMOJI: Record<string, string> = {
 };
 const AVATAR_COLORS = ['#7C3AED', '#FF2D9B', '#00E5FF', '#00F5A0'];
 
+const DireccionForm = ({
+  editAddress, onAddressChange, onGuardar, savingField,
+}: {
+  editAddress: Partial<AddressValue>;
+  onAddressChange: (v: AddressValue) => void;
+  onGuardar: () => void;
+  savingField: boolean;
+}) => (
+  <div>
+    <AddressInput value={editAddress} onChange={onAddressChange} />
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onGuardar(); }}
+      disabled={savingField}
+      style={{
+        marginTop: 8, width: '100%',
+        background: '#00F5A0', border: 'none', borderRadius: 10,
+        padding: '10px 14px', color: '#000', fontWeight: 800,
+        fontSize: 13, cursor: savingField ? 'not-allowed' : 'pointer',
+        opacity: savingField ? 0.6 : 1,
+      }}
+    >{savingField ? '…' : 'Guardar'}</button>
+  </div>
+);
+
 const Profile: React.FC<Props> = ({ session }) => {
   const [profile,      setProfile]      = useState<Profile | null>(null);
   const [mascotas,     setMascotas]     = useState<Mascota[]>([]);
@@ -38,6 +63,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [editTelefonoTipo,   setEditTelefonoTipo]   = useState<'whatsapp' | 'llamada'>('whatsapp');
   const [editDir,            setEditDir]            = useState('');
   const [editAddress,        setEditAddress]        = useState<Partial<AddressValue>>({});
+  useEffect(() => { console.log('editAddress cambió:', editAddress); }, [editAddress]);
   const [activeField,      setActiveField]      = useState<'telefono' | 'direccion' | null>(null);
   const [editingDireccion, setEditingDireccion] = useState(false);
   const [savingField,  setSavingField]  = useState(false);
@@ -92,18 +118,17 @@ const Profile: React.FC<Props> = ({ session }) => {
   };
 
   const saveCampo = async (campo: 'telefono' | 'direccion') => {
-    if (campo === 'direccion') {
-      console.log('Guardando dirección:', editAddress);
-    }
-    const valor = campo === 'telefono'
-      ? editTelefono.trim()
-      : (editAddress.completa || editAddress.linea1 || editDir).trim();
-    if (!valor) return;
+    console.log('saveCampo llamado:', campo, editAddress);
     setSavingField(true);
+
     const updateObj: Record<string, unknown> = campo === 'telefono'
-      ? { telefono: valor, telefono_codigo_pais: editTelefonoCodigo, telefono_tipo: editTelefonoTipo }
+      ? {
+          telefono: editTelefono.trim(),
+          telefono_codigo_pais: editTelefonoCodigo,
+          telefono_tipo: editTelefonoTipo,
+        }
       : {
-          direccion_completa:      editAddress.completa    || editAddress.linea1 || editDir.trim(),
+          direccion_completa:      editAddress.completa    || editDir.trim() || '',
           direccion_linea1:        editAddress.linea1      || '',
           direccion_apto:          editAddress.apto        || '',
           direccion_referencias:   editAddress.referencias || '',
@@ -111,15 +136,38 @@ const Profile: React.FC<Props> = ({ session }) => {
           direccion_pais:          editAddress.pais        || '',
           direccion_guardada_como: editAddress.guardadoComo || 'casa',
         };
-    const { data, error } = await supabase
-      .from('profiles').update(updateObj)
-      .eq('id', session.user.id).select().single();
-    console.log('Resultado guardar dirección:', { data: !!data, error });
-    if (data) setProfile(data);
+
+    if (campo === 'telefono' && !editTelefono.trim()) {
+      showToast('Ingresa un número de teléfono');
+      setSavingField(false);
+      return;
+    }
+    if (campo === 'direccion' && !updateObj.direccion_completa) {
+      showToast('Selecciona una dirección');
+      setSavingField(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updateObj)
+      .eq('id', session.user.id);
+
+    if (error) {
+      console.error('Error guardando:', error);
+      showToast('❌ Error al guardar, intenta de nuevo');
+      setSavingField(false);
+      return;
+    }
+
+    const { data: updatedProfile } = await supabase
+      .from('profiles').select('*').eq('id', session.user.id).single();
+    if (updatedProfile) setProfile(updatedProfile);
+
     setSavingField(false);
     setActiveField(null);
     setEditingDireccion(false);
-    showToast(`¡Perfil actualizado! +15 puntos 🎉`);
+    showToast('¡Perfil actualizado! +15 puntos 🎉');
   };
 
   const handleLogout = async () => {
@@ -318,23 +366,12 @@ const Profile: React.FC<Props> = ({ session }) => {
                           </div>
                         )}
                         {activeField === f.action && f.action === 'direccion' && (
-                          <div>
-                            <AddressInput
-                              value={editAddress}
-                              onChange={v => { setEditAddress(v); setEditDir(v.completa); }}
-                            />
-                            <button
-                              onClick={() => saveCampo('direccion')}
-                              disabled={savingField || !editAddress.completa}
-                              style={{
-                                marginTop: 8, width: '100%',
-                                background: '#00F5A0', border: 'none', borderRadius: 10,
-                                padding: '10px 14px', color: '#000', fontWeight: 800,
-                                fontSize: 13, cursor: 'pointer',
-                                opacity: savingField || !editAddress.completa ? 0.5 : 1,
-                              }}
-                            >{savingField ? '…' : 'Guardar'}</button>
-                          </div>
+                          <DireccionForm
+                            editAddress={editAddress}
+                            onAddressChange={v => { setEditAddress(v); setEditDir(v.completa); }}
+                            onGuardar={() => saveCampo('direccion')}
+                            savingField={savingField}
+                          />
                         )}
                       </div>
                     </div>
@@ -426,21 +463,12 @@ const Profile: React.FC<Props> = ({ session }) => {
                       style={{ background:'none', border:'none', color:'#555', fontSize:12, cursor:'pointer' }}
                     >Cancelar</button>
                   </div>
-                  <AddressInput
-                    value={editAddress}
-                    onChange={v => { setEditAddress(v); setEditDir(v.completa); }}
+                  <DireccionForm
+                    editAddress={editAddress}
+                    onAddressChange={v => { setEditAddress(v); setEditDir(v.completa); }}
+                    onGuardar={() => saveCampo('direccion')}
+                    savingField={savingField}
                   />
-                  <button
-                    onClick={() => saveCampo('direccion')}
-                    disabled={savingField || !editAddress.completa}
-                    style={{
-                      marginTop:12, width:'100%',
-                      background:'#00F5A0', border:'none', borderRadius:10,
-                      padding:'10px 14px', color:'#000', fontWeight:800,
-                      fontSize:13, cursor:'pointer',
-                      opacity: savingField || !editAddress.completa ? 0.5 : 1,
-                    }}
-                  >{savingField ? '…' : 'Guardar dirección'}</button>
                 </div>
               )}
             </div>
