@@ -197,7 +197,6 @@ Semana actual:
 - [ ] Sección "Mis datos" en perfil editable
 
 Próximas semanas:
-- Bio-expediente activo con cámara
 - Chat IA con Claude API
 - Cupones y códigos promocionales
 - Gamificación y puntos
@@ -205,3 +204,38 @@ Próximas semanas:
 - Build iOS/Android con Capacitor
 - Integración VTEX
 - Pasarela de pagos Kushki
+
+## Sesión 27 Abr 2026 — Parte 2
+
+### Completado
+- [x] Dashboard mascota completo: hero con ring gradiente, índice de salud, estimado de alimento, bio-expediente grid
+- [x] AlimentoEstimado: calcula días restantes basado en último pedido real
+- [x] Editar mascota: formulario completo con resize automático de fotos (máx 800px, ~150KB)
+- [x] useIonViewWillEnter en BioPet y BioPetDetail para refrescar datos al volver
+- [x] Carnet digital de vacunas con IA: Edge Function extract-vacuna en Supabase
+- [x] Escaneo de carnet físico: foto → Claude Haiku → extrae múltiples vacunas automáticamente
+- [x] Importación masiva de vacunas desde carnet en una sola foto
+- [x] Carnet digital visual: modal fullscreen con diseño e-PetPlace
+- [x] Descarga PNG del carnet con html2canvas
+- [x] Compartir carnet por WhatsApp/nativo
+- [x] Fix Checkout: pre-populate datos del perfil al pagar
+- [x] Fix columna direccion_codigo_postal inexistente en query de Checkout
+
+### Infraestructura agregada
+- Supabase Edge Function: extract-vacuna (claude-haiku-4-5-20251001)
+- ANTHROPIC_API_KEY configurada en Supabase Secrets
+- npm install html2canvas
+
+### Bugs Activos Pendientes
+- [ ] Google Places AddressInput: solución portal pendiente de validar en producción
+- [ ] Modo claro: revisar páginas Vet, Adopcion, Login, Onboarding
+- [ ] Carnet PNG: verificar render correcto en todos los dispositivos
+
+### Próximas sesiones prioritarias
+1. Modelo de suscripción premium (es_premium en profiles + Kushki/Stripe)
+2. Chat IA con Claude API en contexto de mascota
+3. Rediseño Home final con orden correcto de secciones
+4. Notificaciones push con Capacitor
+5. Build iOS/Android
+6. Multi-idioma ES/EN
+7. Integración VTEX + Kushki
