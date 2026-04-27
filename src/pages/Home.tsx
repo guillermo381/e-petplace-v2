@@ -215,11 +215,11 @@ const Home: React.FC<Props> = ({ session }) => {
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <img src={logoImg} alt="e-PetPlace" style={{ height:36, width:'auto', display:'block' }} />
               <div>
-                <p style={{ color:'#666', fontSize:11, margin:0, letterSpacing:'0.03em' }}>Buenos días,</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:11, margin:0, letterSpacing:'0.03em' }}>Buenos días,</p>
                 {loading ? (
                   <IonSkeletonText animated style={{ width:88, height:15, borderRadius:6, marginTop:3 } as React.CSSProperties} />
                 ) : (
-                  <p style={{ color:'#fff', fontSize:16, fontWeight:800, margin:0, lineHeight:1.1 }}>{nombre}</p>
+                  <p style={{ color:'var(--text-primary)', fontSize:16, fontWeight:800, margin:0, lineHeight:1.1 }}>{nombre}</p>
                 )}
               </div>
             </div>
@@ -272,7 +272,7 @@ const Home: React.FC<Props> = ({ session }) => {
                     </div>
                     <button
                       onClick={() => setCardDismissed(true)}
-                      style={{ background:'none', border:'none', color:'#333',
+                      style={{ background:'none', border:'none', color:'var(--text-secondary)',
                         fontSize:18, cursor:'pointer', padding:'0 0 0 12px', lineHeight:1 }}
                     >×</button>
                   </div>
@@ -310,6 +310,14 @@ const Home: React.FC<Props> = ({ session }) => {
           })()}
 
           {/* ════════════════════════════════════════════════════════
+              ZONA 4 – SERVICIOS
+          ════════════════════════════════════════════════════════ */}
+          <section style={{ padding:'0 20px 24px' }}>
+            <SectionHeader title="Servicios" />
+            <ServicesGrid onServiceClick={handleService} />
+          </section>
+
+          {/* ════════════════════════════════════════════════════════
               ZONA 2 – MIS MASCOTAS
           ════════════════════════════════════════════════════════ */}
           <section style={{ padding:'0 20px 24px' }}>
@@ -329,7 +337,7 @@ const Home: React.FC<Props> = ({ session }) => {
                 display:'flex', flexDirection:'column', alignItems:'center', gap:10, cursor:'pointer',
               }}>
                 <span style={{ fontSize:38 }}>🐾</span>
-                <p style={{ color:'#444', fontSize:13, margin:0 }}>Agrega a tu primera mascota</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0 }}>Agrega a tu primera mascota</p>
                 <div style={{
                   width:30, height:30, borderRadius:8,
                   background:'linear-gradient(90deg,#FF2D9B,#00E5FF)',
@@ -353,56 +361,58 @@ const Home: React.FC<Props> = ({ session }) => {
                   display:'flex', flexDirection:'column',
                   alignItems:'center', justifyContent:'center', gap:6, cursor:'pointer',
                 }}>
-                  <span style={{ fontSize:22, color:'#333' }}>+</span>
-                  <span style={{ color:'#3a3a3a', fontSize:10, fontWeight:600 }}>Agregar</span>
+                  <span style={{ fontSize:22, color:'var(--text-secondary)' }}>+</span>
+                  <span style={{ color:'var(--text-secondary)', fontSize:10, fontWeight:600 }}>Agregar</span>
                 </button>
               </div>
             )}
           </section>
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 3 – ALERTA URGENTE
+              ZONA 3 – ALERTAS
           ════════════════════════════════════════════════════════ */}
-          {!loading && alertaUrgente && (
+          {!loading && alertas.length > 0 && (
             <section style={{ padding:'0 20px 24px' }}>
-              <div style={{
-                display:'flex', borderRadius:14, overflow:'hidden',
-                border:'1px solid rgba(255,45,155,0.25)',
-              }}>
-                {/* Borde izquierdo rosa */}
-                <div style={{ width:4, background:'#FF2D9B', flexShrink:0 }} />
-                <div style={{
-                  flex:1, background:'#1a0a0a',
-                  padding:'14px 16px',
-                  display:'flex', alignItems:'center', gap:12,
-                }}>
-                  <div style={{
-                    width:36, height:36, borderRadius:10, flexShrink:0,
-                    background:'rgba(255,45,155,0.12)',
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:18,
-                  }}>
-                    {alertaUrgente.kind === 'urgente' ? '🚨' : '⚠️'}
-                  </div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0,
-                      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                      {alertaUrgente.title}
-                    </p>
-                    <p style={{ color:'#886', fontSize:11, margin:'3px 0 0' }}>
-                      {alertaUrgente.sub}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => alertaUrgente.mascotaId
-                      ? history.push(`/biopet/${alertaUrgente.mascotaId}`)
-                      : history.push('/mascotas')}
-                    style={{
-                      background:'#FF2D9B', color:'#fff', border:'none',
-                      borderRadius:8, padding:'6px 14px', fontSize:12,
-                      fontWeight:700, cursor:'pointer', flexShrink:0,
-                    }}
-                  >Ver</button>
-                </div>
+              <SectionHeader title="Alertas" />
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {alertas.slice(0, 3).map((a, i) => {
+                  const color = a.kind === 'urgente' ? '#FF2D9B' : a.kind === 'warning' ? '#FFE600' : '#00E5FF';
+                  const icon  = a.kind === 'urgente' ? '🚨' : a.kind === 'warning' ? '⚠️' : '💡';
+                  return (
+                    <div key={i} style={{
+                      display:'flex', borderRadius:14, overflow:'hidden',
+                      border:`1px solid ${color}25`,
+                    }}>
+                      <div style={{ width:3, background:color, flexShrink:0 }} />
+                      <div style={{
+                        flex:1, background:'var(--bg-card)',
+                        padding:'11px 14px',
+                        display:'flex', alignItems:'center', gap:10,
+                      }}>
+                        <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ color:'var(--text-primary)', fontSize:12, fontWeight:600, margin:0,
+                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {a.title}
+                          </p>
+                          <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'2px 0 0' }}>
+                            {a.sub}
+                          </p>
+                        </div>
+                        {a.mascotaId && (
+                          <button
+                            onClick={() => history.push(`/biopet/${a.mascotaId!}`)}
+                            style={{
+                              background: color, color:'#000',
+                              border:'none', borderRadius:7, padding:'5px 12px',
+                              fontSize:11, fontWeight:700, cursor:'pointer', flexShrink:0,
+                            }}
+                          >Ver</button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
           )}
@@ -415,14 +425,6 @@ const Home: React.FC<Props> = ({ session }) => {
               <ActiveOrderCard pedido={pedidoActivo} onPress={() => history.push('/mis-pedidos')} />
             </section>
           )}
-
-          {/* ════════════════════════════════════════════════════════
-              ZONA 4 – SERVICIOS (grid 2 columnas)
-          ════════════════════════════════════════════════════════ */}
-          <section style={{ padding:'0 20px 24px' }}>
-            <SectionHeader title="Servicios" />
-            <ServicesGrid onServiceClick={handleService} />
-          </section>
 
           {/* ════════════════════════════════════════════════════════
               ZONA 5 – PARA TI (IA)
@@ -439,7 +441,7 @@ const Home: React.FC<Props> = ({ session }) => {
                 {[1,2,3].map(k => (
                   <div key={k} style={{
                     flexShrink:0, width:148, borderRadius:16,
-                    background:'#111', border:'1px solid #1a1a1a', overflow:'hidden',
+                    background:'var(--bg-card)', border:'1px solid var(--border-color)', overflow:'hidden',
                   }}>
                     <IonSkeletonText animated style={{ width:'100%', height:100 } as React.CSSProperties} />
                     <div style={{ padding:'10px 12px' }}>
@@ -456,7 +458,7 @@ const Home: React.FC<Props> = ({ session }) => {
                 display:'flex', flexDirection:'column', alignItems:'center', gap:8, cursor:'pointer',
               }}>
                 <span style={{ fontSize:32 }}>🛍️</span>
-                <span style={{ color:'#444', fontSize:13 }}>Explora la tienda</span>
+                <span style={{ color:'var(--text-secondary)', fontSize:13 }}>Explora la tienda</span>
               </button>
             ) : (
               <div style={{ display:'flex', gap:12, overflowX:'auto', paddingBottom:4 }} className="no-scrollbar">
@@ -522,7 +524,7 @@ const SectionHeader: React.FC<{
 }> = ({ title, badge, action }) => (
   <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-      <h2 style={{ color:'#fff', fontSize:16, fontWeight:700, margin:0 }}>{title}</h2>
+      <h2 style={{ color:'var(--text-primary)', fontSize:16, fontWeight:700, margin:0 }}>{title}</h2>
       {badge && (
         <span style={{
           fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20,
@@ -560,7 +562,7 @@ const PetCard: React.FC<{ m: Mascota; hasAlert: boolean; onClick: () => void }> 
     <button onClick={onClick} style={{
       flexShrink:0, width:148,
       borderRadius:18, padding:'18px 14px 14px',
-      background:'linear-gradient(#111,#111) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box',
+      background:`linear-gradient(var(--bg-card),var(--bg-card)) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box`,
       border:'2px solid transparent',
       display:'flex', flexDirection:'column', alignItems:'center', gap:9,
       cursor:'pointer',
@@ -582,11 +584,11 @@ const PetCard: React.FC<{ m: Mascota; hasAlert: boolean; onClick: () => void }> 
 
       {/* Nombre + especie + edad */}
       <div style={{ width:'100%', textAlign:'center' }}>
-        <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:0,
+        <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:0,
           whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
           {m.nombre}
         </p>
-        <p style={{ color:'#666', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
+        <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
           {m.especie}{m.raza ? ` · ${m.raza}` : ''}
         </p>
         {edad && <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>{edad}</p>}
@@ -630,7 +632,7 @@ const ProductCard: React.FC<{ p: Producto; onView: () => void }> = ({ p, onView 
     )}
     <div style={{ padding:'10px 12px 12px' }}>
       <p style={{
-        color:'#ccc', fontSize:12, fontWeight:500, margin:0,
+        color:'var(--text-primary)', fontSize:12, fontWeight:500, margin:0,
         overflow:'hidden', display:'-webkit-box',
         WebkitLineClamp:2, WebkitBoxOrient:'vertical' as const,
       }}>{p.nombre}</p>
@@ -663,7 +665,7 @@ const ActiveOrderCard: React.FC<{ pedido: PedidoActivo; onPress: () => void }> =
     }}>
       <div style={{ width:4, background:meta.color, flexShrink:0 }} />
       <div style={{
-        flex:1, background:'#0a0a14',
+        flex:1, background:'var(--bg-card)',
         padding:'14px 16px',
         display:'flex', alignItems:'center', gap:12,
       }}>
@@ -675,7 +677,7 @@ const ActiveOrderCard: React.FC<{ pedido: PedidoActivo; onPress: () => void }> =
           {meta.icon}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
+          <p style={{ color:'var(--text-primary)', fontSize:13, fontWeight:700, margin:0 }}>
             Pedido en curso
           </p>
           <p style={{ color: meta.color, fontSize:11, margin:'3px 0 0', fontWeight:600 }}>

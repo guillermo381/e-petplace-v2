@@ -255,3 +255,13 @@ ion-router-outlet,
 .ion-page-invisible {
   transition: none !important;
 }
+
+/* Fix modo claro: inputs date picker */
+body.light input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+/* Fix modo claro: scrollbar */
+body.light ::-webkit-scrollbar-thumb {
+  background: #ccc;
+}

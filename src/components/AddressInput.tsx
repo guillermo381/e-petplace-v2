@@ -33,14 +33,17 @@ export const getAliasLabel = (v?: string) => ALIAS_OPTS.find(o => o.val === v)?.
 const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_PLACES_KEY as string;
 
 const AddressInput = ({ value, onChange, fieldError, clearError, compact = false }: Props) => {
+  // Ref estable — se asigna sincrónicamente, sin useEffect
   const onChangeRef = useRef(onChange);
-  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  onChangeRef.current = onChange;
 
   const [query,        setQuery]        = useState(value?.completa || '');
   const [sugerencias,  setSugerencias]  = useState<Sugerencia[]>([]);
   const [loading,      setLoading]      = useState(false);
   const [seleccionada, setSeleccionada] = useState<AddressValue | null>(
-    value?.completa ? { completa: value.completa, linea1: value.linea1 || '', sector: value.sector || '', ciudad: value.ciudad || '', pais: value.pais || '', codigoPostal: value.codigoPostal || '', apto: value.apto || '', referencias: value.referencias || '', guardadoComo: value.guardadoComo || 'casa' } : null
+    value?.completa
+      ? { completa: value.completa, linea1: value.linea1 || '', sector: value.sector || '', ciudad: value.ciudad || '', pais: value.pais || '', codigoPostal: value.codigoPostal || '', apto: value.apto || '', referencias: value.referencias || '', guardadoComo: value.guardadoComo || 'casa' }
+      : null
   );
   const [modoEdicion,  setModoEdicion]  = useState(!value?.completa);
   const [apto,         setApto]         = useState(value?.apto        || '');
@@ -48,13 +51,9 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
   const [guardadoComo, setGuardadoComo] = useState(value?.guardadoComo || 'casa');
   const [errorRefs,    setErrorRefs]    = useState('');
   const [inputFocused, setInputFocused] = useState(false);
-
-  const aptoRef         = useRef(apto);
-  const referenciasRef  = useRef(referencias);
-  const guardadoComoRef = useRef(guardadoComo);
-  useEffect(() => { aptoRef.current = apto; },                    [apto]);
-  useEffect(() => { referenciasRef.current = referencias; },      [referencias]);
-  useEffect(() => { guardadoComoRef.current = guardadoComo; },    [guardadoComo]);
+  // Estado local para evitar re-renders del padre en cada keystroke
+  const [localApto, setLocalApto] = useState(value?.apto        || '');
+  const [localRefs, setLocalRefs] = useState(value?.referencias || '');
 
   /* ── Autocomplete Places API (New) ───────────────────────────── */
   const buscarSugerencias = async (texto: string) => {
@@ -63,15 +62,8 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
     try {
       const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': GOOGLE_KEY,
-        },
-        body: JSON.stringify({
-          input: texto,
-          languageCode: 'es',
-          includedRegionCodes: ['ec', 'co', 'pe', 'mx', 'ar', 'cl'],
-        }),
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': GOOGLE_KEY },
+        body: JSON.stringify({ input: texto, languageCode: 'es', includedRegionCodes: ['ec', 'co', 'pe', 'mx', 'ar', 'cl'] }),
       });
       const data = await res.json();
       setSugerencias(data.suggestions || []);
@@ -84,32 +76,25 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
 
   useEffect(() => {
     if (!modoEdicion) return;
-    const timer = setTimeout(() => {
-      buscarSugerencias(query);
-    }, 500);
+    const timer = setTimeout(() => buscarSugerencias(query), 500);
     return () => clearTimeout(timer);
   }, [query, modoEdicion]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── Obtener detalles del lugar ──────────────────────────────── */
-  const seleccionarLugar = async (placeId: string, descripcion: string) => {
+  /* ── Obtener detalles y notificar UNA SOLA VEZ ───────────────── */
+  const handlePlaceSelect = async (placeId: string, descripcion: string) => {
     try {
       const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}`, {
-        headers: {
-          'X-Goog-Api-Key': GOOGLE_KEY,
-          'X-Goog-FieldMask': 'addressComponents,formattedAddress',
-        },
+        headers: { 'X-Goog-Api-Key': GOOGLE_KEY, 'X-Goog-FieldMask': 'addressComponents,formattedAddress' },
       });
       const place = await res.json();
-      console.log('Place response completo:', JSON.stringify(place, null, 2));
 
       const get = (type: string) => {
         if (!place.addressComponents) return '';
-        const component = place.addressComponents.find((c: any) => {
+        const c = place.addressComponents.find((c: any) => {
           const types = c.types || c.componentType || [];
-          if (Array.isArray(types)) return types.includes(type);
-          return types === type;
+          return Array.isArray(types) ? types.includes(type) : types === type;
         });
-        return component?.longText || component?.long_name || '';
+        return c?.longText || c?.long_name || '';
       };
 
       const dir: AddressValue = {
@@ -119,9 +104,7 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
         ciudad:       get('locality') || get('administrative_area_level_2') || '',
         pais:         get('country') || '',
         codigoPostal: get('postal_code') || '',
-        apto:         aptoRef.current,
-        referencias:  referenciasRef.current,
-        guardadoComo: guardadoComoRef.current,
+        apto, referencias, guardadoComo,
       };
 
       setSeleccionada(dir);
@@ -129,19 +112,27 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
       setSugerencias([]);
       setModoEdicion(false);
       clearError?.();
-      onChangeRef.current(dir);
+      onChangeRef.current(dir); // llamada única al seleccionar
     } catch (e) {
       console.error('Error obteniendo detalles:', e);
     }
   };
 
-  /* ── Propagar campos secundarios ─────────────────────────────── */
-  useEffect(() => {
-    if (!seleccionada) return;
-    const updated = { ...seleccionada, apto, referencias, guardadoComo };
-    setSeleccionada(updated);
-    onChangeRef.current(updated);
-  }, [apto, referencias, guardadoComo]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* ── Handlers directos para campos secundarios ───────────────── */
+  const handleAptoChange = (val: string) => {
+    setApto(val);
+    if (seleccionada) onChangeRef.current({ ...seleccionada, apto: val, referencias, guardadoComo });
+  };
+
+  const handleReferenciasChange = (val: string) => {
+    setReferencias(val);
+    if (seleccionada) onChangeRef.current({ ...seleccionada, apto, referencias: val, guardadoComo });
+  };
+
+  const handleGuardadoComoChange = (val: string) => {
+    setGuardadoComo(val);
+    if (seleccionada) onChangeRef.current({ ...seleccionada, apto, referencias, guardadoComo: val });
+  };
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 12px 12px 36px', boxSizing: 'border-box',
@@ -157,15 +148,13 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
         <div style={{ background: 'rgba(0,245,160,0.07)', border: '1px solid rgba(0,245,160,0.25)', borderRadius: 12, padding: '12px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>✅</span>
-            <p style={{ flex: 1, color: '#00F5A0', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
-              {seleccionada.completa}
-            </p>
+            <p style={{ flex: 1, color: '#00F5A0', fontSize: 13, margin: 0, lineHeight: 1.5 }}>{seleccionada.completa}</p>
           </div>
-          <button
-            type="button"
+          <button type="button"
             onClick={() => { setModoEdicion(true); setQuery(''); setSugerencias([]); }}
-            style={{ marginTop: 8, background: 'none', border: '1px solid #333', borderRadius: 8, padding: '5px 12px', color: '#00E5FF', fontSize: 12, cursor: 'pointer' }}
-          >Cambiar dirección</button>
+            style={{ marginTop: 8, background: 'none', border: '1px solid #333', borderRadius: 8, padding: '5px 12px', color: '#00E5FF', fontSize: 12, cursor: 'pointer' }}>
+            Cambiar dirección
+          </button>
         </div>
 
       ) : (
@@ -173,36 +162,24 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
         <div style={{ position: 'relative' }}>
           <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 15, pointerEvents: 'none', zIndex: 1 }}>📍</span>
           <input
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
+            type="text" value={query} onChange={e => setQuery(e.target.value)}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setTimeout(() => setInputFocused(false), 200)}
-            placeholder="Escribe tu dirección…"
-            autoComplete="off"
-            style={inputStyle}
+            placeholder="Escribe tu dirección…" autoComplete="off" style={inputStyle}
           />
           {loading && (
             <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#00E5FF', fontSize: 12 }}>⏳</span>
           )}
 
-          {/* Dropdown de sugerencias */}
           {sugerencias.length > 0 && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, right: 0,
-              background: '#111111', border: '1px solid #333',
-              borderRadius: 10, zIndex: 9999,
-              maxHeight: 200, overflowY: 'auto',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.7)', marginTop: 4,
-            }}>
+            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#111111', border: '1px solid #333', borderRadius: 10, zIndex: 9999, maxHeight: 200, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.7)', marginTop: 4 }}>
               {sugerencias.map(s => {
-                const pred    = s.placePrediction;
-                const main    = pred.structuredFormat?.mainText?.text    || pred.text.text;
+                const pred      = s.placePrediction;
+                const main      = pred.structuredFormat?.mainText?.text    || pred.text.text;
                 const secondary = pred.structuredFormat?.secondaryText?.text || '';
                 return (
-                  <div
-                    key={pred.placeId}
-                    onMouseDown={e => { e.preventDefault(); seleccionarLugar(pred.placeId, pred.text.text); }}
+                  <div key={pred.placeId}
+                    onMouseDown={e => { e.preventDefault(); handlePlaceSelect(pred.placeId, pred.text.text); }}
                     style={{ padding: '12px 14px', color: '#fff', borderBottom: '1px solid #222', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8 }}
                     onMouseEnter={e => (e.currentTarget.style.background = '#1a1a1a')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -234,18 +211,22 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <input
+              type="text"
+              value={localApto}
+              onChange={e => { e.stopPropagation(); setLocalApto(e.target.value); }}
+              onBlur={() => handleAptoChange(localApto)}
               placeholder="Apto, Casa, Oficina (opcional)"
-              value={apto} onChange={e => setApto(e.target.value)}
-              style={{ width: '100%', padding: '12px', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid #333', borderRadius: 10, color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}
+              autoComplete="off"
+              style={{ width: '100%', padding: '10px 12px', boxSizing: 'border-box', background: 'var(--bg-card)', border: '1px solid #333', borderRadius: 8, color: 'var(--text-primary)', fontSize: 14, outline: 'none' }}
             />
             <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888' }}>Ej: Apto 301, Casa 2, Oficina B</p>
           </div>
           <div>
             <textarea
+              value={localRefs}
+              onChange={e => { e.stopPropagation(); setLocalRefs(e.target.value); if (e.target.value.length >= 10) setErrorRefs(''); }}
+              onBlur={() => { handleReferenciasChange(localRefs); if (localRefs.length > 0 && localRefs.length < 10) setErrorRefs('Agrega al menos 10 caracteres'); }}
               placeholder="Referencias para el repartidor…"
-              value={referencias}
-              onChange={e => { setReferencias(e.target.value); if (e.target.value.length >= 10) setErrorRefs(''); }}
-              onBlur={() => { if (referencias.length > 0 && referencias.length < 10) setErrorRefs('Agrega al menos 10 caracteres'); }}
               rows={3}
               style={{ width: '100%', padding: '12px', boxSizing: 'border-box', background: 'var(--bg-card)', border: `1px solid ${errorRefs ? '#FF2D9B' : '#333'}`, borderRadius: 10, color: 'var(--text-primary)', fontSize: 14, resize: 'none', outline: 'none' }}
             />
@@ -257,7 +238,7 @@ const AddressInput = ({ value, onChange, fieldError, clearError, compact = false
               <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--text-secondary)' }}>Guardar como:</p>
               <div style={{ display: 'flex', gap: 8 }}>
                 {ALIAS_OPTS.map(opt => (
-                  <button key={opt.val} type="button" onClick={() => setGuardadoComo(opt.val)}
+                  <button key={opt.val} type="button" onClick={() => handleGuardadoComoChange(opt.val)}
                     style={{ flex: 1, padding: '8px 4px', borderRadius: 8, cursor: 'pointer', border: `1px solid ${guardadoComo === opt.val ? '#00E5FF' : '#333'}`, background: guardadoComo === opt.val ? '#0d1a2b' : 'var(--bg-card)', color: guardadoComo === opt.val ? '#00E5FF' : '#888', fontSize: 11, fontWeight: 600 }}>
                     {opt.icon} {opt.label}
                   </button>

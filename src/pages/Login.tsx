@@ -20,6 +20,7 @@ import { supabase } from '../lib/supabase';
 import { useGuest } from '../context/GuestContext';
 import logoImg from '../assets/logo.png';
 import ConsentCheckbox from '../components/legal/ConsentCheckbox';
+import { validarEmailReal, MSG_EMAIL_REAL } from '../lib/validaciones';
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_SECS = 30;
@@ -293,6 +294,11 @@ const Login: React.FC = () => {
         if (hayPedidos) history.replace('/mis-pedidos', { pedidosMigrados: true });
       }
     } else {
+      const emailErr = validarEmailReal(email.trim());
+      if (emailErr) {
+        setError(emailErr + ' — ' + MSG_EMAIL_REAL);
+        setLoading(false); return;
+      }
       if (password.length < 8) {
         setError('La contraseña debe tener al menos 8 caracteres');
         setLoading(false); return;

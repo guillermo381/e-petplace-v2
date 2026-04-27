@@ -174,8 +174,8 @@ const BackBtn: React.FC<{ onClick: () => void }> = ({ onClick }) => (
     onClick={onClick}
     style={{
       width:38, height:38, borderRadius:11, flexShrink:0,
-      background:'#111', border:'1px solid #222',
-      color:'#fff', fontSize:20, cursor:'pointer',
+      background:'var(--bg-card)', border:'1px solid var(--border-color)',
+      color:'var(--text-primary)', fontSize:20, cursor:'pointer',
       display:'flex', alignItems:'center', justifyContent:'center',
     }}
   >‹</button>
@@ -203,43 +203,43 @@ const BioPet: React.FC<Props> = ({ session }) => {
   return (
     <IonPage>
       <IonContent fullscreen>
-        <div style={{ background:'#000', minHeight:'100vh', paddingBottom:100 }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', paddingBottom:100 }}>
 
           {/* Header */}
           <div style={{ padding:'52px 20px 24px' }}>
-            <h1 style={{ color:'#fff', fontSize:24, fontWeight:800, margin:0 }}>Mis Mascotas</h1>
+            <h1 style={{ color:'var(--text-primary)', fontSize:24, fontWeight:800, margin:0 }}>Mis Mascotas</h1>
             {!loading && (
-              <p style={{ color:'#888', fontSize:13, margin:'4px 0 0' }}>
+              <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'4px 0 0' }}>
                 {mascotas.length} mascota{mascotas.length !== 1 ? 's' : ''} registrada{mascotas.length !== 1 ? 's' : ''}
               </p>
             )}
           </div>
 
           {/* Content */}
-          <div style={{ padding:'0 20px' }}>
+          <div>
             {loading ? (
-              [1,2,3].map(k => (
-                <div key={k} style={{
-                  display:'flex', alignItems:'center', gap:14,
-                  padding:'14px 16px', borderRadius:16, marginBottom:10,
-                  background:'#111', border:'1px solid #1a1a1a',
-                }}>
-                  <IonSkeletonText animated style={{ width:56, height:56, borderRadius:'50%' } as React.CSSProperties} />
-                  <div style={{ flex:1 }}>
-                    <IonSkeletonText animated style={{ width:'55%', height:14, borderRadius:5, marginBottom:8 } as React.CSSProperties} />
-                    <IonSkeletonText animated style={{ width:'35%', height:11, borderRadius:5 } as React.CSSProperties} />
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
+                {[1,2,3,4].map(k => (
+                  <div key={k} style={{
+                    padding:'18px 12px', borderRadius:20,
+                    background:'var(--bg-card)', border:'1px solid var(--border-color)',
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:8,
+                  }}>
+                    <IonSkeletonText animated style={{ width:60, height:60, borderRadius:'50%' } as React.CSSProperties} />
+                    <IonSkeletonText animated style={{ width:'70%', height:13, borderRadius:5 } as React.CSSProperties} />
+                    <IonSkeletonText animated style={{ width:'50%', height:10, borderRadius:5 } as React.CSSProperties} />
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : mascotas.length === 0 ? (
               <div style={{
-                marginTop:20, padding:'40px 20px', borderRadius:20,
-                background:'#111', border:'2px dashed #2a2a2a',
+                marginTop:20, marginInline:20, padding:'40px 20px', borderRadius:20,
+                background:'var(--bg-card)', border:'2px dashed var(--border-color)',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:12, textAlign:'center',
               }}>
                 <span style={{ fontSize:52 }}>🐾</span>
-                <p style={{ color:'#fff', fontSize:16, fontWeight:700, margin:0 }}>Aún no tienes mascotas</p>
-                <p style={{ color:'#666', fontSize:13, margin:0 }}>Registra a tus compañeros y cuida su salud</p>
+                <p style={{ color:'var(--text-primary)', fontSize:16, fontWeight:700, margin:0 }}>Aún no tienes mascotas</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0 }}>Registra a tus compañeros y cuida su salud</p>
                 <button
                   onClick={() => history.push('/biopet/new')}
                   style={{
@@ -252,32 +252,36 @@ const BioPet: React.FC<Props> = ({ session }) => {
                 </button>
               </div>
             ) : (
-              mascotas.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => history.push(`/biopet/${m.id}`)}
-                  style={{
-                    width:'100%', display:'flex', alignItems:'center', gap:14,
-                    padding:'14px 16px', borderRadius:16, marginBottom:10,
-                    background:'linear-gradient(#111,#111) padding-box, linear-gradient(90deg,#FF2D9B,#00E5FF,#FFE600) border-box',
-                    border:'2px solid transparent', cursor:'pointer', textAlign:'left',
-                  }}
-                >
-                  <PetAvatar nombre={m.nombre} foto_url={m.foto_url} size={56} />
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <p style={{ color:'#fff', fontSize:15, fontWeight:700, margin:0 }}>{m.nombre}</p>
-                    <p style={{ color:'#888', fontSize:12, margin:'3px 0 0', textTransform:'capitalize' }}>
-                      {m.especie}{m.raza ? ` · ${m.raza}` : ''}
-                    </p>
-                    {m.fecha_nacimiento && (
-                      <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>
-                        {calcEdad(m.fecha_nacimiento)}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
+                {mascotas.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => history.push(`/biopet/${m.id}`)}
+                    style={{
+                      display:'flex', flexDirection:'column', alignItems:'center',
+                      padding:'18px 12px 14px', borderRadius:20,
+                      background:`linear-gradient(var(--bg-card),var(--bg-card)) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box`,
+                      border:'2px solid transparent', cursor:'pointer', gap:8, position:'relative',
+                    }}
+                  >
+                    <PetAvatar nombre={m.nombre} foto_url={m.foto_url} size={60} />
+                    <div style={{ textAlign:'center', width:'100%' }}>
+                      <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:0,
+                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                        {m.nombre}
                       </p>
-                    )}
-                  </div>
-                  <span style={{ color:'#444', fontSize:18 }}>›</span>
-                </button>
-              ))
+                      <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
+                        {m.especie}{m.raza ? ` · ${m.raza}` : ''}
+                      </p>
+                      {m.fecha_nacimiento && (
+                        <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>
+                          {calcEdad(m.fecha_nacimiento)}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -348,18 +352,18 @@ export const RazaInput: React.FC<{
         onFocus={() => setOpen(true)}
         placeholder="Ej: Labrador, Mestizo…"
         style={{
-          width:'100%', background:'#111',
-          border:`1px solid ${hasError ? '#FF2D9B' : '#2a2a2a'}`,
-          borderRadius:12, padding:'13px 14px', color:'#fff',
+          width:'100%', background:'var(--bg-card)',
+          border:`1px solid ${hasError ? '#FF2D9B' : 'var(--border-color)'}`,
+          borderRadius:12, padding:'13px 14px', color:'var(--text-primary)',
           fontSize:14, boxSizing:'border-box', outline:'none',
         }}
       />
       {open && filtradas.length > 0 && (
         <div style={{
           position:'absolute', top:'100%', left:0, right:0, zIndex:200,
-          background:'#111', border:'1px solid #2a2a2a', borderRadius:12,
+          background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:12,
           marginTop:4, maxHeight:200, overflowY:'auto',
-          boxShadow:'0 8px 32px rgba(0,0,0,0.8)',
+          boxShadow:'0 8px 32px rgba(0,0,0,0.15)',
         }}>
           {filtradas.map(raza => (
             <button
@@ -369,7 +373,7 @@ export const RazaInput: React.FC<{
               style={{
                 display:'block', width:'100%', textAlign:'left',
                 padding:'10px 14px', background:'none', border:'none',
-                borderBottom:'1px solid #1a1a1a', color:'#ddd',
+                borderBottom:'1px solid var(--border-color)', color:'var(--text-primary)',
                 fontSize:14, cursor:'pointer',
               }}
             >
@@ -505,12 +509,12 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
       <IonContent fullscreen>
         <IonLoading isOpen={saving} message="Guardando mascota…" />
 
-        <div style={{ background:'#000', minHeight:'100vh', paddingBottom:120 }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', paddingBottom:120 }}>
 
           {/* Header */}
           <div style={{ padding:'52px 20px 16px', display:'flex', alignItems:'center', gap:12 }}>
             <BackBtn onClick={() => history.goBack()} />
-            <h1 style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0, lineHeight:1.3 }}>{titulo}</h1>
+            <h1 style={{ color:'var(--text-primary)', fontSize:18, fontWeight:800, margin:0, lineHeight:1.3 }}>{titulo}</h1>
           </div>
 
           <div style={{ padding:'0 20px', display:'flex', flexDirection:'column', gap:20 }}>
@@ -539,10 +543,10 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                 </div>
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handlePhotoChange} />
-              <p style={{ color:'#555', fontSize:12, margin:0 }}>
-                Foto <span style={{ color:'#444' }}>(opcional, recomendado)</span>
+              <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0 }}>
+                Foto <span style={{ color:'var(--text-secondary)' }}>(opcional, recomendado)</span>
               </p>
-              <p style={{ color:'#555', fontSize:12, margin:0, textAlign:'center', lineHeight:1.5, maxWidth:260 }}>
+              <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0, textAlign:'center', lineHeight:1.5, maxWidth:260 }}>
                 Una foto nos ayuda a identificar a tu compañero fácilmente y personalizar su perfil. ¡También es para recordar lo bonito que es! 📸
               </p>
             </div>
@@ -565,8 +569,8 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                       onClick={() => setField('especie', e.key)}
                       style={{
                         padding:'12px 0 10px', borderRadius:14,
-                        background: sel ? 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)' : '#111',
-                        border: sel ? '2px solid #00E5FF' : errors.especie ? '1px solid #FF2D9B44' : '1px solid #222',
+                        background: sel ? 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)' : 'var(--bg-card)',
+                        border: sel ? '2px solid #00E5FF' : errors.especie ? '1px solid #FF2D9B44' : '1px solid var(--border-color)',
                         display:'flex', flexDirection:'column',
                         alignItems:'center', gap:5, cursor:'pointer',
                         transition:'all 0.15s', position:'relative',
@@ -582,20 +586,20 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                         }}>✓</div>
                       )}
                       <span style={{ fontSize:22 }}>{e.emoji}</span>
-                      <span style={{ fontSize:10, color: sel ? '#00E5FF' : '#666', fontWeight:700 }}>{e.label}</span>
+                      <span style={{ fontSize:10, color: sel ? '#00E5FF' : 'var(--text-secondary)', fontWeight:700 }}>{e.label}</span>
                     </button>
                   );
                 })}
               </div>
               {errors.especie
                 ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.especie}</p>
-                : <p style={{ color:'#555', fontSize:12, marginTop:8, lineHeight:1.5 }}>Define qué servicios, productos y veterinarios son los más adecuados para tu compañero</p>
+                : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:8, lineHeight:1.5 }}>Define qué servicios, productos y veterinarios son los más adecuados para tu compañero</p>
               }
             </div>
 
             {/* ── Nombre ───────────────────────────────────────── */}
             <div>
-              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+              <label style={{ display:'block', marginBottom:8, color:'var(--text-secondary)', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
                 Nombre *
               </label>
               <TextInput
@@ -606,13 +610,13 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
               />
               {errors.nombre
                 ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.nombre}</p>
-                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>El nombre nos permite personalizar todas las comunicaciones y alertas para tu compañero 🐾</p>
+                : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:6, lineHeight:1.5 }}>El nombre nos permite personalizar todas las comunicaciones y alertas para tu compañero 🐾</p>
               }
             </div>
 
             {/* ── Raza con autocompletado ───────────────────────── */}
             <div>
-              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+              <label style={{ display:'block', marginBottom:8, color:'var(--text-secondary)', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
                 Raza *
               </label>
               <RazaInput
@@ -623,13 +627,13 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
               />
               {errors.raza
                 ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.raza}</p>
-                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>La raza nos permite recomendarte alimentos específicos, detectar predisposiciones de salud y conectarte con especialistas. Si es mestizo selecciona Mix/Mestizo 🧬</p>
+                : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:6, lineHeight:1.5 }}>La raza nos permite recomendarte alimentos específicos, detectar predisposiciones de salud y conectarte con especialistas. Si es mestizo selecciona Mix/Mestizo 🧬</p>
               }
             </div>
 
             {/* ── Fecha de nacimiento ───────────────────────────── */}
             <div>
-              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+              <label style={{ display:'block', marginBottom:8, color:'var(--text-secondary)', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
                 Fecha de nacimiento *
               </label>
               <TextInput
@@ -640,14 +644,14 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
               />
               {errors.fecha_nacimiento
                 ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.fecha_nacimiento}</p>
-                : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>Calculamos su edad exacta, te recordamos vacunas a tiempo y ajustamos las recomendaciones según su etapa de vida 📅</p>
+                : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:6, lineHeight:1.5 }}>Calculamos su edad exacta, te recordamos vacunas a tiempo y ajustamos las recomendaciones según su etapa de vida 📅</p>
               }
             </div>
 
             {/* ── Sexo (condicional por especie) ────────────────── */}
             {form.especie !== 'pez' && (
               <div>
-                <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+                <label style={{ display:'block', marginBottom:8, color:'var(--text-secondary)', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
                   Sexo {form.especie === 'ave' ? <span style={{ color:'#444', fontWeight:400, textTransform:'none', letterSpacing:0 }}>(opcional)</span> : '*'}
                 </label>
                 <div style={{ display:'flex', gap:10 }}>
@@ -661,9 +665,9 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                       onClick={() => setField('sexo', form.sexo === s.val ? '' : s.val)}
                       style={{
                         flex:1, padding:'12px 0', borderRadius:12, cursor:'pointer',
-                        background: form.sexo === s.val ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#111',
-                        color: form.sexo === s.val ? '#000' : '#666',
-                        border: form.sexo === s.val ? 'none' : errors.sexo ? '1px solid #FF2D9B44' : '1px solid #222',
+                        background: form.sexo === s.val ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'var(--bg-card)',
+                        color: form.sexo === s.val ? '#000' : 'var(--text-secondary)',
+                        border: form.sexo === s.val ? 'none' : errors.sexo ? '1px solid #FF2D9B44' : '1px solid var(--border-color)',
                         fontWeight:800, fontSize:14, transition:'all 0.15s',
                       }}
                     >
@@ -673,14 +677,14 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                 </div>
                 {errors.sexo
                   ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.sexo}</p>
-                  : <p style={{ color:'#555', fontSize:12, marginTop:6, lineHeight:1.5 }}>Importante para recomendaciones de salud preventiva, esterilización y cuidados específicos por género</p>
+                  : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:6, lineHeight:1.5 }}>Importante para recomendaciones de salud preventiva, esterilización y cuidados específicos por género</p>
                 }
               </div>
             )}
 
             {/* ── Peso ─────────────────────────────────────────── */}
             <div>
-              <label style={{ display:'block', marginBottom:8, color:'#666', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
+              <label style={{ display:'block', marginBottom:8, color:'var(--text-secondary)', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase' }}>
                 Peso actual <span style={{ color:'#444', fontWeight:400, textTransform:'none', letterSpacing:0 }}>(opcional)</span>
               </label>
               <div style={{ position:'relative' }}>
@@ -693,12 +697,12 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                 />
                 <span style={{
                   position:'absolute', right:14, top:'50%', transform:'translateY(-50%)',
-                  color:'#555', fontSize:13, fontWeight:600, pointerEvents:'none',
+                  color:'var(--text-secondary)', fontSize:13, fontWeight:600, pointerEvents:'none',
                 }}>kg</span>
               </div>
               {errors.peso
                 ? <p style={{ color:'#FF2D9B', fontSize:13, marginTop:6, fontWeight:500 }}>{errors.peso}</p>
-                : <p style={{ color:'#444', fontSize:12, marginTop:6, lineHeight:1.5 }}>El peso nos ayuda a calcular las porciones de alimento correctas 🍽️</p>
+                : <p style={{ color:'var(--text-secondary)', fontSize:12, marginTop:6, lineHeight:1.5 }}>El peso nos ayuda a calcular las porciones de alimento correctas 🍽️</p>
               }
             </div>
 
@@ -710,8 +714,8 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
                 placeholder="Alergias, medicamentos, condiciones especiales…"
                 rows={4}
                 style={{
-                  width:'100%', background:'#111', border:'1px solid #2a2a2a',
-                  borderRadius:12, padding:'12px 14px', color:'#fff',
+                  width:'100%', background:'var(--bg-card)', border:'1px solid var(--border-color)',
+                  borderRadius:12, padding:'12px 14px', color:'var(--text-primary)',
                   fontSize:14, resize:'none', boxSizing:'border-box',
                 }}
               />
@@ -807,7 +811,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
   if (loading) return (
     <IonPage>
       <IonContent fullscreen>
-        <div style={{ background:'#000', minHeight:'100vh', padding:'52px 20px 24px' }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', padding:'52px 20px 24px' }}>
           <IonSkeletonText animated style={{ width:80, height:80, borderRadius:'50%', marginBottom:12 } as React.CSSProperties} />
           <IonSkeletonText animated style={{ width:'50%', height:20, borderRadius:6, marginBottom:8 } as React.CSSProperties} />
           <IonSkeletonText animated style={{ width:'30%', height:14, borderRadius:5 } as React.CSSProperties} />
@@ -819,9 +823,9 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
   if (!mascota) return (
     <IonPage>
       <IonContent fullscreen>
-        <div style={{ background:'#000', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12 }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12 }}>
           <span style={{ fontSize:48 }}>😿</span>
-          <p style={{ color:'#666', fontSize:14 }}>Mascota no encontrada</p>
+          <p style={{ color:'var(--text-secondary)', fontSize:14 }}>Mascota no encontrada</p>
           <button onClick={() => history.goBack()} style={{ color:'#00E5FF', background:'none', border:'none', cursor:'pointer', fontSize:14 }}>
             ← Volver
           </button>
@@ -848,7 +852,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
       <IonContent fullscreen>
         <IonLoading isOpen={saving} message="Guardando…" />
 
-        <div style={{ background:'#000', minHeight:'100vh', paddingBottom:100 }}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', paddingBottom:100 }}>
 
           {/* ── Header ─────────────────────────────────────────── */}
           <div style={{ padding:'52px 20px 0', display:'flex', alignItems:'flex-start', gap:12 }}>
@@ -862,8 +866,8 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
           }}>
             <PetAvatar nombre={mascota.nombre} foto_url={mascota.foto_url} size={80} />
             <div>
-              <h1 style={{ color:'#fff', fontSize:22, fontWeight:800, margin:0 }}>{mascota.nombre}</h1>
-              <p style={{ color:'#888', fontSize:13, margin:'3px 0 0', textTransform:'capitalize' }}>
+              <h1 style={{ color:'var(--text-primary)', fontSize:22, fontWeight:800, margin:0 }}>{mascota.nombre}</h1>
+              <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'3px 0 0', textTransform:'capitalize' }}>
                 {mascota.especie}{mascota.raza ? ` · ${mascota.raza}` : ''}
                 {mascota.sexo ? ` · ${mascota.sexo}` : ''}
               </p>
@@ -875,6 +879,35 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
             </div>
           </div>
 
+          {/* ── Índice de salud ──────────────────────────────────── */}
+          {(() => {
+            let score = 40;
+            if (mascota.peso)             score += 15;
+            if (mascota.fecha_nacimiento) score += 10;
+            if (mascota.sexo)             score += 5;
+            if (vacunas.length > 0)       score += 20;
+            const sinVencidas = vacunas.every(v => { const d = diasRestantes(v.fecha_proxima); return d === null || d >= 0; });
+            if (sinVencidas && vacunas.length > 0) score += 10;
+            score = Math.min(score, 100);
+            const color = score >= 80 ? '#00F5A0' : score >= 50 ? '#FFE600' : '#FF2D9B';
+            return (
+              <div style={{ padding:'0 20px 20px' }}>
+                <div style={{ background:'var(--bg-card)', borderRadius:16, border:'1px solid var(--border-color)', padding:'14px 16px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <p style={{ color:'var(--text-primary)', fontSize:13, fontWeight:600, margin:0 }}>Índice de salud</p>
+                    <p style={{ color, fontSize:16, fontWeight:800, margin:0 }}>{score}%</p>
+                  </div>
+                  <div style={{ height:6, background:'var(--border-color)', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${score}%`, background:`linear-gradient(90deg, ${color}, ${color}88)`, borderRadius:3, transition:'width 0.6s ease' }} />
+                  </div>
+                  <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'6px 0 0' }}>
+                    {score >= 80 ? '🌟 Excelente — todo al día' : score >= 50 ? '⚠️ Puede mejorar — registra más datos' : '🔴 Necesita atención — completa el perfil'}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* ── Stats ──────────────────────────────────────────── */}
           <div style={{ padding:'0 20px 24px', display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
             {[
@@ -885,11 +918,11 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
             ].map(s => (
               <div key={s.label} style={{
                 padding:'14px 10px', borderRadius:14,
-                background:'#111', border:'1px solid #1e1e1e',
+                background:'var(--bg-card)', border:'1px solid var(--border-color)',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:4,
               }}>
-                <p style={{ color: s.color ?? '#fff', fontSize:17, fontWeight:800, margin:0 }}>{s.val}</p>
-                <p style={{ color:'#666', fontSize:11, margin:0 }}>{s.label}</p>
+                <p style={{ color: s.color ?? 'var(--text-primary)', fontSize:17, fontWeight:800, margin:0 }}>{s.val}</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:11, margin:0 }}>{s.label}</p>
               </div>
             ))}
           </div>
@@ -909,10 +942,10 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
                   flex:1, padding:'12px 14px',
                   background: diasProxima <= 7 ? 'rgba(255,45,155,0.07)' : 'rgba(255,230,0,0.05)',
                 }}>
-                  <p style={{ color:'#fff', fontSize:13, fontWeight:600, margin:0 }}>
+                  <p style={{ color:'var(--text-primary)', fontSize:13, fontWeight:600, margin:0 }}>
                     {diasProxima <= 7 ? '🚨' : '⚠️'} {proximaVacuna.nombre}
                   </p>
-                  <p style={{ color:'#888', fontSize:11, margin:'3px 0 0' }}>
+                  <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'3px 0 0' }}>
                     Próxima vacuna · en {diasProxima} día{diasProxima !== 1 ? 's' : ''}
                     {' '}· {fmtDate(proximaVacuna.fecha_proxima)}
                   </p>
@@ -927,8 +960,8 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
               <SectionTitle>Notas</SectionTitle>
               <div style={{
                 padding:'12px 14px', borderRadius:14,
-                background:'#111', border:'1px solid #1e1e1e',
-                color:'#bbb', fontSize:13, lineHeight:1.6,
+                background:'var(--bg-card)', border:'1px solid var(--border-color)',
+                color:'var(--text-primary)', fontSize:13, lineHeight:1.6,
               }}>
                 {mascota.notas}
               </div>
@@ -957,10 +990,10 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
             {showVacForm && (
               <div style={{
                 marginBottom:14, padding:'16px', borderRadius:16,
-                background:'#111', border:'1px solid #2a2a2a',
+                background:'var(--bg-card)', border:'1px solid var(--border-color)',
                 display:'flex', flexDirection:'column', gap:12,
               }}>
-                <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:0 }}>Nueva Vacuna</p>
+                <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:0 }}>Nueva Vacuna</p>
                 {[
                   { label:'Nombre vacuna *', key:'nombre',          type:'text', ph:'Ej: Antirrábica' },
                   { label:'Fecha aplicada',  key:'fecha_aplicada',  type:'date', ph:'' },
@@ -968,7 +1001,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
                   { label:'Veterinario',     key:'veterinario',     type:'text', ph:'Dr. García' },
                 ].map(f => (
                   <div key={f.key}>
-                    <label style={{ color:'#666', fontSize:11, fontWeight:600, letterSpacing:'0.08em', display:'block', marginBottom:5 }}>
+                    <label style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600, letterSpacing:'0.08em', display:'block', marginBottom:5 }}>
                       {f.label.toUpperCase()}
                     </label>
                     <input
@@ -977,8 +1010,8 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
                       onChange={e => setVacForm(v => ({ ...v, [f.key]: e.target.value }))}
                       placeholder={f.ph}
                       style={{
-                        width:'100%', background:'#0a0a0a', border:'1px solid #2a2a2a',
-                        borderRadius:10, padding:'10px 12px', color:'#fff', fontSize:13,
+                        width:'100%', background:'var(--bg-primary)', border:'1px solid var(--border-color)',
+                        borderRadius:10, padding:'10px 12px', color:'var(--text-primary)', fontSize:13,
                         boxSizing:'border-box',
                       }}
                     />
@@ -1003,11 +1036,11 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
             {vacunas.length === 0 ? (
               <div style={{
                 padding:'28px 0', borderRadius:16,
-                background:'#111', border:'2px dashed #2a2a2a',
+                background:'var(--bg-card)', border:'2px dashed var(--border-color)',
                 display:'flex', flexDirection:'column', alignItems:'center', gap:8,
               }}>
                 <span style={{ fontSize:32 }}>💉</span>
-                <p style={{ color:'#666', fontSize:13, margin:0 }}>No hay vacunas registradas</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0 }}>No hay vacunas registradas</p>
               </div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -1026,18 +1059,18 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
                       <div style={{ width:3, background:lineColor, flexShrink:0 }} />
                       <div style={{
                         flex:1, padding:'12px 14px',
-                        background: vencida ? 'rgba(255,45,155,0.06)' : urgente ? 'rgba(255,230,0,0.05)' : '#111',
+                        background: vencida ? 'rgba(255,45,155,0.06)' : urgente ? 'rgba(255,230,0,0.05)' : 'var(--bg-card)',
                       }}>
                         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:8 }}>
                           <div>
-                            <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>💉 {v.nombre}</p>
+                            <p style={{ color:'var(--text-primary)', fontSize:13, fontWeight:700, margin:0 }}>💉 {v.nombre}</p>
                             {v.fecha_aplicada && (
-                              <p style={{ color:'#666', fontSize:11, margin:'3px 0 0' }}>
+                              <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'3px 0 0' }}>
                                 Aplicada: {fmtDate(v.fecha_aplicada)}
                               </p>
                             )}
                             {v.veterinario && (
-                              <p style={{ color:'#555', fontSize:11, margin:'2px 0 0' }}>🩺 {v.veterinario}</p>
+                              <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'2px 0 0' }}>🩺 {v.veterinario}</p>
                             )}
                           </div>
                           {/* Badge días */}
@@ -1050,7 +1083,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
                               <p style={{ color: lineColor, fontSize:10, fontWeight:800, margin:0, whiteSpace:'nowrap' }}>
                                 {vencida ? `Vencida ${Math.abs(d)}d` : urgente ? `${d}d ⚠️` : `${d}d`}
                               </p>
-                              <p style={{ color:'#555', fontSize:9, margin:0, textAlign:'center' }}>
+                              <p style={{ color:'var(--text-secondary)', fontSize:9, margin:0, textAlign:'center' }}>
                                 {fmtDate(v.fecha_proxima)}
                               </p>
                             </div>
@@ -1076,7 +1109,7 @@ const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, 
   <div>
     <label style={{
       display:'block', marginBottom:8,
-      color:'#666', fontSize:11, fontWeight:700,
+      color:'var(--text-secondary)', fontSize:11, fontWeight:700,
       letterSpacing:'0.1em', textTransform:'uppercase',
     }}>
       {label}
@@ -1095,18 +1128,18 @@ const TextInput: React.FC<{
     onChange={e => onChange(e.target.value)}
     placeholder={placeholder}
     style={{
-      width:'100%', background:'#111',
-      border:`1px solid ${borderColor ?? '#2a2a2a'}`,
-      borderRadius:12, padding:'13px 14px', color:'#fff',
+      width:'100%', background:'var(--bg-card)',
+      border:`1px solid ${borderColor ?? 'var(--border-color)'}`,
+      borderRadius:12, padding:'13px 14px', color:'var(--text-primary)',
       fontSize:14, boxSizing:'border-box',
     }}
     onFocus={e => { e.currentTarget.style.borderColor = '#00E5FF'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,229,255,0.12)'; }}
-    onBlur={e  => { e.currentTarget.style.borderColor = borderColor ?? '#2a2a2a'; e.currentTarget.style.boxShadow = 'none'; }}
+    onBlur={e  => { e.currentTarget.style.borderColor = borderColor ?? 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
   />
 );
 
 const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 style={{ color:'#fff', fontSize:16, fontWeight:700, margin:'0 0 0 0' }}>{children}</h2>
+  <h2 style={{ color:'var(--text-primary)', fontSize:16, fontWeight:700, margin:'0 0 0 0' }}>{children}</h2>
 );
 
 export default BioPet;

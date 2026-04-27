@@ -152,13 +152,13 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
   /* ── Render ────────────────────────────────────────────────── */
   return (
     <IonPage>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
+      <IonContent style={{ '--background': 'var(--bg-primary)' } as React.CSSProperties}>
         <div style={{ paddingBottom: 100 }}>
 
           {/* ── ZONA 1: HEADER ─────────────────────────────────── */}
           <div style={{ padding: '52px 20px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <h1 style={{ color: '#fff', fontWeight: 800, fontSize: 22, margin: 0 }}>Mis Pedidos</h1>
+              <h1 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 22, margin: 0 }}>Mis Pedidos</h1>
               {activos > 0 && (
                 <p style={{ color: '#00E5FF', fontSize: 12, margin: '4px 0 0', fontWeight: 600 }}>
                   {activos} pedido{activos !== 1 ? 's' : ''} activo{activos !== 1 ? 's' : ''}
@@ -167,8 +167,8 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
             </div>
             <button
               onClick={() => history.goBack()}
-              style={{ background: '#111', border: '1px solid #222', borderRadius: 10,
-                width: 36, height: 36, color: '#fff', fontSize: 18, cursor: 'pointer',
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 10,
+                width: 36, height: 36, color: 'var(--text-primary)', fontSize: 18, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >‹</button>
           </div>
@@ -179,8 +179,8 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
               <button key={f} onClick={() => setFiltro(f)} style={{
                 flexShrink: 0, padding: '8px 18px', borderRadius: 20,
                 fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
-                background: filtro === f ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#111',
-                color: filtro === f ? '#000' : '#666',
+                background: filtro === f ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'var(--bg-card)',
+                color: filtro === f ? '#000' : 'var(--text-secondary)',
                 boxShadow: filtro === f ? '0 0 12px rgba(0,229,255,0.3)' : 'none',
               }}>{f}</button>
             ))}
@@ -213,7 +213,7 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
           breakpoints={[0, 0.98]}
           initialBreakpoint={0.98}
         >
-          <div style={{ background: '#0a0a0a', height: '100%', overflowY: 'auto', paddingBottom: 48 }}>
+          <div style={{ background: 'var(--bg-primary)', height: '100%', overflowY: 'auto', paddingBottom: 48 }}>
             {selectedPedido && (
               <DetalleModal
                 pedido={selectedPedido}
@@ -229,8 +229,8 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
         {toast && (
           <div style={{
             position: 'fixed', bottom: 90, left: '50%', transform: 'translateX(-50%)',
-            background: '#111', border: '1px solid #333', borderRadius: 12,
-            padding: '12px 20px', color: '#fff', fontSize: 14, fontWeight: 600,
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12,
+            padding: '12px 20px', color: 'var(--text-primary)', fontSize: 14, fontWeight: 600,
             zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
           }}>{toast}</div>
         )}
@@ -248,7 +248,7 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
 
   return (
     <div style={{
-      background: '#111', borderRadius: 16, overflow: 'hidden',
+      background: 'var(--bg-card)', borderRadius: 16, overflow: 'hidden',
       border: `1px solid ${estado.color}22`,
     }}>
       {/* Acento superior */}
@@ -261,7 +261,7 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
             <p style={{ color: '#00E5FF', fontWeight: 800, fontSize: 14, margin: 0 }}>
               #{pedido.numero_orden}
             </p>
-            <p style={{ color: '#444', fontSize: 11, margin: '3px 0 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>
               {formatFechaOrden(pedido.created_at)}
             </p>
           </div>
@@ -281,7 +281,7 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
             <div key={idx} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <span style={{ fontSize: 20, flexShrink: 0 }}>{item.imagen_emoji}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: '#ccc', fontSize: 13, fontWeight: 500, margin: 0,
+                <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500, margin: 0,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.nombre}
                 </p>
@@ -291,13 +291,13 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
                   </p>
                 )}
               </div>
-              <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, margin: 0, flexShrink: 0 }}>
+              <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, margin: 0, flexShrink: 0 }}>
                 x{item.cantidad}
               </p>
             </div>
           ))}
           {pedido.items.length > 3 && (
-            <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0 }}>
               +{pedido.items.length - 3} producto{pedido.items.length - 3 !== 1 ? 's' : ''} más
             </p>
           )}
@@ -316,16 +316,16 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
         )}
 
         {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1e1e1e', paddingTop: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: 12 }}>
           <span style={{ color: '#00E5FF', fontWeight: 900, fontSize: 18 }}>
             ${pedido.total.toFixed(2)}
           </span>
           <button
             onClick={onDetalle}
             style={{
-              background: 'transparent', border: '1px solid rgba(0,229,255,0.35)',
-              borderRadius: 10, color: '#00E5FF', fontSize: 13, fontWeight: 700,
-              padding: '8px 16px', cursor: 'pointer',
+              background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+              borderRadius: 10, color: 'var(--text-primary)', fontSize: 13, fontWeight: 600,
+              padding: '7px 16px', cursor: 'pointer',
             }}
           >
             Ver detalle →
@@ -353,7 +353,7 @@ const DetalleModal: React.FC<{
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
-          <p style={{ color: '#555', fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+          <p style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
             letterSpacing: '0.08em', margin: '0 0 4px' }}>Número de orden</p>
           <p style={{ color: '#00E5FF', fontWeight: 900, fontSize: 18, margin: 0 }}>#{pedido.numero_orden}</p>
         </div>
@@ -366,8 +366,8 @@ const DetalleModal: React.FC<{
             {estado.icon} {estado.label}
           </span>
           <button onClick={onClose} style={{
-            background: '#1a1a1a', border: '1px solid #333', borderRadius: 8,
-            width: 32, height: 32, color: '#888', fontSize: 16, cursor: 'pointer',
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 8,
+            width: 32, height: 32, color: 'var(--text-secondary)', fontSize: 16, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>✕</button>
         </div>
@@ -409,14 +409,14 @@ const DetalleModal: React.FC<{
                   {!isLast && (
                     <div style={{
                       position: 'absolute', left: 11, top: 28, width: 2, height: 'calc(100% - 8px)',
-                      background: done ? cfg.color : '#222',
+                      background: done ? cfg.color : '#999999',
                     }} />
                   )}
                   {/* Punto */}
                   <div style={{
                     width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                    background: done ? '#00F5A0' : current ? cfg.color : '#1a1a1a',
-                    border: `2px solid ${done ? '#00F5A0' : current ? cfg.color : '#333'}`,
+                    background: done ? '#00F5A0' : current ? cfg.color : 'transparent',
+                    border: `2px solid ${done ? '#00F5A0' : current ? cfg.color : '#999999'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 900, color: '#000',
                     boxShadow: current ? `0 0 10px ${cfg.color}66` : 'none',
@@ -427,13 +427,13 @@ const DetalleModal: React.FC<{
                   {/* Texto */}
                   <div style={{ paddingBottom: isLast ? 0 : 20 }}>
                     <p style={{
-                      color: done ? '#00F5A0' : current ? '#fff' : '#444',
+                      color: done ? '#00F5A0' : current ? 'var(--text-primary)' : 'var(--text-secondary)',
                       fontSize: 13, fontWeight: current ? 700 : 500, margin: 0,
                     }}>
                       {cfg.icon} {cfg.label}
                     </p>
                     {current && (
-                      <p style={{ color: '#555', fontSize: 11, margin: '3px 0 0' }}>{cfg.descripcion}</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>{cfg.descripcion}</p>
                     )}
                   </div>
                 </div>
@@ -461,7 +461,7 @@ const DetalleModal: React.FC<{
                 background: 'rgba(0,229,255,0.06)', borderRadius: 12,
                 border: '1px solid rgba(0,229,255,0.2)', padding: '12px 14px',
               }}>
-                <p style={{ color: '#fff', fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>
+                <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 13, margin: '0 0 4px' }}>
                   {item.nombre}
                 </p>
                 {item.metadata?.veterinario_nombre && (
@@ -470,7 +470,7 @@ const DetalleModal: React.FC<{
                   </p>
                 )}
                 {item.metadata?.clinica && (
-                  <p style={{ color: '#555', fontSize: 12, margin: '0 0 2px' }}>{item.metadata.clinica}</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: '0 0 2px' }}>{item.metadata.clinica}</p>
                 )}
                 {item.metadata?.fecha && (
                   <p style={{ color: '#888', fontSize: 12, margin: 0 }}>
@@ -506,8 +506,8 @@ const DetalleModal: React.FC<{
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <ResuRow label="Subtotal" value={`$${pedido.total.toFixed(2)}`} />
           <ResuRow label="Envío"    value="Gratis 🎉" color="#00F5A0" />
-          <div style={{ borderTop: '1px solid #222', paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Total</span>
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 15 }}>Total</span>
             <span style={{ color: '#00E5FF', fontWeight: 900, fontSize: 18 }}>${pedido.total.toFixed(2)}</span>
           </div>
         </div>
@@ -518,7 +518,7 @@ const DetalleModal: React.FC<{
         onClick={onAyuda}
         style={{
           width: '100%', padding: '14px 0', borderRadius: 14, fontSize: 14,
-          background: 'transparent', border: '1px solid #333', color: '#888',
+          background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)',
           cursor: 'pointer', fontWeight: 600, marginTop: 8,
         }}
       >
@@ -534,10 +534,10 @@ const DetalleModal: React.FC<{
 const EmptyState: React.FC<{ filtro: Filtro; onTienda: () => void }> = ({ filtro, onTienda }) => (
   <div style={{ textAlign: 'center', padding: '80px 20px' }}>
     <div style={{ fontSize: 72, marginBottom: 16 }}>📦</div>
-    <p style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: '0 0 8px' }}>
+    <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 18, margin: '0 0 8px' }}>
       {filtro === 'Todos' ? 'Aún no tienes pedidos' : `Sin pedidos ${filtro.toLowerCase()}`}
     </p>
-    <p style={{ color: '#555', fontSize: 14, margin: '0 0 28px' }}>
+    <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 28px' }}>
       {filtro === 'Todos'
         ? 'Explora nuestra tienda y haz tu primer pedido'
         : 'Cuando tengas pedidos aparecerán aquí'}
@@ -556,9 +556,9 @@ const EmptyState: React.FC<{ filtro: Filtro; onTienda: () => void }> = ({ filtro
 ════════════════════════════════════════════════════════════════ */
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div style={{ marginBottom: 24 }}>
-    <p style={{ color: '#555', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em',
+    <p style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, letterSpacing: '0.08em',
       textTransform: 'uppercase', margin: '0 0 12px' }}>{title}</p>
-    <div style={{ background: '#111', borderRadius: 14, padding: 14, border: '1px solid #1e1e1e' }}>
+    <div style={{ background: 'var(--bg-card)', borderRadius: 14, padding: 14, border: '1px solid var(--border-color)' }}>
       {children}
     </div>
   </div>
@@ -568,13 +568,13 @@ const ItemRow: React.FC<{ item: PedidoItem }> = ({ item }) => (
   <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
     <span style={{ fontSize: 22, flexShrink: 0 }}>{item.imagen_emoji}</span>
     <div style={{ flex: 1, minWidth: 0 }}>
-      <p style={{ color: '#ccc', fontSize: 13, fontWeight: 500, margin: 0,
+      <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500, margin: 0,
         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {item.nombre}
       </p>
-      <p style={{ color: '#555', fontSize: 11, margin: '2px 0 0' }}>Cantidad: {item.cantidad}</p>
+      <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '2px 0 0' }}>Cantidad: {item.cantidad}</p>
     </div>
-    <p style={{ color: '#fff', fontWeight: 700, fontSize: 13, margin: 0, flexShrink: 0 }}>
+    <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 13, margin: 0, flexShrink: 0 }}>
       ${(item.precio * item.cantidad).toFixed(2)}
     </p>
   </div>
@@ -582,28 +582,28 @@ const ItemRow: React.FC<{ item: PedidoItem }> = ({ item }) => (
 
 const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 8 }}>
-    <span style={{ color: '#555', fontSize: 12, flexShrink: 0 }}>{label}</span>
-    <span style={{ color: '#ccc', fontSize: 12, textAlign: 'right' }}>{value}</span>
+    <span style={{ color: 'var(--text-secondary)', fontSize: 12, flexShrink: 0 }}>{label}</span>
+    <span style={{ color: 'var(--text-primary)', fontSize: 12, textAlign: 'right' }}>{value}</span>
   </div>
 );
 
-const ResuRow: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = '#fff' }) => (
+const ResuRow: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = 'var(--text-primary)' }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-    <span style={{ color: '#666', fontSize: 13 }}>{label}</span>
+    <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{label}</span>
     <span style={{ color, fontSize: 13, fontWeight: 600 }}>{value}</span>
   </div>
 );
 
 const PedidoCardSkeleton: React.FC = () => (
-  <div style={{ background: '#111', borderRadius: 16, padding: 16, border: '1px solid #1e1e1e' }}>
+  <div style={{ background: 'var(--bg-card)', borderRadius: 16, padding: 16, border: '1px solid var(--border-color)' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-      <div style={{ width: 120, height: 16, borderRadius: 6, background: '#1e1e1e' }} />
-      <div style={{ width: 80, height: 22, borderRadius: 20, background: '#1e1e1e' }} />
+      <div style={{ width: 120, height: 16, borderRadius: 6, background: 'var(--border-color)' }} />
+      <div style={{ width: 80, height: 22, borderRadius: 20, background: 'var(--border-color)' }} />
     </div>
     {[1, 2].map(k => (
       <div key={k} style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: 6, background: '#1e1e1e', flexShrink: 0 }} />
-        <div style={{ flex: 1, height: 14, borderRadius: 6, background: '#1e1e1e' }} />
+        <div style={{ width: 24, height: 24, borderRadius: 6, background: 'var(--border-color)', flexShrink: 0 }} />
+        <div style={{ flex: 1, height: 14, borderRadius: 6, background: 'var(--border-color)' }} />
       </div>
     ))}
   </div>

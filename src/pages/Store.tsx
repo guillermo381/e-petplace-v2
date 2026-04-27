@@ -120,7 +120,7 @@ const Store: React.FC<Props> = ({ session }) => {
         </div>
       )}
       <div className="p-3">
-        <p className="text-white text-sm font-medium line-clamp-2">{p.nombre}</p>
+        <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 500, margin: 0 }} className="line-clamp-2">{p.nombre}</p>
         {p.descripcion && (
           <p className="text-gray-600 text-xs mt-1 line-clamp-1">{p.descripcion}</p>
         )}
@@ -146,8 +146,8 @@ const Store: React.FC<Props> = ({ session }) => {
           {/* ── Header ──────────────────────────────────────────── */}
           <div className="px-5 pt-14 pb-4" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
             <div>
-              <h1 className="text-2xl font-extrabold text-white">Tienda</h1>
-              <p className="text-gray-500 text-sm mt-1">{productos.length} productos disponibles</p>
+              <h1 className="text-2xl font-extrabold" style={{ color: 'var(--text-primary)' }}>Tienda</h1>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{productos.length} productos disponibles</p>
             </div>
             <button
               onClick={() => history.push('/carrito')}
@@ -179,8 +179,7 @@ const Store: React.FC<Props> = ({ session }) => {
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar productos…"
-                className="flex-1 bg-transparent text-white text-sm outline-none"
-                style={{ border: 'none' }}
+                className="flex-1 bg-transparent text-sm outline-none" style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none' }}
               />
               {busqueda && (
                 <button onClick={() => setBusqueda('')} className="text-gray-500 text-lg">×</button>
@@ -211,41 +210,46 @@ const Store: React.FC<Props> = ({ session }) => {
           </div>
 
           {/* ── Servicios ────────────────────────────────────────── */}
-          <div className="px-5 pt-6 pb-2">
-            <div style={{ marginBottom: 14 }}>
-              <h2 className="text-white font-semibold text-base">Servicios disponibles</h2>
-              <p className="text-gray-500 text-xs mt-1">Todo para tu mascota en un solo lugar</p>
+          <div className="px-5 pt-4 pb-2">
+            <div style={{ marginBottom: 12 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15, margin: 0 }}>
+                Servicios
+              </h2>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 4 }} className="no-scrollbar">
               {SERVICIOS.map(s => (
                 <button
                   key={s.id}
                   onClick={() => handleService(s)}
                   style={{
-                    background: s.color,
-                    border: `1px solid ${s.textColor}22`,
-                    borderRadius: 12, padding: '14px 14px 12px',
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                    gap: 6, cursor: 'pointer', position: 'relative', textAlign: 'left',
+                    flexShrink: 0,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: 6, cursor: 'pointer', background: 'none', border: 'none', padding: 0,
                   }}
                 >
+                  <div style={{
+                    width: 56, height: 56, borderRadius: 16,
+                    background: s.color,
+                    border: `1px solid ${s.textColor}33`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 24,
+                    opacity: s.disponible ? 1 : 0.5,
+                  }}>
+                    {s.icono}
+                  </div>
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, color: 'var(--text-secondary)',
+                    textAlign: 'center', maxWidth: 60, lineHeight: 1.2,
+                  }}>
+                    {s.nombre}
+                  </span>
                   {!s.disponible && (
                     <span style={{
-                      position: 'absolute', top: 8, right: 8,
-                      fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+                      fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
                       background: `${s.textColor}18`, color: s.textColor,
-                      border: `1px solid ${s.textColor}33`,
+                      border: `1px solid ${s.textColor}33`, marginTop: -4,
                     }}>Pronto</span>
                   )}
-                  <span style={{ fontSize: 22, lineHeight: 1 }}>{s.icono}</span>
-                  <div>
-                    <p style={{ color: s.textColor, fontSize: 13, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>
-                      {s.nombre}
-                    </p>
-                    <p style={{ color: `${s.textColor}88`, fontSize: 10, margin: '3px 0 0', lineHeight: 1.3 }}>
-                      {s.subtitulo}
-                    </p>
-                  </div>
                 </button>
               ))}
             </div>
@@ -255,7 +259,7 @@ const Store: React.FC<Props> = ({ session }) => {
           {session && recomendados.length > 0 && categoria === 'Todos' && !busqueda && (
             <div className="mb-6">
               <div className="px-5 mb-3 flex items-center gap-2">
-                <h2 className="text-white font-semibold text-base">✨ Recomendado para ti</h2>
+                <h2 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15 }}>✨ Recomendado para ti</h2>
                 <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                   style={{ background: 'rgba(0,229,255,0.1)', color: '#00E5FF', border: '1px solid rgba(0,229,255,0.2)' }}>
                   IA
@@ -273,7 +277,7 @@ const Store: React.FC<Props> = ({ session }) => {
 
           {/* ── Grid productos ────────────────────────────────────── */}
           <div className="px-5">
-            <h2 className="text-white font-semibold text-base mb-3">
+            <h2 style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 15, marginBottom: 12 }}>
               {busqueda ? `Resultados: "${busqueda}"` : categoria !== 'Todos' ? categoria : 'Todos los productos'}
             </h2>
 
@@ -329,20 +333,20 @@ const Store: React.FC<Props> = ({ session }) => {
             }}
           >
             {/* Handle */}
-            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#333', margin: '0 auto 20px' }} />
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: 'var(--border-color)', margin: '0 auto 20px' }} />
 
             {/* Producto */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
               <div style={{
                 width: 48, height: 48, borderRadius: 12, flexShrink: 0,
                 background: 'linear-gradient(135deg,#FF2D9B22,#00E5FF22)',
-                border: '1px solid #2a2a2a',
+                border: '1px solid var(--border-color)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
               }}>
                 {CAT_EMOJI[pendingProduct.categoria] ?? '📦'}
               </div>
               <div>
-                <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, margin: 0 }}>
+                <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 15, margin: 0 }}>
                   {pendingProduct.nombre}
                 </p>
                 <p style={{ color: '#00E5FF', fontWeight: 700, fontSize: 14, margin: '2px 0 0' }}>
@@ -351,7 +355,7 @@ const Store: React.FC<Props> = ({ session }) => {
               </div>
             </div>
 
-            <p style={{ color: '#aaa', fontSize: 14, margin: '0 0 20px', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 20px', textAlign: 'center' }}>
               Inicia sesión para guardar tu historial de compras y acceder a recomendaciones personalizadas
             </p>
 
@@ -367,14 +371,14 @@ const Store: React.FC<Props> = ({ session }) => {
               onClick={handleGuestAdd}
               style={{
                 width: '100%', padding: '15px 0', borderRadius: 14, fontSize: 15,
-                background: 'transparent', border: '1px solid #333', color: '#aaa',
+                background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)',
                 cursor: 'pointer', fontWeight: 600,
               }}
             >
               Continuar como invitado
             </button>
 
-            <p style={{ color: '#444', fontSize: 11, textAlign: 'center', margin: '12px 0 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11, textAlign: 'center', margin: '12px 0 0' }}>
               El carrito de invitado no se guarda entre sesiones
             </p>
           </div>

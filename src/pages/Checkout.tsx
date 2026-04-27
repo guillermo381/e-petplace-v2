@@ -166,7 +166,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
   useEffect(() => {
     if (!session) return;
     supabase.from('profiles')
-      .select('nombre,email,telefono,telefono_codigo_pais,telefono_tipo,direccion_principal,direccion_completa,direccion_apto,direccion_referencias,direccion_ciudad,direccion_pais,direccion_codigo_postal,direccion_guardada_como,ciudad')
+      .select('nombre,email,telefono,telefono_codigo_pais,telefono_tipo,direccion_principal,direccion_completa,direccion_apto,direccion_referencias,direccion_ciudad,direccion_pais,direccion_guardada_como,ciudad')
       .eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) {
@@ -188,11 +188,12 @@ const Checkout: React.FC<Props> = ({ session }) => {
               referencias: data.direccion_referencias ?? '',
               ciudad:      ciudad,
               pais:        data.direccion_pais        ?? '',
-              codigoPostal:data.direccion_codigo_postal ?? '',
+              codigoPostal:'',
               guardadoComo:(data.direccion_guardada_como as AddressValue['guardadoComo']) ?? 'casa',
             });
             setMostrarFormEnvio(false);
           }
+          if (data.nombre) setMostrarFormEnvio(false);
         } else {
           setEmail(session.user.email ?? '');
         }
