@@ -307,34 +307,73 @@ const BioPet: React.FC<Props> = ({ session }) => {
               </div>
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
-                {mascotas.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => history.push(`/biopet/${m.id}`)}
-                    style={{
-                      display:'flex', flexDirection:'column', alignItems:'center',
-                      padding:'18px 12px 14px', borderRadius:20,
-                      background:`linear-gradient(var(--bg-card),var(--bg-card)) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box`,
-                      border:'2px solid transparent', cursor:'pointer', gap:8, position:'relative',
-                    }}
-                  >
-                    <PetAvatar nombre={m.nombre} foto_url={m.foto_url} size={60} />
-                    <div style={{ textAlign:'center', width:'100%' }}>
-                      <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:0,
-                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                        {m.nombre}
-                      </p>
-                      <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'3px 0 0', textTransform:'capitalize' }}>
-                        {m.especie}{m.raza ? ` · ${m.raza}` : ''}
-                      </p>
-                      {m.fecha_nacimiento && (
-                        <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>
-                          {calcEdad(m.fecha_nacimiento)}
+                {mascotas.map(m => {
+                  let score = 40;
+                  if (m.peso)             score += 15;
+                  if (m.fecha_nacimiento) score += 10;
+                  if (m.sexo)             score += 5;
+                  score = Math.min(score, 70);
+                  const scoreColor = score >= 60 ? '#00F5A0' : score >= 40 ? '#FFE600' : '#FF2D9B';
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => history.push(`/biopet/${m.id}`)}
+                      style={{
+                        display:'flex', flexDirection:'column', alignItems:'center',
+                        padding:'16px 12px 14px', borderRadius:20,
+                        background:`linear-gradient(var(--bg-card),var(--bg-card)) padding-box, linear-gradient(135deg,#FF2D9B,#00E5FF,#FFE600) border-box`,
+                        border:'2px solid transparent', cursor:'pointer', gap:8, position:'relative',
+                      }}
+                    >
+                      <PetAvatar nombre={m.nombre} foto_url={m.foto_url} size={56} />
+                      <div style={{ textAlign:'center', width:'100%' }}>
+                        <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:0,
+                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                          {m.nombre}
                         </p>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                        <p style={{ color:'var(--text-secondary)', fontSize:10, margin:'2px 0 6px',
+                          textTransform:'capitalize' }}>
+                          {m.especie}{m.raza ? ` · ${m.raza}` : ''}
+                        </p>
+                        <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                          <div style={{ flex:1, height:3, background:'var(--border-color)',
+                            borderRadius:2, overflow:'hidden' }}>
+                            <div style={{ height:'100%', width:`${score}%`,
+                              background:scoreColor, borderRadius:2 }} />
+                          </div>
+                          <span style={{ fontSize:9, color:scoreColor, fontWeight:700 }}>{score}%</span>
+                        </div>
+                        {m.fecha_nacimiento && (
+                          <p style={{ color:'#00E5FF', fontSize:10, margin:'4px 0 0', fontWeight:600 }}>
+                            {calcEdad(m.fecha_nacimiento)}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+                {/* Botón agregar */}
+                <button
+                  onClick={() => history.push('/biopet/new')}
+                  style={{
+                    display:'flex', flexDirection:'column', alignItems:'center',
+                    justifyContent:'center', padding:'16px 12px',
+                    borderRadius:20, cursor:'pointer', gap:8,
+                    background:'var(--bg-card)',
+                    border:'2px dashed var(--border-color)',
+                    minHeight:140,
+                  }}
+                >
+                  <div style={{
+                    width:44, height:44, borderRadius:'50%',
+                    background:'var(--bg-secondary)',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:22, color:'var(--text-secondary)',
+                  }}>+</div>
+                  <span style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600 }}>
+                    Agregar mascota
+                  </span>
+                </button>
               </div>
             )}
           </div>
