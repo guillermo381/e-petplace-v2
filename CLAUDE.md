@@ -173,7 +173,7 @@ Citas y adopción requieren cuenta registrada.
 ## Bugs Activos Pendientes
 1. AddressInput: primera vez que se abre no carga Google Places
 2. AddressInput: al editar y guardar no persiste los cambios en Supabase
-3. Modo claro: algunos fondos siguen negros (no usan variables CSS)
+3. Modo claro: Onboarding welcome modal aún puede tener colores hardcodeados
 
 ## Convenciones de Código
 - Todo en español (UI y comentarios)
@@ -193,17 +193,24 @@ Semana actual:
 - [x] Onboarding post-registro
 - [x] Políticas legales
 - [x] Teléfono con código de país
+- [x] PetBot IA (chat-ayuda Edge Function)
+- [x] Centro de ayuda /ayuda
+- [x] Adopción dinámica con Supabase
+- [x] Donaciones al carrito desde adopción
+- [x] Modo claro fixes (Login, Onboarding, Vet)
 - [ ] Dirección con Google Places (EN PROGRESO)
 - [ ] Sección "Mis datos" en perfil editable
 
 Próximas semanas:
-- Chat IA con Claude API
+- Modelo de suscripción premium (es_premium + Kushki)
 - Cupones y códigos promocionales
 - Gamificación y puntos
 - Multi-idioma con geolocalización
 - Build iOS/Android con Capacitor
 - Integración VTEX
 - Pasarela de pagos Kushki
+- Notificaciones push con Capacitor
+- Admin back office
 
 ## Sesión 27 Abr 2026 — Parte 2
 
@@ -238,4 +245,74 @@ Próximas semanas:
 4. Notificaciones push con Capacitor
 5. Build iOS/Android
 6. Multi-idioma ES/EN
+7. Integración VTEX + Kushki
+
+## Sesión 28 Abr 2026
+
+### Completado
+- [x] Adopcion.tsx rewrite completo: datos dinámicos desde tabla mascotas_adopcion en Supabase
+- [x] Filtros por especie en adopción (Todos/Perros/Gatos/Aves/Conejos/Urgente)
+- [x] Modal detalle mascota + formulario de solicitud → INSERT en solicitudes_adopcion
+- [x] Donaciones al carrito desde adopción (montos sugeridos por necesidad)
+- [x] MisPedidos: detectarTipoPedido() — timeline condicional por tipo (producto/cita/donación/mixto)
+- [x] MisPedidos: badge tipo en cards (❤️ Donación / 🏥 Cita / 📦 Pedido)
+- [x] MisPedidos: mensaje especial para donaciones ("🌟 ¡Eres increíble!")
+- [x] MisPedidos: info de envío oculta para citas y donaciones
+- [x] Modo claro completo: Vet.tsx, Login.tsx, Onboarding.tsx — colores hardcodeados → variables CSS
+- [x] Home.tsx: campana 🔔 abre drawer de notificaciones (alertas reales + pedido activo)
+- [x] Home.tsx: sección alertas eliminada del body (movida al drawer)
+- [x] Home.tsx: saludo dinámico por hora (Buenos días/tardes/noches)
+- [x] Home.tsx: mini health bar en cards de mascotas
+- [x] Centro de ayuda /ayuda: FAQ accordion, WhatsApp, accesos rápidos
+- [x] PetBot 🐾: chat flotante con IA (claude-haiku-4-5-20251001) via Edge Function chat-ayuda
+- [x] HelpButton: posición dinámica según FloatingCart (sube cuando carrito visible)
+- [x] Cart.tsx: confirmación inline antes de vaciar carrito
+- [x] Profile.tsx: clearCart() al hacer logout
+- [x] Profile.tsx: subida real de foto de perfil con resize (400px, JPEG 0.85) → bucket 'avatars'
+- [x] Profile.tsx: ocultar campo contraseña si login con Google (detección por identities[])
+- [x] Cross-sell carousel de servicios en Vet, Adopcion y MisPedidos
+- [x] BioPet.tsx: RAZAS expandidas (74+ perros, 42+ gatos, 23 aves, 22 conejos, etc.)
+- [x] BioPet.tsx: RazaInput muestra advertencia si no hay especie seleccionada
+- [x] BioPet.tsx: lista mejorada con mini health bar + grid integrado
+- [x] Performance: eliminado @vitejs/plugin-legacy, lazy loading para 5 páginas
+- [x] App.tsx: fix routing /biopet/:id (eliminado guard innecesario)
+- [x] KNOWLEDGE de chat-ayuda actualizado con toda la documentación de la app
+
+### SQL ejecutado en Supabase (28 Abr)
+```sql
+-- Tabla mascotas_adopcion
+CREATE TABLE mascotas_adopcion (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  nombre text NOT NULL, especie text NOT NULL, raza text, sexo text,
+  edad_texto text, peso numeric, foto_url text, descripcion text,
+  refugio text, ciudad text, urgente boolean DEFAULT false,
+  necesita_vacunas boolean DEFAULT false, necesita_esterilizacion boolean DEFAULT false,
+  necesita_alimento boolean DEFAULT false, donacion_sugerida numeric DEFAULT 0,
+  activa boolean DEFAULT true, created_at timestamptz DEFAULT now()
+);
+ALTER TABLE mascotas_adopcion ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Público puede ver mascotas adopcion" ON mascotas_adopcion FOR SELECT USING (activa = true);
+-- + INSERT de mascotas de ejemplo
+```
+
+### Infraestructura agregada
+- Supabase Edge Function: chat-ayuda (PetBot IA con claude-haiku-4-5-20251001)
+- Tabla: mascotas_adopcion con RLS pública
+- Storage bucket: avatars (fotos de perfil de usuarios)
+- Nuevas páginas: /ayuda (Centro de ayuda)
+- Nuevos componentes: HelpButton.tsx (chat flotante)
+
+### Bugs Activos Pendientes
+- [ ] Google Places AddressInput: validar en producción
+- [ ] Onboarding welcome modal: posible color hardcodeado en fondo
+- [ ] Carnet PNG: verificar render correcto en todos los dispositivos
+- [ ] Modo claro: BioPet.tsx — revisar colores en detalle de mascota
+
+### Próximas sesiones prioritarias
+1. Modelo de suscripción premium (es_premium en profiles + Kushki/Stripe)
+2. Chat IA con Claude API en contexto de mascota específica (desde BioPetDetail)
+3. Notificaciones push con Capacitor
+4. Build iOS/Android
+5. Multi-idioma ES/EN
+6. Admin back office (dashboard de pedidos, vets, adopciones)
 7. Integración VTEX + Kushki

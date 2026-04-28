@@ -68,24 +68,69 @@ Guardería, Grooming, Paseos, Seguros, Wearables.
 - Pedido activo en curso.
 - Sugerencias IA si todo está al día.
 
+### Adopción
+- Mascotas reales de refugios aliados. Puedes filtrar por especie (Perros, Gatos, Aves, Conejos) o ver los Urgentes.
+- Para adoptar: selecciona una mascota → "Quiero adoptarla" → formulario con datos personales y situación del hogar → se envía solicitud al refugio.
+- Para donar: dentro de cada mascota hay botón "💛 Donar para su cuidado" con montos sugeridos (vacunas, esterilización, alimento) → se agrega al carrito y se paga normal.
+- Las donaciones van directamente al refugio. El timeline en Mis Pedidos muestra: Confirmada → Transferida al refugio → Impacto generado.
+- Requiere cuenta para adoptar. Las donaciones también requieren cuenta.
+
+### Donaciones
+- Se agregan al carrito como cualquier producto.
+- En Mis Pedidos aparecen con badge "❤️ Donación" y mensaje especial "🌟 ¡Eres increíble! Tu donación va directo al refugio".
+- Timeline de donación: 3 pasos (Confirmada → Transferida → Impacto generado), distinto al de productos físicos.
+- Múltiples necesidades por mascota: vacunas ($15), esterilización ($35), alimento ($25) — el usuario puede elegir cuál apoyar.
+
+### Foto de perfil
+- En Perfil → toca el avatar → selecciona foto desde la galería o cámara.
+- La foto se redimensiona automáticamente a máx 400px para ahorrar espacio.
+- Se sube al bucket 'avatars' de Supabase Storage.
+- Si no has subido foto, se muestra avatar automático con tus iniciales y un color único.
+
+### Razas
+- Tenemos más de 160 razas: 74+ perros, 42+ gatos, 23 aves, 22 conejos, 30 peces, 22 reptiles y otras.
+- Al registrar una mascota debes seleccionar primero la especie para que aparezcan las razas disponibles.
+- Si no encuentras la raza exacta, puedes escribir manualmente o seleccionar "Mestizo/Mixto".
+
+### Centro de ayuda
+- Disponible en la sección Ayuda de la app (ícono 🎧 en el menú).
+- Tiene preguntas frecuentes organizadas por categoría: Pedidos, Veterinarios, App y cuenta, Pagos.
+- Botón directo a WhatsApp para casos urgentes.
+- También puedes hablar con PetBot (este chat) para respuestas instantáneas.
+
+### Alertas inteligentes (campana 🔔 en Home)
+- Toca la campana en la pantalla principal para ver todas tus alertas.
+- Tipos de alerta: vacuna vencida (rojo 🔴), vacuna próxima en 7 días (amarillo 🟡), vacuna en 30 días (azul 🔵).
+- También muestra si tienes un pedido activo en curso.
+- Si todo está al día, aparecen sugerencias IA personalizadas.
+- Las alertas se generan en tiempo real desde los datos de tus mascotas.
+
+### Cross-sell y servicios relacionados
+- En cada sección de la app verás un carrusel "También disponible" con otros servicios.
+- Por ejemplo: en Veterinarios puedes ver Adopción; en Adopción puedes ver la Tienda.
+- Los servicios en "próximamente" (Guardería, Grooming, Paseos, Seguros, Wearables) ya están visibles pero no activados.
+
 ### PetBot (este chat)
-- Soy PetBot, el asistente de e-PetPlace con IA.
-- Respondo preguntas sobre la app, mascotas y servicios.
+- Soy PetBot, el asistente inteligente de e-PetPlace con IA.
+- Respondo preguntas sobre la app, mascotas, salud animal y servicios.
 - Disponible 24/7, gratis para todos los usuarios.
-- Para temas complejos o urgentes, escala a WhatsApp humano: +573208408790.
+- Puedo orientarte sobre el índice de salud de tu mascota, cómo registrar vacunas, cómo hacer pedidos, etc.
+- Para temas complejos, urgencias médicas o problemas con pagos, escala a WhatsApp humano: +573208408790.
 
 ### Soporte
 - WhatsApp: +573208408790 (Lun-Sab 8am-8pm)
 - Email: satorilatam@gmail.com
-- Centro de ayuda: sección Ayuda en la app.
+- Centro de ayuda: sección Ayuda en la app (ícono 🎧).
 - Tiempo de respuesta: menos de 2 horas en horario de atención.
 
 ### Cuenta y acceso
 - Registro con email/contraseña o Google.
-- Recuperación de contraseña por email.
+- Recuperación de contraseña por email (enlace de 1 hora de validez).
+- Si iniciaste sesión con Google, no verás la opción de cambiar contraseña en tu perfil (es normal).
 - Modo invitado: puede navegar tienda, ver vets y adopción sin cuenta.
-- Onboarding post-registro: agrega primera mascota y ubicación.
+- Onboarding post-registro: agrega primera mascota y ubicación (puedes hacerlo después).
 - Al registrarse: pedidos y citas hechos como invitado se migran automáticamente.
+- Para cerrar sesión: ve a Perfil → botón "Cerrar sesión" al fondo.
 `;
 
 Deno.serve(async (req) => {
