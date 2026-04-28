@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { IonPage, IonContent } from '@ionic/react';
 import { useHistory } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
@@ -9,6 +9,7 @@ interface Props { session: Session | null }
 const Cart: React.FC<Props> = ({ session }) => {
   const history = useHistory();
   const { items, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice } = useCart();
+  const [confirmVaciar, setConfirmVaciar] = useState(false);
 
   return (
     <IonPage>
@@ -64,14 +65,43 @@ const Cart: React.FC<Props> = ({ session }) => {
               </div>
             </div>
             {items.length > 0 && (
-              <button
-                onClick={clearCart}
-                style={{ background: 'rgba(255,45,155,0.1)', border: '1px solid rgba(255,45,155,0.25)',
-                  borderRadius: 10, color: '#FF2D9B', fontSize: 13, fontWeight: 700,
-                  padding: '8px 14px', cursor: 'pointer' }}
-              >
-                Vaciar
-              </button>
+              !confirmVaciar ? (
+                <button
+                  onClick={() => setConfirmVaciar(true)}
+                  style={{ background: 'rgba(255,45,155,0.1)', border: '1px solid rgba(255,45,155,0.25)',
+                    borderRadius: 10, color: '#FF2D9B', fontSize: 13, fontWeight: 700,
+                    padding: '8px 14px', cursor: 'pointer' }}
+                >
+                  Vaciar
+                </button>
+              ) : (
+                <div style={{
+                  display: 'flex', gap: 8, alignItems: 'center',
+                  padding: '10px 14px', borderRadius: 12,
+                  background: 'rgba(255,45,155,0.08)',
+                  border: '1px solid rgba(255,45,155,0.25)',
+                }}>
+                  <p style={{ color: 'var(--text-primary)', fontSize: 13, margin: 0, flex: 1 }}>
+                    ¿Vaciar el carrito?
+                  </p>
+                  <button
+                    onClick={() => { clearCart(); setConfirmVaciar(false); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      background: '#FF2D9B', border: 'none',
+                      color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >Sí, vaciar</button>
+                  <button
+                    onClick={() => setConfirmVaciar(false)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                      color: 'var(--text-secondary)', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >Cancelar</button>
+                </div>
+              )
             )}
           </div>
 

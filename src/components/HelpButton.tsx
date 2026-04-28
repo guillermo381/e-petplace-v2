@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
 
 interface Props {
   session: Session | null;
@@ -37,6 +38,11 @@ const DEFAULT_SUGERENCIAS = ['¿Cómo funciona e-PetPlace?', '¿Cómo agrego mi 
 
 const HelpButton: React.FC<Props> = ({ session, mascotasNombres = '', pedidosActivos = '' }) => {
   const location = useLocation();
+  const { totalItems } = useCart();
+  const cartVisible = totalItems > 0 &&
+    !['/carrito', '/checkout', '/login', '/welcome', '/reset-password']
+      .some(p => location.pathname.startsWith(p));
+
   const [open,    setOpen]    = useState(false);
   const [view,    setView]    = useState<'menu' | 'chat'>('menu');
   const [msgs,    setMsgs]    = useState<Msg[]>([]);
@@ -93,7 +99,7 @@ const HelpButton: React.FC<Props> = ({ session, mascotasNombres = '', pedidosAct
         <button
           onClick={() => setOpen(true)}
           style={{
-            position: 'fixed', bottom: 144, right: 20, zIndex: 8000,
+            position: 'fixed', bottom: cartVisible ? 148 : 84, right: 20, zIndex: 8000,
             width: 52, height: 52, borderRadius: '50%',
             background: 'linear-gradient(135deg,#FF2D9B,#A855F7)',
             border: 'none', cursor: 'pointer',

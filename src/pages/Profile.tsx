@@ -7,6 +7,7 @@ import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
+import { useCart } from '../context/CartContext';
 import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
 import AddressInput, { AddressValue, getAliasIcon, getAliasLabel } from '../components/AddressInput';
 import { PAISES_SOPORTADOS } from '../data/paises';
@@ -177,6 +178,7 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [showAvatar,    setShowAvatar]    = useState(false);
   const [brokenPhotos,  setBrokenPhotos]  = useState<Set<string>>(new Set());
   const { isDark, toggleTheme } = useTheme();
+  const { clearCart } = useCart();
   const history = useHistory();
 
   /* Campos de edición */
@@ -246,6 +248,7 @@ const Profile: React.FC<Props> = ({ session }) => {
 
   /* ── Cerrar sesión ───────────────────────────────────────────── */
   const handleLogout = async () => {
+    clearCart();
     await supabase.auth.signOut();
     localStorage.clear();
   };
