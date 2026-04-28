@@ -110,15 +110,8 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/terminos"    render={() => <TermsOfService />} />
       <Route exact path="/cookies"     render={() => <CookiesPolicy />} />
       <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
-      <Route exact path="/biopet/:id/editar" render={(props) => {
-        const id = props.match.params.id;
-        return <BioPetEdit session={session} petId={id} />;
-      }} />
-      <Route exact path="/biopet/:id" render={(props) => {
-        const id = props.match.params.id;
-        if (!id || id === 'new') return <BioPetNew session={session} />;
-        return <BioPetDetail session={session} petId={id} />;
-      }} />
+      <Route exact path="/biopet/:id/editar" render={(props) => <BioPetEdit session={session} petId={props.match.params.id} />} />
+      <Route exact path="/biopet/:id" render={(props) => <BioPetDetail session={session} petId={props.match.params.id} />} />
       <Route render={() => <Redirect to="/home" />} />
     </IonRouterOutlet>
 

@@ -65,7 +65,7 @@ const HORARIOS = ['9:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 const MOTIVOS  = ['Consulta general', 'Vacunación', 'Control de peso', 'Síntomas específicos', 'Seguimiento'];
 
 const ESTADO_COLOR: Record<string, string> = {
-  pendiente:  '#FFE600',
+  pendiente:       '#FFE600',
   confirmada:      '#00E5FF',
   completada:      '#00F5A0',
   cancelada:       '#555',
@@ -93,7 +93,6 @@ function formatearFechaInteligente(fecha: string): string {
   const hoy       = new Date(); hoy.setHours(0,0,0,0);
   const manana    = new Date(hoy); manana.setDate(hoy.getDate() + 1);
   const finSemana = new Date(hoy); finSemana.setDate(hoy.getDate() + 6);
-  // Parse as local date (avoid UTC shift)
   const [y, m, d] = fecha.split('-').map(Number);
   const target    = new Date(y, m - 1, d);
   if (target.getTime() === hoy.getTime())    return 'hoy';
@@ -106,8 +105,8 @@ function formatearFechaInteligente(fecha: string): string {
 const Toast: React.FC<{ msg: string }> = ({ msg }) => (
   <div style={{
     position:'fixed', bottom:84, left:'50%', transform:'translateX(-50%)',
-    background:'#111', border:'1px solid #333', borderRadius:12,
-    padding:'12px 20px', color:'#fff', fontSize:14, fontWeight:600,
+    background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:12,
+    padding:'12px 20px', color:'var(--text-primary)', fontSize:14, fontWeight:600,
     zIndex:9999, whiteSpace:'nowrap', boxShadow:'0 4px 24px rgba(0,0,0,0.6)',
   }}>{msg}</div>
 );
@@ -166,7 +165,6 @@ const Vet: React.FC<Props> = ({ session }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Actualizar ahora cada 60s para recalcular tiempo restante
   useEffect(() => {
     const id = setInterval(() => setAhora(Date.now()), 60_000);
     return () => clearInterval(id);
@@ -201,7 +199,6 @@ const Vet: React.FC<Props> = ({ session }) => {
     const [hh, mm]  = horaSel.split(':');
     const horaFmt   = `${(hh ?? '00').padStart(2, '0')}:${(mm ?? '00').padStart(2, '0')}:00`;
 
-    // Solo usuarios autenticados llegan aquí (guests son bloqueados en abrirModal)
     const { data: citaData } = await supabase
       .from('citas')
       .insert({
@@ -220,7 +217,6 @@ const Vet: React.FC<Props> = ({ session }) => {
       .single();
     const cita_id = citaData?.id ?? '';
 
-    // Guardar teléfono en profile si fue ingresado ahora
     if (!perfilTelefono && telefonoInput.trim() && session) {
       await supabase.from('profiles').update({
         telefono: telefonoInput.trim(),
@@ -263,14 +259,13 @@ const Vet: React.FC<Props> = ({ session }) => {
     if (!motivoSel) nuevosErrores.motivo = 'Selecciona el motivo de consulta';
     if (!perfilTelefono && !telefonoInput.trim()) nuevosErrores.telefono = 'Ingresa tu teléfono para confirmar la cita';
 
-    // Validar hora pasada si la fecha es hoy
     if (fechaSel && horaSel) {
       const hoyStr = new Date().toISOString().split('T')[0];
       if (fechaSel === hoyStr) {
         const [hh, mm] = horaSel.split(':').map(Number);
         const ahora     = new Date();
         const citaMs    = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), hh, mm).getTime();
-        const limiteMs  = ahora.getTime() + 60 * 60 * 1000; // +1 hora
+        const limiteMs  = ahora.getTime() + 60 * 60 * 1000;
         if (citaMs < limiteMs) {
           nuevosErrores.hora = 'Este horario ya pasó, selecciona otro';
         }
@@ -285,7 +280,6 @@ const Vet: React.FC<Props> = ({ session }) => {
     }
     setErrores({});
 
-    // Si la fecha es hoy y la hora es válida → pedir confirmación
     const hoyStr = new Date().toISOString().split('T')[0];
     if (fechaSel === hoyStr) {
       setAlertaHoy(true);
@@ -315,7 +309,7 @@ const Vet: React.FC<Props> = ({ session }) => {
         }
         .vet-shake { animation: vet-shake 0.45s ease; }
       `}</style>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
+      <IonContent style={{ '--background': 'var(--bg-primary)' } as React.CSSProperties}>
         <div style={{ paddingBottom: 80 }}>
 
           {/* ── ZONA 1: HEADER ─────────────────────────────────── */}
@@ -323,24 +317,24 @@ const Vet: React.FC<Props> = ({ session }) => {
             <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:20 }}>
               <button
                 onClick={() => history.goBack()}
-                style={{ background:'#111', border:'1px solid #222', borderRadius:10,
-                  width:36, height:36, color:'#fff', fontSize:18, cursor:'pointer',
+                style={{ background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:10,
+                  width:36, height:36, color:'var(--text-primary)', fontSize:18, cursor:'pointer',
                   display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}
               >‹</button>
-              <h1 style={{ color:'#fff', fontWeight:800, fontSize:22, margin:0 }}>Veterinarios</h1>
+              <h1 style={{ color:'var(--text-primary)', fontWeight:800, fontSize:22, margin:0 }}>Veterinarios</h1>
             </div>
 
             {/* Buscador */}
             <div style={{ position:'relative', marginBottom:16 }}>
               <span style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
-                fontSize:16, color:'#555' }}>🔍</span>
+                fontSize:16, color:'var(--text-secondary)' }}>🔍</span>
               <input
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar clínica o especialidad..."
-                style={{ width:'100%', boxSizing:'border-box', background:'#111',
-                  border:'1px solid #222', borderRadius:12, padding:'12px 16px 12px 40px',
-                  color:'#fff', fontSize:14 }}
+                style={{ width:'100%', boxSizing:'border-box', background:'var(--bg-card)',
+                  border:'1px solid var(--border-color)', borderRadius:12, padding:'12px 16px 12px 40px',
+                  color:'var(--text-primary)', fontSize:14 }}
               />
             </div>
 
@@ -352,8 +346,8 @@ const Vet: React.FC<Props> = ({ session }) => {
                   fontWeight:600, cursor:'pointer', border:'none', transition:'all 0.2s',
                   background: filtro === f
                     ? 'linear-gradient(90deg, #FF2D9B, #00E5FF)'
-                    : '#111',
-                  color: filtro === f ? '#000' : '#666',
+                    : 'var(--bg-card)',
+                  color: filtro === f ? '#000' : 'var(--text-secondary)',
                   boxShadow: filtro === f ? '0 0 12px rgba(0,229,255,0.3)' : 'none',
                 }}>{f}</button>
               ))}
@@ -361,14 +355,14 @@ const Vet: React.FC<Props> = ({ session }) => {
           </div>
 
           {/* ── TABS buscar / mis citas ─────────────────────────── */}
-          <div style={{ display:'flex', margin:'20px 20px 0', background:'#111',
-            border:'1px solid #222', borderRadius:14, padding:4 }}>
+          <div style={{ display:'flex', margin:'20px 20px 0', background:'var(--bg-card)',
+            border:'1px solid var(--border-color)', borderRadius:14, padding:4 }}>
             {(['buscar', 'citas'] as const).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
                 flex:1, padding:'10px 0', borderRadius:10, fontSize:14, fontWeight:700,
                 border:'none', cursor:'pointer', transition:'all 0.2s',
                 background: tab === t ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'transparent',
-                color: tab === t ? '#000' : '#555',
+                color: tab === t ? '#000' : 'var(--text-secondary)',
               }}>
                 {t === 'buscar' ? '🔍 Buscar' : `📅 Mis Citas${citas.length ? ` (${citas.filter(c=>c.estado!=='cancelada').length})` : ''}`}
               </button>
@@ -398,7 +392,7 @@ const Vet: React.FC<Props> = ({ session }) => {
               </div>
 
               {/* ── ZONA 3: CARDS VETERINARIOS ───────────────────── */}
-              <p style={{ color:'#555', fontSize:12, fontWeight:600, letterSpacing:'0.08em',
+              <p style={{ color:'var(--text-secondary)', fontSize:12, fontWeight:600, letterSpacing:'0.08em',
                 textTransform:'uppercase', marginTop:24, marginBottom:12 }}>
                 {vetsFiltrados.length} veterinarios encontrados
               </p>
@@ -406,8 +400,8 @@ const Vet: React.FC<Props> = ({ session }) => {
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {vetsFiltrados.map(vet => (
                   <div key={vet.id} style={{
-                    background:'#111', borderRadius:16, padding:16,
-                    border:'1px solid #1e1e1e',
+                    background:'var(--bg-card)', borderRadius:16, padding:16,
+                    border:'1px solid var(--border-color)',
                   }}>
                     <div style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
                       {/* Avatar */}
@@ -420,25 +414,25 @@ const Vet: React.FC<Props> = ({ session }) => {
                       {/* Info */}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                          <p style={{ color:'#fff', fontWeight:700, fontSize:15, margin:0 }}>{vet.nombre}</p>
+                          <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:15, margin:0 }}>{vet.nombre}</p>
                           <span style={{
                             fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:20, flexShrink:0,
                             background: vet.disponible ? 'rgba(0,245,160,0.12)' : 'rgba(80,80,80,0.2)',
-                            color: vet.disponible ? '#00F5A0' : '#555',
+                            color: vet.disponible ? '#00F5A0' : 'var(--text-secondary)',
                           }}>
                             {vet.disponible ? '● Disponible hoy' : '● No disponible'}
                           </span>
                         </div>
                         <p style={{ color:'#00E5FF', fontSize:13, margin:'2px 0 0', fontWeight:600 }}>{vet.especialidad}</p>
-                        <p style={{ color:'#555', fontSize:12, margin:'2px 0 0' }}>{vet.clinica}</p>
+                        <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'2px 0 0' }}>{vet.clinica}</p>
 
                         <div style={{ display:'flex', gap:12, marginTop:8, flexWrap:'wrap' }}>
-                          <span style={{ color:'#ccc', fontSize:12 }}>⭐ {vet.rating} <span style={{ color:'#555' }}>({vet.reviews})</span></span>
-                          <span style={{ color:'#ccc', fontSize:12 }}>📍 {vet.distancia}</span>
-                          <span style={{ color:'#ccc', fontSize:12 }}>💰 desde ${vet.precio}</span>
+                          <span style={{ color:'var(--text-primary)', fontSize:12 }}>⭐ {vet.rating} <span style={{ color:'var(--text-secondary)' }}>({vet.reviews})</span></span>
+                          <span style={{ color:'var(--text-primary)', fontSize:12 }}>📍 {vet.distancia}</span>
+                          <span style={{ color:'var(--text-primary)', fontSize:12 }}>💰 desde ${vet.precio}</span>
                         </div>
 
-                        <p style={{ color:'#444', fontSize:11, margin:'6px 0 0' }}>🕐 {vet.horario}</p>
+                        <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'6px 0 0' }}>🕐 {vet.horario}</p>
                       </div>
                     </div>
 
@@ -466,7 +460,7 @@ const Vet: React.FC<Props> = ({ session }) => {
               {!session ? (
                 <AuthWallInline onLogin={() => history.push('/login?mode=register')} />
               ) : citas.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'60px 0', color:'#444' }}>
+                <div style={{ textAlign:'center', padding:'60px 0', color:'var(--text-secondary)' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>📅</div>
                   <p style={{ fontWeight:600, fontSize:16 }}>Sin citas agendadas</p>
                   <p style={{ fontSize:13, marginTop:4 }}>Agenda tu primera consulta veterinaria</p>
@@ -480,7 +474,6 @@ const Vet: React.FC<Props> = ({ session }) => {
                   {citas.map(cita => {
                     const mascota = mascotas.find(m => m.id === cita.mascota_id);
 
-                    // Calcular estado efectivo y tiempo restante
                     const minRestantes = cita.expira_en
                       ? Math.floor((new Date(cita.expira_en).getTime() - ahora) / 60_000)
                       : null;
@@ -500,32 +493,31 @@ const Vet: React.FC<Props> = ({ session }) => {
 
                     return (
                       <div key={cita.id} style={{
-                        background:'#111', borderRadius:16, padding:16,
+                        background:'var(--bg-card)', borderRadius:16, padding:16,
                         border:`1px solid ${badge.color}22`,
                       }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <p style={{ color:'#fff', fontWeight:700, fontSize:15, margin:0 }}>
+                            <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:15, margin:0 }}>
                               {cita.veterinario_nombre}
                             </p>
-                            <p style={{ color:'#555', fontSize:12, margin:'2px 0 0' }}>{cita.clinica}</p>
+                            <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'2px 0 0' }}>{cita.clinica}</p>
                             {mascota && (
                               <p style={{ color:'#00E5FF', fontSize:13, margin:'4px 0 0' }}>
                                 🐾 {mascota.nombre}
                               </p>
                             )}
-                            <p style={{ color:'#888', fontSize:12, margin:'4px 0 0' }}>
+                            <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'4px 0 0' }}>
                               📅 {new Date(cita.fecha + 'T00:00:00').toLocaleDateString('es-EC', { weekday:'short', day:'numeric', month:'short' })} · {cita.hora.slice(0,5)}
                             </p>
-                            <p style={{ color:'#666', fontSize:12, margin:'2px 0 0' }}>
+                            <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'2px 0 0' }}>
                               {cita.motivo} · ${cita.precio}
                             </p>
 
-                            {/* Tiempo restante para pendiente_pago */}
                             {efectivoReserva === 'pendiente_pago' && minRestantes !== null && minRestantes > 0 && (
                               <p style={{
                                 fontSize:11, fontWeight:600, margin:'6px 0 0',
-                                color: minRestantes < 10 ? '#FF453A' : '#888',
+                                color: minRestantes < 10 ? '#FF453A' : 'var(--text-secondary)',
                               }}>
                                 🕐 Expira en {minRestantes} {minRestantes === 1 ? 'minuto' : 'minutos'}
                               </p>
@@ -582,7 +574,7 @@ const Vet: React.FC<Props> = ({ session }) => {
           breakpoints={[0, 0.9]}
           initialBreakpoint={0.9}
         >
-          <div style={{ background:'#0a0a0a', height:'100%', overflow:'auto', padding:'24px 20px 40px' }}>
+          <div style={{ background:'var(--bg-primary)', height:'100%', overflow:'auto', padding:'24px 20px 40px' }}>
             {vetModal && (
               <>
                 {/* Header modal */}
@@ -593,21 +585,21 @@ const Vet: React.FC<Props> = ({ session }) => {
                     display:'flex', alignItems:'center', justifyContent:'center', fontSize:26,
                   }}>{vetModal.foto}</div>
                   <div>
-                    <p style={{ color:'#fff', fontWeight:700, fontSize:16, margin:0 }}>{vetModal.nombre}</p>
+                    <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:16, margin:0 }}>{vetModal.nombre}</p>
                     <p style={{ color:'#00E5FF', fontSize:13, margin:'2px 0 0' }}>{vetModal.especialidad}</p>
-                    <p style={{ color:'#555', fontSize:12, margin:'2px 0 0' }}>{vetModal.clinica}</p>
+                    <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'2px 0 0' }}>{vetModal.clinica}</p>
                   </div>
                 </div>
 
                 {/* Mascota */}
                 <ModalSection title="Selecciona tu mascota">
                   {mascotas.length === 0 ? (
-                    <p style={{ color:'#555', fontSize:13 }}>No tienes mascotas registradas. Agrega una primero.</p>
+                    <p style={{ color:'var(--text-secondary)', fontSize:13 }}>No tienes mascotas registradas. Agrega una primero.</p>
                   ) : (
                     <IonSegment
                       value={mascotaSel}
                       onIonChange={e => setMascotaSel(e.detail.value as string)}
-                      style={{ '--background': '#111' } as React.CSSProperties}
+                      style={{ '--background': 'var(--bg-card)' } as React.CSSProperties}
                     >
                       {mascotas.map(m => (
                         <IonSegmentButton key={m.id} value={m.id}>
@@ -628,8 +620,8 @@ const Vet: React.FC<Props> = ({ session }) => {
                         border: errores.fecha ? '1px solid rgba(255,69,58,0.5)' : 'none',
                         background: fechaSel === d.value
                           ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
-                          : '#1a1a1a',
-                        color: fechaSel === d.value ? '#000' : '#888',
+                          : 'var(--bg-secondary)',
+                        color: fechaSel === d.value ? '#000' : 'var(--text-secondary)',
                       }}>{d.label}</button>
                     ))}
                   </div>
@@ -648,8 +640,8 @@ const Vet: React.FC<Props> = ({ session }) => {
                         border: errores.hora ? '1px solid rgba(255,69,58,0.5)' : 'none',
                         background: horaSel === h
                           ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
-                          : '#1a1a1a',
-                        color: horaSel === h ? '#000' : '#888',
+                          : 'var(--bg-secondary)',
+                        color: horaSel === h ? '#000' : 'var(--text-secondary)',
                       }}>{h}</button>
                     ))}
                   </div>
@@ -661,15 +653,15 @@ const Vet: React.FC<Props> = ({ session }) => {
                 {/* Motivo */}
                 <ModalSection title="Motivo de consulta">
                   <div style={{
-                    background:'#111',
-                    border: errores.motivo ? '1px solid rgba(255,69,58,0.5)' : '1px solid #222',
+                    background:'var(--bg-card)',
+                    border: errores.motivo ? '1px solid rgba(255,69,58,0.5)' : '1px solid var(--border-color)',
                     borderRadius:12, overflow:'hidden',
                   }}>
                     <IonSelect
                       value={motivoSel}
                       placeholder="Seleccionar motivo..."
                       onIonChange={e => { setMotivoSel(e.detail.value); setErrores(err => ({ ...err, motivo: '' })); }}
-                      style={{ '--color':'#fff', '--placeholder-color':'#555', padding:'4px 0' } as React.CSSProperties}
+                      style={{ '--color':'var(--text-primary)', '--placeholder-color':'var(--text-secondary)', padding:'4px 0' } as React.CSSProperties}
                     >
                       {MOTIVOS.map(m => (
                         <IonSelectOption key={m} value={m}>{m}</IonSelectOption>
@@ -684,7 +676,7 @@ const Vet: React.FC<Props> = ({ session }) => {
                 {/* Teléfono — solo si no está en el perfil */}
                 {!perfilTelefono && (
                   <ModalSection title="Tu teléfono 📱">
-                    <p style={{ color:'#555', fontSize:12, margin:'0 0 8px' }}>
+                    <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'0 0 8px' }}>
                       Para confirmarte la cita necesitamos tu teléfono
                     </p>
                     <PhoneInput
@@ -706,13 +698,13 @@ const Vet: React.FC<Props> = ({ session }) => {
 
                 {/* Notas */}
                 <ModalSection title="Notas adicionales (opcional)">
-                  <div style={{ background:'#111', border:'1px solid #222', borderRadius:12, overflow:'hidden' }}>
+                  <div style={{ background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:12, overflow:'hidden' }}>
                     <IonTextarea
                       value={notas}
                       onIonInput={e => setNotas(e.detail.value ?? '')}
                       placeholder="Describe los síntomas u observaciones..."
                       rows={3}
-                      style={{ '--color':'#fff', '--placeholder-color':'#555', '--background':'transparent', padding:'4px 8px' } as React.CSSProperties}
+                      style={{ '--color':'var(--text-primary)', '--placeholder-color':'var(--text-secondary)', '--background':'transparent', padding:'4px 8px' } as React.CSSProperties}
                     />
                   </div>
                 </ModalSection>
@@ -746,17 +738,17 @@ const Vet: React.FC<Props> = ({ session }) => {
           breakpoints={[0, 0.45]}
           initialBreakpoint={0.45}
         >
-          <div style={{ background:'#0d0d0d', height:'100%', padding:'32px 24px 48px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+          <div style={{ background:'var(--bg-primary)', height:'100%', padding:'32px 24px 48px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
             <div style={{
               width:64, height:64, borderRadius:'50%', marginBottom:16,
               background:'linear-gradient(135deg,rgba(255,45,155,0.2),rgba(0,229,255,0.2))',
               border:'1px solid rgba(0,229,255,0.3)',
               display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
             }}>🔐</div>
-            <h3 style={{ color:'#fff', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
+            <h3 style={{ color:'var(--text-primary)', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
               Necesitas una cuenta
             </h3>
-            <p style={{ color:'#555', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
+            <p style={{ color:'var(--text-secondary)', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
               Las citas veterinarias requieren una cuenta para gestionar tu historial y recibir recordatorios.
             </p>
             <button
@@ -770,7 +762,7 @@ const Vet: React.FC<Props> = ({ session }) => {
               onClick={() => { setAuthWall(false); history.push('/login?mode=login'); }}
               style={{
                 width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
-                background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',
+                background:'transparent', border:'1px solid var(--border-color)', color:'var(--text-secondary)', cursor:'pointer',
               }}
             >
               Ya tengo cuenta
@@ -813,10 +805,10 @@ const AuthWallInline: React.FC<{ onLogin: () => void }> = ({ onLogin }) => (
       border:'1px solid rgba(0,229,255,0.25)',
       display:'flex', alignItems:'center', justifyContent:'center', fontSize:32,
     }}>🔐</div>
-    <p style={{ color:'#fff', fontWeight:700, fontSize:17, margin:'0 0 8px' }}>
+    <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:17, margin:'0 0 8px' }}>
       Crea una cuenta para ver tus citas
     </p>
-    <p style={{ color:'#555', fontSize:13, margin:'0 0 28px', lineHeight:1.5, maxWidth:260 }}>
+    <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'0 0 28px', lineHeight:1.5, maxWidth:260 }}>
       Con tu cuenta puedes gestionar citas, recibir recordatorios y ver el historial veterinario de tus mascotas.
     </p>
     <button onClick={onLogin} className="btn-brand"
@@ -829,7 +821,7 @@ const AuthWallInline: React.FC<{ onLogin: () => void }> = ({ onLogin }) => (
 /* ── Sección del modal ───────────────────────────────────────── */
 const ModalSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div style={{ marginBottom:20 }}>
-    <p style={{ color:'#888', fontSize:11, fontWeight:600, letterSpacing:'0.08em',
+    <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600, letterSpacing:'0.08em',
       textTransform:'uppercase', marginBottom:10 }}>{title}</p>
     {children}
   </div>
