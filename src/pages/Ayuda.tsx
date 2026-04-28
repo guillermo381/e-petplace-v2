@@ -27,12 +27,12 @@ const FAQ_DATA = [
     ]
   },
   {
-    categoria: '🐾 Adopción',
+    categoria: '📱 App y cuenta',
     items: [
-      { q: '¿Cómo funciona el proceso de adopción?', a: 'Envías una solicitud, el refugio la revisa en 2-5 días y te contacta por email/teléfono para coordinar el encuentro.' },
-      { q: '¿Cuánto cuesta adoptar?', a: 'La adopción es gratuita. Algunos refugios piden donación voluntaria para cubrir vacunas y esterilización.' },
-      { q: '¿Puedo donar sin adoptar?', a: 'Claro, puedes donar para vacunas, esterilización o alimento de cualquier mascota desde su perfil.' },
-      { q: '¿Qué pasa con mi solicitud?', a: 'El refugio te contactará en máximo 5 días. Si no recibes respuesta, escríbenos y hacemos seguimiento.' },
+      { q: '¿Cómo cambio mi contraseña?', a: 'Ve a Perfil → toca tu email → "¿Olvidaste tu contraseña?" y te enviamos un link de recuperación.' },
+      { q: '¿Cómo agrego una mascota?', a: 'En la sección Mascotas toca el botón "+" y completa el formulario. Puedes agregar foto, raza, vacunas y más.' },
+      { q: '¿Cómo funciona el índice de salud?', a: 'Se calcula automáticamente con los datos de tu mascota: peso, vacunas, edad y visitas veterinarias. Completa el perfil para mejorar el puntaje.' },
+      { q: '¿Puedo usar la app sin registrarme?', a: 'Sí, puedes navegar la tienda y ver veterinarios como invitado. Para comprar, agendar citas o adoptar necesitas una cuenta.' },
     ]
   },
   {
@@ -98,13 +98,13 @@ const Ayuda: React.FC<Props> = ({ session }) => {
                   }}
                 >💬 WhatsApp</button>
                 <button
-                  onClick={() => abrirWhatsApp(`Hola e-PetPlace, quiero reportar un problema con mi pedido. Usuario: ${session?.user.email ?? 'invitado'}`)}
+                  onClick={() => abrirWhatsApp(`Hola e-PetPlace, tengo un problema con mi pedido. Usuario: ${session?.user.email ?? 'invitado'}. Número de orden:`)}
                   style={{
                     flex: 1, padding: '11px 0', borderRadius: 12,
                     background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                     color: 'var(--text-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer',
                   }}
-                >⚠️ Reportar</button>
+                >📦 Problema con pedido</button>
               </div>
             </div>
           </div>

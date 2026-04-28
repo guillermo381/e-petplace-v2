@@ -17,6 +17,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import RegisterPrompt    from './components/RegisterPrompt';
 import GuestHeader       from './components/GuestHeader';
 import FloatingCart      from './components/FloatingCart';
+import HelpButton        from './components/HelpButton';
 import Login             from './pages/Login';
 import Welcome           from './pages/Welcome';
 import Home              from './pages/Home';
@@ -249,6 +250,7 @@ const AppInner: React.FC = () => {
         <AppContent session={session} />
         <GuestPromptBridge session={session} />
         <FloatingCart />
+        <HelpButton session={session} />
       </IonReactRouter>
     </IonApp>
   );

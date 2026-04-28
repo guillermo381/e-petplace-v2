@@ -370,55 +370,6 @@ const Home: React.FC<Props> = ({ session }) => {
           </section>
 
           {/* ════════════════════════════════════════════════════════
-              ZONA 3 – ALERTAS
-          ════════════════════════════════════════════════════════ */}
-          {!loading && alertas.length > 0 && (
-            <section style={{ padding:'0 20px 24px' }}>
-              <SectionHeader title="Alertas" />
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {alertas.slice(0, 3).map((a, i) => {
-                  const color = a.kind === 'urgente' ? '#FF2D9B' : a.kind === 'warning' ? '#FFE600' : '#00E5FF';
-                  const icon  = a.kind === 'urgente' ? '🚨' : a.kind === 'warning' ? '⚠️' : '💡';
-                  return (
-                    <div key={i} style={{
-                      display:'flex', borderRadius:14, overflow:'hidden',
-                      border:`1px solid ${color}25`,
-                    }}>
-                      <div style={{ width:3, background:color, flexShrink:0 }} />
-                      <div style={{
-                        flex:1, background:'var(--bg-card)',
-                        padding:'11px 14px',
-                        display:'flex', alignItems:'center', gap:10,
-                      }}>
-                        <span style={{ fontSize:16, flexShrink:0 }}>{icon}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ color:'var(--text-primary)', fontSize:12, fontWeight:600, margin:0,
-                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                            {a.title}
-                          </p>
-                          <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'2px 0 0' }}>
-                            {a.sub}
-                          </p>
-                        </div>
-                        {a.mascotaId && (
-                          <button
-                            onClick={() => history.push(`/biopet/${a.mascotaId!}`)}
-                            style={{
-                              background: color, color:'#000',
-                              border:'none', borderRadius:7, padding:'5px 12px',
-                              fontSize:11, fontWeight:700, cursor:'pointer', flexShrink:0,
-                            }}
-                          >Ver</button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          )}
-
-          {/* ════════════════════════════════════════════════════════
               ZONA 3b – PEDIDO ACTIVO
           ════════════════════════════════════════════════════════ */}
           {!loading && pedidoActivo && (
