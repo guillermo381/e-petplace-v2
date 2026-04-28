@@ -65,7 +65,7 @@ interface PwdFieldProps {
 const PwdField: React.FC<PwdFieldProps> = ({ label, value, onChange, placeholder, show, onToggle, extra }) => (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <label style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
-      textTransform: 'uppercase', color: '#444' }}>{label}</label>
+      textTransform: 'uppercase', color: 'var(--text-secondary)' }}>{label}</label>
     <div style={{ position: 'relative' }}>
       <input
         type={show ? 'text' : 'password'}
@@ -74,16 +74,17 @@ const PwdField: React.FC<PwdFieldProps> = ({ label, value, onChange, placeholder
         placeholder={placeholder}
         style={{
           width: '100%', boxSizing: 'border-box',
-          background: '#111', border: '1px solid #2a2a2a', borderRadius: 12,
-          padding: '14px 44px 14px 16px', color: '#fff', fontSize: 15, outline: 'none',
+          background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12,
+          padding: '14px 44px 14px 16px', color: 'var(--text-primary)', fontSize: 15, outline: 'none',
           transition: 'border-color 0.2s, box-shadow 0.2s',
         }}
         onFocus={e => { e.currentTarget.style.borderColor = '#00E5FF'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(0,229,255,0.15)'; }}
-        onBlur={e  => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.boxShadow = 'none'; }}
+        onBlur={e  => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
       />
       <button type="button" onClick={onToggle} style={{
         position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#555',
+        background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
+        color: 'var(--text-secondary)',
       }}>
         {show ? '🙈' : '👁️'}
       </button>
@@ -116,10 +117,10 @@ const RecuperarView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   return (
     <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <p style={{ color: '#fff', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
+        <p style={{ color: 'var(--text-primary)', fontSize: 20, fontWeight: 800, margin: '0 0 6px' }}>
           Recuperar contraseña
         </p>
-        <p style={{ color: '#555', fontSize: 13, margin: 0 }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>
           Te enviaremos un link a tu email
         </p>
       </div>
@@ -154,7 +155,7 @@ const RecuperarView: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       <button onClick={onBack} style={{
         width: '100%', padding: '14px 0', borderRadius: 14, fontSize: 14,
-        background: 'transparent', border: '1px solid #333', color: '#888',
+        background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-secondary)',
         cursor: 'pointer', fontWeight: 600,
       }}>
         ← Volver
@@ -186,7 +187,6 @@ const Login: React.FC = () => {
   const [consentOk,     setConsentOk]     = useState(false);
   const [errorTerminos, setErrorTerminos] = useState(false);
 
-  // Leer modo desde query param (?mode=login | ?mode=register)
   useEffect(() => {
     const mode = new URLSearchParams(location.search).get('mode');
     if (mode === 'register') {
@@ -201,7 +201,6 @@ const Login: React.FC = () => {
     }
   }, [location.search]);
 
-  // Rate limiting
   const [attempts, setAttempts] = useState(0);
   const [lockout,  setLockout]  = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -357,9 +356,10 @@ const Login: React.FC = () => {
   /* ── Render ────────────────────────────────────────────────── */
   return (
     <IonPage>
-      <IonContent fullscreen scrollY={!showRecuperar}>
+      <IonContent fullscreen scrollY={!showRecuperar}
+        style={{ '--background': 'var(--bg-primary)' } as React.CSSProperties}>
         <div style={{
-          background: '#000', minHeight: '100vh',
+          background: 'var(--bg-primary)', minHeight: '100vh',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
           padding: '40px 24px 48px',
@@ -369,7 +369,7 @@ const Login: React.FC = () => {
           <div style={{ marginBottom: 28, textAlign: 'center' }}>
             <img src={logoImg} alt="e-PetPlace logo"
               style={{ width: 180, display: 'block', margin: '0 auto' }} />
-            <p style={{ color: '#444', fontSize: 12, marginTop: 6, letterSpacing: '0.06em' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 6, letterSpacing: '0.06em' }}>
               Tu mundo animal, digitalizado
             </p>
           </div>
@@ -382,7 +382,7 @@ const Login: React.FC = () => {
               {/* ── Toggle login/registro ────────────────────── */}
               <div style={{
                 width: '100%', maxWidth: 360, display: 'flex',
-                background: '#111', border: '1px solid #222',
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)',
                 borderRadius: 16, padding: 4, marginBottom: 24,
               }}>
                 {([{ label:'Ingresar', val:true }, { label:'Registrarse', val:false }] as { label:string; val:boolean }[])
@@ -394,7 +394,7 @@ const Login: React.FC = () => {
                         fontSize: 14, fontWeight: 700, border: 'none', cursor: 'pointer',
                         transition: 'all 0.2s',
                         background: active ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'transparent',
-                        color: active ? '#000' : '#555',
+                        color: active ? '#000' : 'var(--text-secondary)',
                         boxShadow: active ? '0 0 20px rgba(0,229,255,0.3)' : 'none',
                       }}>{label}</button>
                     );
@@ -431,9 +431,9 @@ const Login: React.FC = () => {
 
                 {/* ── Separador ─────────────────────────────── */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 0' }}>
-                  <div style={{ flex: 1, height: 1, background: '#222' }} />
-                  <span style={{ color: '#444', fontSize: 12, fontWeight: 600 }}>o</span>
-                  <div style={{ flex: 1, height: 1, background: '#222' }} />
+                  <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>o</span>
+                  <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
                 </div>
               </div>
 
@@ -465,7 +465,7 @@ const Login: React.FC = () => {
                           {[1,2,3,4,5].map(i => (
                             <div key={i} style={{
                               flex: 1, height: 3, borderRadius: 2,
-                              background: i <= strength.score ? strength.color : '#222',
+                              background: i <= strength.score ? strength.color : 'var(--border-color)',
                               transition: 'background 0.2s',
                             }} />
                           ))}
@@ -579,9 +579,9 @@ const Login: React.FC = () => {
           {!showRecuperar && (
             <div style={{ width: '100%', maxWidth: 360, marginTop: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-                <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
-                <span style={{ color: '#333', fontSize: 12 }}>o</span>
-                <div style={{ flex: 1, height: 1, background: '#1e1e1e' }} />
+                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+                <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>o</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
               </div>
               <button
                 onClick={() => { enterGuest(); history.replace('/tienda'); }}
@@ -589,8 +589,8 @@ const Login: React.FC = () => {
                   width: '100%', padding: '14px 0', borderRadius: 12,
                   fontSize: 14, fontWeight: 600, cursor: 'pointer',
                   background: 'transparent',
-                  border: '1px solid #2a2a2a',
-                  color: '#666',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-secondary)',
                 }}
               >
                 Continuar como invitado
@@ -626,14 +626,15 @@ const InputField: React.FC<InputFieldProps> = ({
   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <label style={{
       fontSize: 11, fontWeight: 600, letterSpacing: '0.1em',
-      textTransform: 'uppercase', color: '#444',
+      textTransform: 'uppercase', color: 'var(--text-secondary)',
     }}>{label}</label>
     <input
       type={type} value={value} onChange={e => onChange(e.target.value)}
       placeholder={placeholder} required={required} minLength={minLength}
       style={{
-        background: '#111', border: '1px solid #2a2a2a', borderRadius: 12,
-        padding: '14px 16px', color: '#fff', fontSize: 15,
+        background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+        borderRadius: 12, padding: '14px 16px',
+        color: 'var(--text-primary)', fontSize: 15,
         width: '100%', boxSizing: 'border-box', outline: 'none',
         transition: 'border-color 0.2s, box-shadow 0.2s',
       }}
@@ -642,7 +643,7 @@ const InputField: React.FC<InputFieldProps> = ({
         e.currentTarget.style.boxShadow   = '0 0 0 2px rgba(0,229,255,0.15)';
       }}
       onBlur={e => {
-        e.currentTarget.style.borderColor = '#2a2a2a';
+        e.currentTarget.style.borderColor = 'var(--border-color)';
         e.currentTarget.style.boxShadow   = 'none';
       }}
     />

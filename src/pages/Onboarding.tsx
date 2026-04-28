@@ -39,22 +39,21 @@ const TIPOS_MASCOTA = [
   { id: 'otro',   emoji: '🐾', label: 'Otro'   },
 ];
 
-
 const selectStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: '#111', border: '1px solid #222', borderRadius: 12,
-  padding: '13px 40px 13px 16px', color: '#fff',
+  background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12,
+  padding: '13px 40px 13px 16px', color: 'var(--text-primary)',
   fontSize: 14, appearance: 'none', WebkitAppearance: 'none',
 };
 
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: '#111', border: '1px solid #222', borderRadius: 12,
-  padding: '13px 16px', color: '#fff', fontSize: 14, outline: 'none',
+  background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 12,
+  padding: '13px 16px', color: 'var(--text-primary)', fontSize: 14, outline: 'none',
 };
 
 const labelStyle: React.CSSProperties = {
-  color: '#444', fontSize: 11, fontWeight: 600,
+  color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
   letterSpacing: '0.08em', textTransform: 'uppercase',
   margin: '0 0 8px', display: 'block',
 };
@@ -65,7 +64,7 @@ const errorStyle: React.CSSProperties = {
 
 const skipBtnStyle: React.CSSProperties = {
   width: '100%', padding: '12px 0', background: 'none', border: 'none',
-  color: '#aaaaaa', fontSize: 14, cursor: 'pointer', marginTop: 10, fontWeight: 500,
+  color: 'var(--text-secondary)', fontSize: 14, cursor: 'pointer', marginTop: 10, fontWeight: 500,
 };
 
 const uploadPetPhoto = async (file: File, petId: string): Promise<string | null> => {
@@ -84,17 +83,12 @@ const Onboarding: React.FC<Props> = ({ session }) => {
   const location = useLocation();
   const fileRef  = useRef<HTMLInputElement>(null);
 
-  // Si viene con ?step=ciudad, saltar directo al paso 2 sin modal ni paso 1
   const stepParam = new URLSearchParams(location.search).get('step');
   const esSoloCiudad = stepParam === 'ciudad';
 
-  // ── Welcome modal ────────────────────────────────────────────
   const [showWelcome, setShowWelcome] = useState(!esSoloCiudad);
-
-  // ── Navegación ───────────────────────────────────────────────
   const [paso, setPaso] = useState<1 | 2>(esSoloCiudad ? 2 : 1);
 
-  // ── Formulario mascota ───────────────────────────────────────
   const [especie,         setEspecie]         = useState('');
   const [nombreMascota,   setNombreMascota]   = useState('');
   const [raza,            setRaza]            = useState('');
@@ -104,14 +98,12 @@ const Onboarding: React.FC<Props> = ({ session }) => {
   const [photoFile,       setPhotoFile]       = useState<File | null>(null);
   const [photoPreview,    setPhotoPreview]    = useState<string | null>(null);
 
-  // ── Errores mascota ──────────────────────────────────────────
   const [errEspecie, setErrEspecie] = useState('');
   const [errNombre,  setErrNombre]  = useState('');
   const [errFecha,   setErrFecha]   = useState('');
   const [errSexo,    setErrSexo]    = useState('');
   const [errPeso,    setErrPeso]    = useState('');
 
-  // ── Ubicación ────────────────────────────────────────────────
   const [paisCodigo,  setPaisCodigo]  = useState('');
   const [ciudad,      setCiudad]      = useState('');
   const [ciudadTexto, setCiudadTexto] = useState('');
@@ -128,7 +120,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     ? (TITULO_ESPECIE[especie] ?? '🐾 Tu Mascota')
     : '🐾 Cuéntanos sobre tu mascota';
 
-  // ── Foto ─────────────────────────────────────────────────────
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -138,7 +129,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     reader.readAsDataURL(file);
   };
 
-  // ── Validar fecha ─────────────────────────────────────────────
   const validarFecha = (val: string): string => {
     if (!val) return '⚠️ La fecha de nacimiento es obligatoria';
     const d   = new Date(val);
@@ -149,7 +139,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     return '';
   };
 
-  // ── Validar paso 1 ────────────────────────────────────────────
   const validarPaso1 = (): boolean => {
     const ee = especie         ? '' : '⚠️ Selecciona la especie de tu mascota';
     const en = nombreMascota.trim() ? '' : '⚠️ El nombre de tu mascota es obligatorio';
@@ -174,7 +163,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     if (validarPaso1()) setPaso(2);
   };
 
-  // ── País ──────────────────────────────────────────────────────
   const handlePaisChange = (val: string) => {
     setPaisCodigo(val);
     setCiudad('');
@@ -182,7 +170,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     if (val) setErrPais('');
   };
 
-  // ── Guardar todo y finalizar ──────────────────────────────────
   const completarOnboarding = async (skipLocation = false) => {
     if (!skipLocation) {
       const ep = paisCodigo  ? '' : '⚠️ Selecciona tu país para continuar';
@@ -194,7 +181,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
 
     setSaving(true);
 
-    // Actualizar perfil
     const updateData: Record<string, unknown> = { onboarding_completo: true };
     if (!skipLocation) {
       if (ciudadFinal) updateData.ciudad       = ciudadFinal;
@@ -210,7 +196,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
 
     localStorage.setItem(`onboarding_done_${session.user.id}`, 'true');
 
-    // Crear mascota si el usuario llenó los datos mínimos en paso 1
     if (especie && nombreMascota.trim() && fechaNacimiento) {
       const mascPayload: Record<string, unknown> = {
         user_id:          session.user.id,
@@ -235,7 +220,6 @@ const Onboarding: React.FC<Props> = ({ session }) => {
     history.replace('/home');
   };
 
-  // ── Postergar onboarding desde welcome modal ──────────────────
   const postergarOnboarding = () => {
     localStorage.setItem('onboarding_postponed', 'true');
     localStorage.setItem(`onboarding_done_${session.user.id}`, 'true');
@@ -248,20 +232,20 @@ const Onboarding: React.FC<Props> = ({ session }) => {
 
   return (
     <IonPage>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
-        <div style={{ background: '#000', minHeight: '100vh', padding: '56px 24px 48px' }}>
+      <IonContent style={{ '--background': 'var(--bg-primary)' } as React.CSSProperties}>
+        <div style={{ background: 'var(--bg-primary)', minHeight: '100vh', padding: '56px 24px 48px' }}>
 
           {/* ── Barra de progreso ──────────────────────────────── */}
           <div style={{ marginBottom: 32 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ color: '#444', fontSize: 12, fontWeight: 600 }}>Paso {paso} de 2</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>Paso {paso} de 2</span>
               <span style={{
                 background: 'linear-gradient(90deg,#FF2D9B,#00E5FF)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 fontSize: 12, fontWeight: 800,
               }}>{progreso}%</span>
             </div>
-            <div style={{ height: 4, background: '#1a1a1a', borderRadius: 4 }}>
+            <div style={{ height: 4, background: 'var(--border-color)', borderRadius: 4 }}>
               <div style={{
                 height: '100%', borderRadius: 4,
                 background: 'linear-gradient(90deg,#FF2D9B,#00E5FF)',
@@ -276,10 +260,10 @@ const Onboarding: React.FC<Props> = ({ session }) => {
           ════════════════════════════════════════════════════ */}
           {paso === 1 && (
             <>
-              <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 22, margin: '0 0 6px', lineHeight: 1.3 }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 900, fontSize: 22, margin: '0 0 6px', lineHeight: 1.3 }}>
                 {tituloPet}
               </h2>
-              <p style={{ color: '#555', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
                 Personaliza su cuidado con estos datos básicos
               </p>
 
@@ -308,8 +292,8 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                   )}
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
-                <p style={{ color: '#555', fontSize: 12, margin: 0 }}>
-                  Foto <span style={{ color: '#333' }}>(opcional)</span>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0 }}>
+                  Foto <span style={{ color: 'var(--text-secondary)' }}>(opcional)</span>
                 </p>
               </div>
 
@@ -325,8 +309,8 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                         type="button"
                         onClick={() => { setEspecie(t.id); setRaza(''); setSexo(''); setErrEspecie(''); }}
                         style={{
-                          background: sel ? 'rgba(0,229,255,0.08)' : '#111',
-                          border: `2px solid ${sel ? '#00E5FF' : errEspecie ? '#FF2D9B44' : '#1e1e1e'}`,
+                          background: sel ? 'rgba(0,229,255,0.08)' : 'var(--bg-card)',
+                          border: `2px solid ${sel ? '#00E5FF' : errEspecie ? '#FF2D9B44' : 'var(--border-color)'}`,
                           borderRadius: 16, padding: '14px 4px 10px',
                           display: 'flex', flexDirection: 'column',
                           alignItems: 'center', gap: 6, cursor: 'pointer',
@@ -345,7 +329,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                           }}>✓</div>
                         )}
                         <span style={{ fontSize: 28, lineHeight: 1 }}>{t.emoji}</span>
-                        <span style={{ color: sel ? '#00E5FF' : '#666', fontSize: 11, fontWeight: 700 }}>
+                        <span style={{ color: sel ? '#00E5FF' : 'var(--text-secondary)', fontSize: 11, fontWeight: 700 }}>
                           {t.label}
                         </span>
                       </button>
@@ -363,16 +347,16 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                   value={nombreMascota}
                   onChange={e => { setNombreMascota(e.target.value); if (e.target.value.trim()) setErrNombre(''); }}
                   placeholder="Ej: Max, Luna, Simba…"
-                  style={{ ...inputStyle, border: `1px solid ${errNombre ? '#FF2D9B' : '#222'}` }}
+                  style={{ ...inputStyle, border: `1px solid ${errNombre ? '#FF2D9B' : 'var(--border-color)'}` }}
                 />
                 {errNombre && <p style={errorStyle}>{errNombre}</p>}
               </div>
 
-              {/* Raza — autocomplete (opcional) */}
+              {/* Raza (opcional) */}
               <div style={{ marginBottom: 16 }}>
                 <label style={labelStyle}>
                   Raza{' '}
-                  <span style={{ color: '#333', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
                 </label>
                 <RazaInput value={raza} onChange={setRaza} especie={especie} />
               </div>
@@ -387,7 +371,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                   max={new Date().toISOString().split('T')[0]}
                   style={{
                     ...inputStyle,
-                    border: `1px solid ${errFecha ? '#FF2D9B' : '#222'}`,
+                    border: `1px solid ${errFecha ? '#FF2D9B' : 'var(--border-color)'}`,
                     colorScheme: 'dark',
                   }}
                 />
@@ -400,7 +384,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                   <label style={labelStyle}>
                     Sexo{' '}
                     {especie === 'ave'
-                      ? <span style={{ color: '#333', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
+                      ? <span style={{ color: 'var(--text-secondary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
                       : '*'}
                   </label>
                   <div style={{ display: 'flex', gap: 10 }}>
@@ -415,9 +399,9 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                         onClick={() => { setSexo(sexo === s.val ? '' : s.val); setErrSexo(''); }}
                         style={{
                           flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer',
-                          background: sexo === s.val ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#111',
-                          color: sexo === s.val ? '#000' : '#666',
-                          border: sexo === s.val ? 'none' : errSexo ? '1px solid #FF2D9B44' : '1px solid #222',
+                          background: sexo === s.val ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'var(--bg-card)',
+                          color: sexo === s.val ? '#000' : 'var(--text-secondary)',
+                          border: sexo === s.val ? 'none' : errSexo ? '1px solid #FF2D9B44' : '1px solid var(--border-color)',
                           fontWeight: 800, fontSize: 14, transition: 'all 0.15s',
                         }}
                       >
@@ -433,7 +417,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
               <div style={{ marginBottom: 28 }}>
                 <label style={labelStyle}>
                   Peso{' '}
-                  <span style={{ color: '#333', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(opcional)</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <input
@@ -442,13 +426,13 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                     onChange={e => { setPeso(e.target.value); setErrPeso(''); }}
                     placeholder="0.0"
                     min="0.1" max="200" step="0.1"
-                    style={{ ...inputStyle, border: `1px solid ${errPeso ? '#FF2D9B' : '#222'}`, paddingRight: 50 }}
+                    style={{ ...inputStyle, border: `1px solid ${errPeso ? '#FF2D9B' : 'var(--border-color)'}`, paddingRight: 50 }}
                   />
-                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: 13, fontWeight: 600, pointerEvents: 'none' }}>kg</span>
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, pointerEvents: 'none' }}>kg</span>
                 </div>
                 {errPeso
                   ? <p style={errorStyle}>{errPeso}</p>
-                  : <p style={{ color: '#888888', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
+                  : <p style={{ color: 'var(--text-secondary)', fontSize: 12, marginTop: 6, lineHeight: 1.6 }}>
                       💡 El peso nos ayuda a calcular porciones de alimento y detectar cambios en su salud. Puedes actualizarlo después.
                     </p>}
               </div>
@@ -471,10 +455,10 @@ const Onboarding: React.FC<Props> = ({ session }) => {
           ════════════════════════════════════════════════════ */}
           {paso === 2 && (
             <>
-              <h2 style={{ color: '#fff', fontWeight: 900, fontSize: 24, margin: '0 0 8px' }}>
+              <h2 style={{ color: 'var(--text-primary)', fontWeight: 900, fontSize: 24, margin: '0 0 8px' }}>
                 ¿Dónde estás? 📍
               </h2>
-              <p style={{ color: '#555', fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 32px', lineHeight: 1.6 }}>
                 Para mostrarte veterinarios y servicios cercanos
               </p>
 
@@ -485,7 +469,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                   <select
                     value={paisCodigo}
                     onChange={e => handlePaisChange(e.target.value)}
-                    style={{ ...selectStyle, color: paisCodigo ? '#fff' : '#444' }}
+                    style={{ ...selectStyle, color: paisCodigo ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                   >
                     <option value="">Selecciona tu país</option>
                     {PAISES_SOPORTADOS.map(p => (
@@ -494,7 +478,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                       </option>
                     ))}
                   </select>
-                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#444', fontSize: 12, pointerEvents: 'none' }}>▾</span>
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: 12, pointerEvents: 'none' }}>▾</span>
                 </div>
                 {errPais && <p style={errorStyle}>{errPais}</p>}
               </div>
@@ -507,12 +491,12 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                     value={ciudad}
                     onChange={e => { setCiudad(e.target.value); setCiudadTexto(''); if (e.target.value) setErrCiudad(''); }}
                     disabled={!paisCodigo}
-                    style={{ ...selectStyle, color: ciudad ? '#fff' : '#444', opacity: !paisCodigo ? 0.4 : 1 }}
+                    style={{ ...selectStyle, color: ciudad ? 'var(--text-primary)' : 'var(--text-secondary)', opacity: !paisCodigo ? 0.4 : 1 }}
                   >
                     <option value="">{paisCodigo ? 'Selecciona tu ciudad' : 'Primero elige un país'}</option>
                     {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
-                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#444', fontSize: 12, pointerEvents: 'none' }}>▾</span>
+                  <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', fontSize: 12, pointerEvents: 'none' }}>▾</span>
                 </div>
                 {ciudad === 'Otra' && (
                   <input
@@ -520,7 +504,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
                     value={ciudadTexto}
                     onChange={e => { setCiudadTexto(e.target.value); if (e.target.value.trim()) setErrCiudad(''); }}
                     placeholder="Escribe tu ciudad"
-                    style={{ ...inputStyle, border: `1px solid ${errCiudad ? '#FF2D9B' : '#222'}`, marginTop: 10 }}
+                    style={{ ...inputStyle, border: `1px solid ${errCiudad ? '#FF2D9B' : 'var(--border-color)'}`, marginTop: 10 }}
                   />
                 )}
                 {errCiudad && <p style={errorStyle}>{errCiudad}</p>}
@@ -556,12 +540,11 @@ const Onboarding: React.FC<Props> = ({ session }) => {
           style={({ '--background': 'transparent', '--box-shadow': 'none' }) as React.CSSProperties}
         >
           <div style={{
-            background: '#000', height: '100%',
+            background: 'var(--bg-primary)', height: '100%',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             padding: '48px 32px 40px',
           }}>
-            {/* Logo */}
             <img
               src={logoImg}
               alt="e-PetPlace"
@@ -569,14 +552,14 @@ const Onboarding: React.FC<Props> = ({ session }) => {
             />
 
             <h2 style={{
-              color: '#fff', fontWeight: 900, fontSize: 22,
+              color: 'var(--text-primary)', fontWeight: 900, fontSize: 22,
               textAlign: 'center', margin: '0 0 18px', lineHeight: 1.35,
             }}>
               El único ecosistema digital para el cuidado integral de tus mascotas 🐾
             </h2>
 
             <p style={{
-              color: '#666', fontSize: 15,
+              color: 'var(--text-secondary)', fontSize: 15,
               textAlign: 'center', margin: '0 0 44px', lineHeight: 1.75,
             }}>
               Para personalizar tu experiencia, recomendarte los mejores productos y recordarte las vacunas a tiempo, necesitamos conocer a tus compañeros.
@@ -601,7 +584,7 @@ const Onboarding: React.FC<Props> = ({ session }) => {
               style={{
                 width: '100%', padding: '14px 0',
                 background: 'none', border: 'none',
-                color: '#aaaaaa', fontSize: 15,
+                color: 'var(--text-secondary)', fontSize: 15,
                 cursor: 'pointer', fontWeight: 500,
               }}
             >
