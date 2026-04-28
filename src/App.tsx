@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Redirect, Route, useLocation } from 'react-router-dom';
 import {
   IonApp, IonIcon, IonLabel, IonRouterOutlet,
@@ -24,14 +24,14 @@ import Home              from './pages/Home';
 import BioPet, { BioPetNew, BioPetDetail, BioPetEdit } from './pages/BioPet';
 import Store             from './pages/Store';
 import Profile           from './pages/Profile';
-import Vet               from './pages/Vet';
-import Adopcion          from './pages/Adopcion';
+const Vet        = lazy(() => import('./pages/Vet'));
+const Adopcion   = lazy(() => import('./pages/Adopcion'));
 import Cart              from './pages/Cart';
-import Checkout          from './pages/Checkout';
-import MisPedidos        from './pages/MisPedidos';
+const Checkout   = lazy(() => import('./pages/Checkout'));
+const MisPedidos = lazy(() => import('./pages/MisPedidos'));
 import Onboarding        from './pages/Onboarding';
 import ResetPassword     from './pages/ResetPassword';
-import Ayuda             from './pages/Ayuda';
+const Ayuda      = lazy(() => import('./pages/Ayuda'));
 import PrivacyPolicy     from './pages/legal/PrivacyPolicy';
 import TermsOfService    from './pages/legal/TermsOfService';
 import CookiesPolicy     from './pages/legal/CookiesPolicy';
@@ -97,6 +97,7 @@ const CartTabButton: React.FC = () => {
 /* ── Rutas autenticadas con tabs ─────────────────────────────── */
 const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   <IonTabs>
+    <Suspense fallback={<Splash />}>
     <IonRouterOutlet animated={true}>
       <Route exact path="/home"        render={() => <Home       session={session} />} />
       <Route exact path="/mascotas"    render={() => <BioPet     session={session} />} />
@@ -117,6 +118,7 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/biopet/:id" render={(props) => <BioPetDetail session={session} petId={props.match.params.id} />} />
       <Route render={() => <Redirect to="/home" />} />
     </IonRouterOutlet>
+    </Suspense>
 
     <IonTabBar slot="bottom">
       <IonTabButton tab="home"     href="/home">
@@ -161,6 +163,7 @@ const GuestContent: React.FC = () => (
   <>
     <GuestHeader />
     <IonTabs>
+      <Suspense fallback={<Splash />}>
       <IonRouterOutlet animated={true}>
         <Route exact path="/tienda"   render={() => <Store    session={null} />} />
         <Route exact path="/vet"      render={() => <Vet      session={null} />} />
@@ -173,6 +176,7 @@ const GuestContent: React.FC = () => (
         <Route exact path="/ayuda"      render={() => <Ayuda session={null} />} />
         <Route render={() => <Redirect to="/tienda" />} />
       </IonRouterOutlet>
+      </Suspense>
 
       <IonTabBar slot="bottom">
         <IonTabButton tab="tienda" href="/tienda">
