@@ -683,7 +683,13 @@ const Profile: React.FC<Props> = ({ session }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <DataCard campo="nombre"    icono="👤" color="#A78BFA" label="Nombre completo" valor={profile?.nombre ?? ''} editor={renderEditorNombre()} />
               <DataCard campo="email"     icono="📧" color="#00E5FF" label="Email"           valor={session.user.email ?? ''} editor={renderEditorEmail()} />
-              {!session.user.app_metadata?.provider?.includes('google') && (
+              {(() => {
+                const provider   = session.user.app_metadata?.provider;
+                const identities = session.user.identities ?? [];
+                const usaGoogle  = provider === 'google' ||
+                  identities.some((i: { provider: string }) => i.provider === 'google');
+                return !usaGoogle;
+              })() && (
                 <DataCard campo="password"  icono="🔒" color="#FF6B35" label="Contraseña"      valor="••••••••" editor={renderEditorPassword()} />
               )}
               <DataCard campo="telefono"  icono="📱" color="#00F5A0" label="Teléfono"
