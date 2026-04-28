@@ -97,7 +97,6 @@ const CartTabButton: React.FC = () => {
 /* ── Rutas autenticadas con tabs ─────────────────────────────── */
 const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
   <IonTabs>
-    <Suspense fallback={<Splash />}>
     <IonRouterOutlet animated={true}>
       <Route exact path="/home"        render={() => <Home       session={session} />} />
       <Route exact path="/mascotas"    render={() => <BioPet     session={session} />} />
@@ -118,7 +117,6 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/biopet/:id" render={(props) => <BioPetDetail session={session} petId={props.match.params.id} />} />
       <Route render={() => <Redirect to="/home" />} />
     </IonRouterOutlet>
-    </Suspense>
 
     <IonTabBar slot="bottom">
       <IonTabButton tab="home"     href="/home">
@@ -163,7 +161,6 @@ const GuestContent: React.FC = () => (
   <>
     <GuestHeader />
     <IonTabs>
-      <Suspense fallback={<Splash />}>
       <IonRouterOutlet animated={true}>
         <Route exact path="/tienda"   render={() => <Store    session={null} />} />
         <Route exact path="/vet"      render={() => <Vet      session={null} />} />
@@ -176,7 +173,6 @@ const GuestContent: React.FC = () => (
         <Route exact path="/ayuda"      render={() => <Ayuda session={null} />} />
         <Route render={() => <Redirect to="/tienda" />} />
       </IonRouterOutlet>
-      </Suspense>
 
       <IonTabBar slot="bottom">
         <IonTabButton tab="tienda" href="/tienda">
