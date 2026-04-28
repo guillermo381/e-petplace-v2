@@ -70,6 +70,16 @@ const METODO_LABEL: Record<string, string> = {
   efectivo:      '💵 Efectivo',
 };
 
+const detectarTipoPedido = (items: PedidoItem[]): 'producto' | 'cita' | 'donacion' | 'mixto' => {
+  const tieneProd = items.some(i => !i.tipo || i.tipo === 'producto');
+  const tieneCita = items.some(i => i.tipo === 'cita');
+  const tieneDon  = items.some(i => i.tipo === 'donacion');
+  if (tieneDon && !tieneProd && !tieneCita) return 'donacion';
+  if (tieneCita && !tieneProd && !tieneDon) return 'cita';
+  if (tieneProd && !tieneCita && !tieneDon) return 'producto';
+  return 'mixto';
+};
+
 /* ── Helpers ─────────────────────────────────────────────────── */
 function formatFechaOrden(fecha: string): string {
   const hoy  = new Date();
@@ -243,8 +253,11 @@ const MisPedidos: React.FC<Props> = ({ session }) => {
    CARD DE PEDIDO
 ════════════════════════════════════════════════════════════════ */
 const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedido, onDetalle }) => {
-  const estado  = ESTADOS[pedido.estado] ?? ESTADOS['confirmado'];
-  const hasCitas = pedido.items.some(i => i.tipo === 'cita');
+  const estado    = ESTADOS[pedido.estado] ?? ESTADOS['confirmado'];
+  const hasCitas  = pedido.items.some(i => i.tipo === 'cita');
+  const tipoPed   = detectarTipoPedido(pedido.items);
+  const tipoIcon  = tipoPed === 'donacion' ? '❤️' : tipoPed === 'cita' ? '🏥' : '📦';
+  const tipoLabel = tipoPed === 'donacion' ? 'Donación' : tipoPed === 'cita' ? 'Cita veterinaria' : tipoPed === 'mixto' ? 'Pedido mixto' : 'Pedido';
 
   return (
     <div style={{
@@ -258,6 +271,9 @@ const PedidoCard: React.FC<{ pedido: Pedido; onDetalle: () => void }> = ({ pedid
         {/* Header card */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '0 0 2px' }}>
+              {tipoIcon} {tipoLabel}
+            </p>
             <p style={{ color: '#00E5FF', fontWeight: 800, fontSize: 14, margin: 0 }}>
               #{pedido.numero_orden}
             </p>
@@ -346,7 +362,6 @@ const DetalleModal: React.FC<{
 }> = ({ pedido, onClose, onAyuda }) => {
   const estado   = ESTADOS[pedido.estado] ?? ESTADOS['confirmado'];
   const hasCitas = pedido.items.some(i => i.tipo === 'cita');
-  const stepIdx  = TIMELINE_STEPS.indexOf(pedido.estado);
 
   return (
     <div style={{ padding: '28px 20px' }}>
@@ -393,55 +408,137 @@ const DetalleModal: React.FC<{
         </div>
       )}
 
-      {/* Timeline de estados */}
-      {pedido.estado !== 'cancelado' && (
-        <Section title="Estado del pedido">
-          <div style={{ padding: '4px 0' }}>
-            {TIMELINE_STEPS.map((step, idx) => {
-              const cfg       = ESTADOS[step];
-              const done      = idx < stepIdx;
-              const current   = idx === stepIdx;
-              const future    = idx > stepIdx;
-              const isLast    = idx === TIMELINE_STEPS.length - 1;
-              return (
-                <div key={step} style={{ display: 'flex', gap: 14, position: 'relative' }}>
-                  {/* Línea vertical */}
-                  {!isLast && (
-                    <div style={{
-                      position: 'absolute', left: 11, top: 28, width: 2, height: 'calc(100% - 8px)',
-                      background: done ? cfg.color : '#999999',
-                    }} />
-                  )}
-                  {/* Punto */}
-                  <div style={{
-                    width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
-                    background: done ? '#00F5A0' : current ? cfg.color : 'transparent',
-                    border: `2px solid ${done ? '#00F5A0' : current ? cfg.color : '#999999'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 900, color: '#000',
-                    boxShadow: current ? `0 0 10px ${cfg.color}66` : 'none',
-                    position: 'relative', zIndex: 1,
-                  }}>
-                    {done ? '✓' : current ? '●' : ''}
-                  </div>
-                  {/* Texto */}
-                  <div style={{ paddingBottom: isLast ? 0 : 20 }}>
-                    <p style={{
-                      color: done ? '#00F5A0' : current ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontSize: 13, fontWeight: current ? 700 : 500, margin: 0,
-                    }}>
-                      {cfg.icon} {cfg.label}
-                    </p>
-                    {current && (
-                      <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>{cfg.descripcion}</p>
+      {/* Timeline — solo para productos físicos */}
+      {pedido.estado !== 'cancelado' && (() => {
+        const tipo = detectarTipoPedido(pedido.items);
+
+        if (tipo === 'donacion') {
+          const pasosDon = [
+            { key: 'confirmado',  label: 'Donación confirmada',    icon: '✅', desc: 'Gracias por tu generosidad' },
+            { key: 'transferido', label: 'Transferida al refugio', icon: '❤️', desc: 'El refugio ya recibió tu apoyo' },
+            { key: 'impacto',     label: 'Impacto generado',       icon: '🌟', desc: 'Tu donación cambió una vida' },
+          ];
+          const pasoActual = 0;
+          return (
+            <Section title="Estado de tu donación">
+              <div style={{ padding: '4px 0' }}>
+                {pasosDon.map((paso, idx) => {
+                  const done    = idx < pasoActual;
+                  const current = idx === pasoActual;
+                  return (
+                    <div key={paso.key} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+                      {idx < pasosDon.length - 1 && (
+                        <div style={{ position: 'absolute', left: 11, top: 28, width: 2, height: 'calc(100% - 8px)', background: done ? '#00F5A0' : '#999999' }} />
+                      )}
+                      <div style={{
+                        width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                        background: done ? '#00F5A0' : current ? 'rgba(255,45,155,0.15)' : 'transparent',
+                        border: `2px solid ${done ? '#00F5A0' : current ? '#FF2D9B' : '#999999'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, position: 'relative', zIndex: 1,
+                      }}>
+                        {done ? '✓' : current ? '●' : ''}
+                      </div>
+                      <div style={{ paddingBottom: idx < pasosDon.length - 1 ? 20 : 0 }}>
+                        <p style={{ color: done ? '#00F5A0' : current ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13, fontWeight: current ? 700 : 500, margin: 0 }}>
+                          {paso.icon} {paso.label}
+                        </p>
+                        {current && <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>{paso.desc}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ marginTop: 16, padding: '12px 14px', background: 'rgba(255,45,155,0.06)', borderRadius: 12, border: '1px solid rgba(255,45,155,0.2)' }}>
+                <p style={{ color: '#FF2D9B', fontSize: 13, fontWeight: 700, margin: '0 0 4px' }}>❤️ ¡Gracias por donar!</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 12, margin: 0 }}>
+                  Tu apoyo llega directamente al refugio. Cada donación cuenta para darle una mejor vida a estos animales.
+                </p>
+              </div>
+            </Section>
+          );
+        }
+
+        if (tipo === 'cita') {
+          const pasosCita = [
+            { key: 'confirmado',   label: 'Cita confirmada',   icon: '✅', desc: 'Tu cita ha sido registrada' },
+            { key: 'recordatorio', label: 'Recordatorio 24h',  icon: '🔔', desc: 'Te avisaremos el día anterior' },
+            { key: 'completada',   label: 'Cita completada',   icon: '🏥', desc: 'Esperamos que todo salga bien' },
+          ];
+          const pasoActual = 0;
+          return (
+            <Section title="Estado de tu cita">
+              <div style={{ padding: '4px 0' }}>
+                {pasosCita.map((paso, idx) => {
+                  const done    = idx < pasoActual;
+                  const current = idx === pasoActual;
+                  return (
+                    <div key={paso.key} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+                      {idx < pasosCita.length - 1 && (
+                        <div style={{ position: 'absolute', left: 11, top: 28, width: 2, height: 'calc(100% - 8px)', background: done ? '#00E5FF' : '#999999' }} />
+                      )}
+                      <div style={{
+                        width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                        background: done ? '#00E5FF' : current ? 'rgba(0,229,255,0.15)' : 'transparent',
+                        border: `2px solid ${done ? '#00E5FF' : current ? '#00E5FF' : '#999999'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, position: 'relative', zIndex: 1,
+                      }}>
+                        {done ? '✓' : current ? '●' : ''}
+                      </div>
+                      <div style={{ paddingBottom: idx < pasosCita.length - 1 ? 20 : 0 }}>
+                        <p style={{ color: done ? '#00E5FF' : current ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13, fontWeight: current ? 700 : 500, margin: 0 }}>
+                          {paso.icon} {paso.label}
+                        </p>
+                        {current && <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>{paso.desc}</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          );
+        }
+
+        // Producto físico — timeline original
+        const stepIdx = TIMELINE_STEPS.indexOf(pedido.estado);
+        return (
+          <Section title="Estado del pedido">
+            <div style={{ padding: '4px 0' }}>
+              {TIMELINE_STEPS.map((step, idx) => {
+                const cfg     = ESTADOS[step];
+                const done    = idx < stepIdx;
+                const current = idx === stepIdx;
+                const isLast  = idx === TIMELINE_STEPS.length - 1;
+                return (
+                  <div key={step} style={{ display: 'flex', gap: 14, position: 'relative' }}>
+                    {!isLast && (
+                      <div style={{ position: 'absolute', left: 11, top: 28, width: 2, height: 'calc(100% - 8px)', background: done ? cfg.color : '#999999' }} />
                     )}
+                    <div style={{
+                      width: 24, height: 24, borderRadius: '50%', flexShrink: 0, marginTop: 2,
+                      background: done ? '#00F5A0' : current ? cfg.color : 'transparent',
+                      border: `2px solid ${done ? '#00F5A0' : current ? cfg.color : '#999999'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 900, color: '#000',
+                      boxShadow: current ? `0 0 10px ${cfg.color}66` : 'none',
+                      position: 'relative', zIndex: 1,
+                    }}>
+                      {done ? '✓' : current ? '●' : ''}
+                    </div>
+                    <div style={{ paddingBottom: isLast ? 0 : 20 }}>
+                      <p style={{ color: done ? '#00F5A0' : current ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: 13, fontWeight: current ? 700 : 500, margin: 0 }}>
+                        {cfg.icon} {cfg.label}
+                      </p>
+                      {current && <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '3px 0 0' }}>{cfg.descripcion}</p>}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      )}
+                );
+              })}
+            </div>
+          </Section>
+        );
+      })()}
 
       {/* Productos */}
       <Section title="Productos">
@@ -486,8 +583,8 @@ const DetalleModal: React.FC<{
         </Section>
       )}
 
-      {/* Info de envío */}
-      {(pedido.direccion || pedido.metodo_pago) && (
+      {/* Info de envío — solo para productos físicos */}
+      {detectarTipoPedido(pedido.items) === 'producto' && (pedido.direccion || pedido.metodo_pago) && (
         <Section title="Información de envío">
           {pedido.direccion && (
             <InfoRow label="Dirección" value={`${pedido.direccion}${pedido.ciudad ? `, ${pedido.ciudad}` : ''}`} />
@@ -512,6 +609,18 @@ const DetalleModal: React.FC<{
           </div>
         </div>
       </Section>
+
+      {detectarTipoPedido(pedido.items) === 'donacion' && (
+        <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+          <span style={{ fontSize: 40 }}>🌟</span>
+          <p style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: 16, margin: '8px 0 4px' }}>
+            ¡Eres increíble!
+          </p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>
+            Tu donación hace la diferencia para estos animales
+          </p>
+        </div>
+      )}
 
       {/* Botón ayuda */}
       <button

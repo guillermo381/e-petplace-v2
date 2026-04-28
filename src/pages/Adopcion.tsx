@@ -1,652 +1,633 @@
-/*
--- SQL to run in Supabase SQL Editor:
-CREATE TABLE solicitudes_adopcion (
-  id                  uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id             uuid REFERENCES auth.users(id),
-  mascota_nombre      text,
-  refugio             text,
-  nombre_solicitante  text,
-  email               text,
-  telefono            text,
-  tiene_mascotas      boolean,
-  espacio_exterior    boolean,
-  motivo              text,
-  created_at          timestamptz DEFAULT now()
-);
-ALTER TABLE solicitudes_adopcion ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users manage own solicitudes" ON solicitudes_adopcion
-  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-*/
-
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  IonPage, IonContent, IonModal, IonSegment, IonSegmentButton,
-  IonLabel, IonTextarea, IonLoading,
-} from '@ionic/react';
+import { IonPage, IonContent, IonModal, IonTextarea, IonLoading } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
 
 /* ── Tipos ───────────────────────────────────────────────────── */
 interface PetAdopcion {
-  id: number; nombre: string; especie: string; raza: string; edad: string;
-  sexo: string; tamaño: string; foto: string; descripcion: string;
+  id: string; nombre: string; especie: string; raza: string; edad: string;
+  sexo: string; tamanio: string; foto: string; descripcion: string;
   vacunada: boolean; esterilizada: boolean; refugio: string;
   urgente: boolean; color: string;
+  costo_vacunas: number; costo_esteril: number;
 }
 
 interface Props { session: Session | null }
 
-/* ── Datos ───────────────────────────────────────────────────── */
-const MASCOTAS: PetAdopcion[] = [
-  { id:1,  nombre:'Luna',   especie:'Perro',   raza:'Labrador Mix',        edad:'2 años',   sexo:'Hembra', tamaño:'Grande',  foto:'🐕', descripcion:'Luna es una perrita dulce y juguetona que ama a los niños. Fue rescatada de la calle y está lista para encontrar su hogar forever.',                                 vacunada:true,  esterilizada:true,  refugio:'Refugio Patitas Quito',       urgente:false, color:'#FF2D9B' },
-  { id:2,  nombre:'Max',    especie:'Perro',   raza:'Beagle Mix',           edad:'1 año',    sexo:'Macho',  tamaño:'Mediano', foto:'🐶', descripcion:'Max es un cachorro lleno de energía que busca una familia activa. Le encanta jugar y aprender trucos nuevos.',                                                    vacunada:true,  esterilizada:false, refugio:'Hogar Animal Ecuador',        urgente:true,  color:'#00E5FF' },
-  { id:3,  nombre:'Michi',  especie:'Gato',    raza:'Doméstico',            edad:'3 años',   sexo:'Macho',  tamaño:'Mediano', foto:'🐱', descripcion:'Michi es un gato tranquilo y cariñoso, perfecto para apartamentos. Se lleva bien con otros gatos.',                                                               vacunada:true,  esterilizada:true,  refugio:'Refugio Felino Quito',        urgente:false, color:'#7C3AED' },
-  { id:4,  nombre:'Bella',  especie:'Perro',   raza:'Golden Mix',           edad:'4 años',   sexo:'Hembra', tamaño:'Grande',  foto:'🦮', descripcion:'Bella es una perra adulta, muy tranquila y entrenada. Ideal para familias con experiencia.',                                                                    vacunada:true,  esterilizada:true,  refugio:'Refugio Patitas Quito',       urgente:false, color:'#FFE600' },
-  { id:5,  nombre:'Simba',  especie:'Gato',    raza:'Naranja Doméstico',    edad:'6 meses',  sexo:'Macho',  tamaño:'Pequeño', foto:'😺', descripcion:'Simba es un gatito bebé, curioso y juguetón. Necesita hogar urgente junto a su hermana Nala.',                                                                  vacunada:false, esterilizada:false, refugio:'Hogar Animal Ecuador',        urgente:true,  color:'#FF2D9B' },
-  { id:6,  nombre:'Nala',   especie:'Gato',    raza:'Carey Doméstica',      edad:'6 meses',  sexo:'Hembra', tamaño:'Pequeño', foto:'🐈', descripcion:'Nala es la hermana de Simba. Son inseparables y se busca hogar que pueda adoptarlos juntos.',                                                                    vacunada:false, esterilizada:false, refugio:'Hogar Animal Ecuador',        urgente:true,  color:'#00E5FF' },
-  { id:7,  nombre:'Rocky',  especie:'Perro',   raza:'Bulldog Mix',          edad:'5 años',   sexo:'Macho',  tamaño:'Mediano', foto:'🐾', descripcion:'Rocky es un perro senior muy noble. Ha esperado 2 años en el refugio su oportunidad de tener familia.',                                                          vacunada:true,  esterilizada:true,  refugio:'Refugio Segunda Oportunidad', urgente:true,  color:'#FFE600' },
-  { id:8,  nombre:'Cleo',   especie:'Gato',    raza:'Siamés Mix',           edad:'2 años',   sexo:'Hembra', tamaño:'Mediano', foto:'😸', descripcion:'Cleo es una gata elegante y curiosa. Le encanta mirar por la ventana y jugar con plumas.',                                                                       vacunada:true,  esterilizada:true,  refugio:'Refugio Felino Quito',        urgente:false, color:'#7C3AED' },
-  { id:9,  nombre:'Thor',   especie:'Perro',   raza:'Husky Mix',            edad:'1 año',    sexo:'Macho',  tamaño:'Grande',  foto:'🐺', descripcion:'Thor (no confundir con el tuyo!) es un husky hermoso que necesita espacio y ejercicio diario.',                                                                  vacunada:true,  esterilizada:false, refugio:'Refugio Patitas Quito',       urgente:false, color:'#00E5FF' },
-  { id:10, nombre:'Canela', especie:'Perro',   raza:'Salchicha Mix',        edad:'3 años',   sexo:'Hembra', tamaño:'Pequeño', foto:'🌭', descripcion:'Canela es pequeña pero con una personalidad enorme. Perfecta para apartamento y adora los mimos.',                                                               vacunada:true,  esterilizada:true,  refugio:'Hogar Animal Ecuador',        urgente:false, color:'#FF2D9B' },
-  { id:11, nombre:'Pelusa', especie:'Conejo',  raza:'Angora',               edad:'1 año',    sexo:'Hembra', tamaño:'Pequeño', foto:'🐰', descripcion:'Pelusa es una conejita muy suave y tranquila. Ideal para niños. Come poco y es muy limpia.',                                                                      vacunada:true,  esterilizada:false, refugio:'Refugio Animales Exóticos',   urgente:false, color:'#FFE600' },
-  { id:12, nombre:'Pico',   especie:'Ave',     raza:'Periquito',            edad:'2 años',   sexo:'Macho',  tamaño:'Pequeño', foto:'🦜', descripcion:'Pico habla y canta todo el día. Busca familia paciente que disfrute de su compañía musical.',                                                                     vacunada:false, esterilizada:false, refugio:'Refugio Animales Exóticos',   urgente:false, color:'#00E5FF' },
-];
-
 const FILTROS = ['Todos','Perros','Gatos','Aves','Conejos','Urgente ❤️‍🔥'];
 
-/* ── Sub-componentes ─────────────────────────────────────────── */
-const Toast: React.FC<{ msg: string }> = ({ msg }) => (
+/* ── Helpers ─────────────────────────────────────────────────── */
+const Toast: React.FC<{ msg: string }> = ({ msg }) => msg ? (
   <div style={{
     position:'fixed', bottom:84, left:'50%', transform:'translateX(-50%)',
-    background:'#111', border:'1px solid #333', borderRadius:12,
-    padding:'12px 20px', color:'#fff', fontSize:14, fontWeight:600,
-    zIndex:9999, whiteSpace:'nowrap', boxShadow:'0 4px 24px rgba(0,0,0,0.6)',
+    background:'linear-gradient(90deg,#FF2D9B,#00E5FF)', borderRadius:12,
+    padding:'12px 20px', color:'#000', fontSize:14, fontWeight:700,
+    zIndex:9999, whiteSpace:'nowrap', boxShadow:'0 4px 24px rgba(0,0,0,0.4)',
   }}>{msg}</div>
-);
+) : null;
 
-const Chip: React.FC<{ label: string; color?: string }> = ({ label, color = '#333' }) => (
+const Chip: React.FC<{ label: string; color?: string }> = ({ label, color = '#888' }) => (
   <span style={{
     fontSize:11, fontWeight:600, padding:'3px 8px', borderRadius:20,
     background:`${color}22`, color, border:`1px solid ${color}44`,
   }}>{label}</span>
 );
 
+const FormField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div style={{ marginBottom:16 }}>
+    <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600,
+      letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>{label}</p>
+    {children}
+  </div>
+);
+
+const iStyle: React.CSSProperties = {
+  width:'100%', boxSizing:'border-box',
+  background:'var(--bg-card)', border:'1px solid var(--border-color)', borderRadius:12,
+  padding:'13px 16px', color:'var(--text-primary)', fontSize:14,
+};
+
 /* ════════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const Adopcion: React.FC<Props> = ({ session }) => {
-  const history = useHistory();
-  const [filtro,       setFiltro]       = useState('Todos');
-  const [petModal,     setPetModal]     = useState<PetAdopcion | null>(null);
-  const [formModal,    setFormModal]    = useState<PetAdopcion | null>(null);
-  const [toast,        setToast]        = useState('');
-  const [saving,       setSaving]       = useState(false);
-  const [authWall,     setAuthWall]     = useState(false);
+  const history  = useHistory();
+  const { addToCart } = useCart();
 
-  // Perfil pre-llenado
-  const [nombreForm,   setNombreForm]   = useState('');
-  const [emailForm,    setEmailForm]    = useState('');
-  const [telForm,      setTelForm]      = useState('');
-  const [tieneMasc,    setTieneMasc]    = useState<'si'|'no'>('no');
-  const [cualesMasc,   setCualesMasc]   = useState('');
-  const [patio,        setPatio]        = useState<'si'|'no'>('no');
-  const [motivoForm,   setMotivoForm]   = useState('');
-  const [acuerdo,      setAcuerdo]      = useState(false);
+  const [mascotas,    setMascotas]    = useState<PetAdopcion[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [filtro,      setFiltro]      = useState('Todos');
+  const [petModal,    setPetModal]    = useState<PetAdopcion | null>(null);
+  const [formModal,   setFormModal]   = useState<PetAdopcion | null>(null);
+  const [donModal,    setDonModal]    = useState<PetAdopcion | null>(null);
+  const [authWall,    setAuthWall]    = useState(false);
+  const [toast,       setToast]       = useState('');
+  const [saving,      setSaving]      = useState(false);
+
+  // Formulario solicitud
+  const [nombreForm,  setNombreForm]  = useState('');
+  const [emailForm,   setEmailForm]   = useState('');
+  const [telForm,     setTelForm]     = useState('');
+  const [tieneMasc,   setTieneMasc]   = useState<'si'|'no'>('no');
+  const [cualesMasc,  setCualesMasc]  = useState('');
+  const [patio,       setPatio]       = useState<'si'|'no'>('no');
+  const [motivoForm,  setMotivoForm]  = useState('');
+  const [acuerdo,     setAcuerdo]     = useState(false);
+
+  // Donación
+  const [montoCustom, setMontoCustom] = useState('');
+  const [montoSel,    setMontoSel]    = useState(0);
+  const [mensajeDon,  setMensajeDon]  = useState('');
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3500); };
 
+  /* ── Cargar mascotas desde Supabase ──────────────────────────── */
+  const fetchMascotas = useCallback(async () => {
+    const { data } = await supabase
+      .from('mascotas_adopcion')
+      .select('*')
+      .eq('activa', true)
+      .order('urgente', { ascending: false })
+      .order('created_at', { ascending: false });
+    if (data) setMascotas(data as PetAdopcion[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchMascotas(); }, [fetchMascotas]);
+
+  /* ── Pre-llenar perfil ───────────────────────────────────────── */
   useEffect(() => {
     if (!session) return;
-    supabase.from('profiles').select('nombre,email').eq('id', session.user.id).single()
+    supabase.from('profiles').select('nombre,email,telefono').eq('id', session.user.id).single()
       .then(({ data }) => {
         if (data) {
           setNombreForm(data.nombre ?? '');
           setEmailForm(data.email ?? session.user.email ?? '');
+          setTelForm(data.telefono ?? '');
         } else {
           setEmailForm(session.user.email ?? '');
         }
       });
   }, [session]);
 
-  /* ── Filtrado ──────────────────────────────────────────────── */
-  const filtradas = MASCOTAS.filter(m => {
-    if (filtro === 'Todos')           return true;
-    if (filtro === 'Perros')          return m.especie === 'Perro';
-    if (filtro === 'Gatos')           return m.especie === 'Gato';
-    if (filtro === 'Aves')            return m.especie === 'Ave';
-    if (filtro === 'Conejos')         return m.especie === 'Conejo';
-    if (filtro === 'Urgente ❤️‍🔥')    return m.urgente;
+  /* ── Filtrado ────────────────────────────────────────────────── */
+  const filtradas = mascotas.filter(m => {
+    if (filtro === 'Todos')        return true;
+    if (filtro === 'Perros')       return m.especie === 'Perro';
+    if (filtro === 'Gatos')        return m.especie === 'Gato';
+    if (filtro === 'Aves')         return m.especie === 'Ave';
+    if (filtro === 'Conejos')      return m.especie === 'Conejo';
+    if (filtro === 'Urgente ❤️‍🔥') return m.urgente;
     return true;
   });
 
-  const hayUrgentes = filtradas.some(m => m.urgente);
-
-  /* ── Abrir formulario ──────────────────────────────────────── */
+  /* ── Abrir formulario adopción ───────────────────────────────── */
   const abrirFormulario = (pet: PetAdopcion) => {
     if (!session) { setAuthWall(true); return; }
+    setPetModal(null);
     setFormModal(pet);
-    setMotivoForm('');
-    setAcuerdo(false);
-    setTieneMasc('no');
-    setCualesMasc('');
-    setPatio('no');
-    setTelForm('');
+    setMotivoForm(''); setAcuerdo(false);
+    setTieneMasc('no'); setCualesMasc(''); setPatio('no');
   };
 
-  /* ── Enviar solicitud ──────────────────────────────────────── */
+  /* ── Abrir modal donación ────────────────────────────────────── */
+  const abrirDonacion = (pet: PetAdopcion) => {
+    setDonModal(pet);
+    setMontoSel(0);
+    setMontoCustom('');
+    setMensajeDon('');
+    setPetModal(null);
+  };
+
+  /* ── Enviar solicitud adopción ───────────────────────────────── */
   const enviarSolicitud = async () => {
-    if (!formModal || !motivoForm.trim() || !acuerdo) {
-      showToast('Completa todos los campos requeridos');
-      return;
+    if (!session || !formModal) return;
+    if (!nombreForm.trim() || !emailForm.trim()) {
+      showToast('⚠️ Nombre y email son obligatorios'); return;
+    }
+    if (!motivoForm.trim() || motivoForm.length < 20) {
+      showToast('⚠️ Cuéntanos más sobre ti (mínimo 20 caracteres)'); return;
+    }
+    if (!acuerdo) {
+      showToast('⚠️ Confirma que todos en tu hogar están de acuerdo'); return;
     }
     setSaving(true);
     const { error } = await supabase.from('solicitudes_adopcion').insert({
-      user_id:            session?.user.id ?? null,
+      user_id:            session.user.id,
       mascota_nombre:     formModal.nombre,
       refugio:            formModal.refugio,
-      nombre_solicitante: nombreForm,
-      email:              emailForm,
-      telefono:           telForm,
+      nombre_solicitante: nombreForm.trim(),
+      email:              emailForm.trim(),
+      telefono:           telForm.trim(),
       tiene_mascotas:     tieneMasc === 'si',
       espacio_exterior:   patio === 'si',
-      motivo:             motivoForm,
+      motivo:             motivoForm.trim(),
     });
     setSaving(false);
-    if (error) { showToast('Error: ' + error.message); return; }
+    if (error) { showToast('❌ Error al enviar. Intenta de nuevo.'); return; }
     setFormModal(null);
-    setPetModal(null);
-    showToast('¡Solicitud enviada! El refugio te contactará pronto 🐾💜');
+    showToast(`🐾 ¡Solicitud enviada! ${formModal.refugio} te contactará pronto.`);
   };
 
-  /* ── Render ────────────────────────────────────────────────── */
+  /* ── Agregar donación al carrito ─────────────────────────────── */
+  const agregarDonacion = () => {
+    if (!donModal) return;
+    const monto = montoSel > 0 ? montoSel : parseFloat(montoCustom);
+    if (!monto || monto < 1) { showToast('⚠️ Ingresa un monto válido'); return; }
+
+    addToCart({
+      producto_id:   `donacion-${donModal.id}-${Date.now()}`,
+      nombre:        `Donación para ${donModal.nombre} 🐾`,
+      precio:        monto,
+      imagen_emoji:  '❤️',
+      tipo:          'donacion',
+      subtitulo:     `${donModal.refugio}`,
+      metadata:      {
+        mascota_id:  donModal.id,
+        refugio:     donModal.refugio,
+        mensaje:     mensajeDon,
+      },
+    });
+    setDonModal(null);
+    showToast(`❤️ $${monto} para ${donModal.nombre} — ¡gracias!`);
+  };
+
+  /* ── Montos sugeridos de donación ────────────────────────────── */
+  const montosParaMascota = (pet: PetAdopcion): { monto: number; label: string }[] => {
+    const opts = [];
+    if (pet.costo_vacunas > 0) opts.push({ monto: pet.costo_vacunas, label: `💉 Vacunas ($${pet.costo_vacunas})` });
+    if (pet.costo_esteril > 0) opts.push({ monto: pet.costo_esteril, label: `✂️ Esterilización ($${pet.costo_esteril})` });
+    opts.push({ monto: 10, label: '🍖 Alimento ($10)' });
+    opts.push({ monto: 25, label: '🏥 Chequeo ($25)' });
+    return opts;
+  };
+
+  /* ── Render ──────────────────────────────────────────────────── */
   return (
     <IonPage>
-      <IonContent style={{ '--background': '#000' } as React.CSSProperties}>
-        <div style={{ paddingBottom: 80 }}>
+      <IonContent fullscreen style={{ '--background': 'var(--bg-primary)' } as React.CSSProperties}>
+        <div style={{ background:'var(--bg-primary)', minHeight:'100vh', paddingBottom:100 }}>
 
-          {/* ── ZONA 1: HEADER EMOCIONAL ─────────────────────── */}
-          <div style={{
-            background: 'linear-gradient(180deg, rgba(255,45,155,0.18) 0%, #000 100%)',
-            padding: '52px 20px 24px',
-          }}>
-            <button
-              onClick={() => history.goBack()}
-              style={{ background:'#111', border:'1px solid #222', borderRadius:10,
-                width:36, height:36, color:'#fff', fontSize:18, cursor:'pointer',
-                display:'flex', alignItems:'center', justifyContent:'center', marginBottom:20 }}
-            >‹</button>
-
-            <h1 style={{ color:'#fff', fontWeight:800, fontSize:26, margin:'0 0 6px', lineHeight:1.2 }}>
-              Encuentra tu<br />compañero 🐾
+          {/* ── Header ────────────────────────────────────────── */}
+          <div style={{ padding:'52px 20px 8px' }}>
+            <h1 style={{ color:'var(--text-primary)', fontSize:24, fontWeight:800, margin:'0 0 4px' }}>
+              Adopción 🐾
             </h1>
-            <p style={{ color:'#555', fontSize:14, margin:'0 0 10px' }}>
-              Estos angelitos esperan por ti
+            <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'0 0 16px' }}>
+              {loading ? '...' : `${mascotas.length} mascotas esperan un hogar`}
             </p>
-            <span style={{ color:'#00E5FF', fontSize:13, fontWeight:700 }}>
-              {MASCOTAS.length} mascotas buscan hogar
-            </span>
-          </div>
 
-          {/* ── ZONA 2: FILTROS ──────────────────────────────── */}
-          <div style={{ padding:'0 20px 16px', overflowX:'auto' }}>
-            <div style={{ display:'flex', gap:8 }} className="no-scrollbar">
-              {FILTROS.map(f => (
-                <button key={f} onClick={() => setFiltro(f)} style={{
-                  flexShrink:0, padding:'8px 16px', borderRadius:20,
-                  fontSize:13, fontWeight:600, cursor:'pointer', border:'none',
-                  background: filtro === f
-                    ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)'
-                    : '#111',
-                  color: filtro === f ? '#000' : '#666',
-                  boxShadow: filtro === f ? '0 0 12px rgba(0,229,255,0.3)' : 'none',
-                  transition: 'all 0.2s',
-                }}>{f}</button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── ZONA 3: BANNER URGENTE ───────────────────────── */}
-          {hayUrgentes && (
+            {/* Banner donación */}
             <div style={{
-              margin:'0 20px 16px',
-              background:'rgba(255,45,155,0.08)',
-              border:'1px solid rgba(255,45,155,0.3)',
-              borderRadius:14, padding:'12px 16px',
+              background:'linear-gradient(135deg,rgba(255,45,155,0.12),rgba(124,58,237,0.12))',
+              border:'1px solid rgba(255,45,155,0.25)', borderRadius:16,
+              padding:'14px 16px', marginBottom:16,
+              display:'flex', alignItems:'center', gap:12,
             }}>
-              <p style={{ color:'#FF2D9B', fontWeight:700, fontSize:13, margin:0 }}>
-                ❤️‍🔥 Adopción urgente — estos bebés necesitan hogar YA
-              </p>
-            </div>
-          )}
-
-          {/* ── ZONA 4: GRID DE MASCOTAS ─────────────────────── */}
-          <div style={{
-            display:'grid', gridTemplateColumns:'1fr 1fr',
-            gap:12, padding:'0 20px',
-          }}>
-            {filtradas.map(pet => (
-              <div key={pet.id} style={{
-                background:'#111', borderRadius:16, padding:14,
-                border:'1px solid #1e1e1e', position:'relative',
-                display:'flex', flexDirection:'column', gap:8,
-              }}>
-                {/* Badge urgente */}
-                {pet.urgente && (
-                  <div style={{
-                    position:'absolute', top:10, right:10,
-                    background:'rgba(255,45,155,0.15)', border:'1px solid rgba(255,45,155,0.4)',
-                    borderRadius:8, padding:'2px 6px', fontSize:10, fontWeight:700, color:'#FF2D9B',
-                  }}>URGENTE 🔥</div>
-                )}
-
-                {/* Avatar */}
-                <div style={{
-                  width:64, height:64, borderRadius:'50%',
-                  background:`${pet.color}33`,
-                  border:`2px solid ${pet.color}55`,
-                  display:'flex', alignItems:'center', justifyContent:'center',
-                  fontSize:32, margin:'4px auto 0',
-                }}>{pet.foto}</div>
-
-                {/* Info */}
-                <p style={{ color:'#fff', fontWeight:800, fontSize:15, margin:0, textAlign:'center' }}>
-                  {pet.nombre}
+              <span style={{ fontSize:28, flexShrink:0 }}>❤️</span>
+              <div style={{ flex:1 }}>
+                <p style={{ color:'var(--text-primary)', fontWeight:700, fontSize:13, margin:'0 0 2px' }}>
+                  ¿No puedes adoptar ahora?
                 </p>
-                <p style={{ color:'#666', fontSize:11, margin:0, textAlign:'center', lineHeight:1.3 }}>
-                  {pet.raza}<br />{pet.edad}
+                <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0 }}>
+                  Dona su alimento, vacunas o esterilización
                 </p>
-
-                {/* Chips */}
-                <div style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'center' }}>
-                  <Chip label={pet.sexo}  color={pet.sexo === 'Macho' ? '#00E5FF' : '#FF2D9B'} />
-                  <Chip label={pet.tamaño} color='#888' />
-                </div>
-
-                {/* Vacuna / esterilizada */}
-                <div style={{ display:'flex', justifyContent:'center', gap:10 }}>
-                  <span style={{ fontSize:11, color: pet.vacunada    ? '#00F5A0' : '#444' }}>
-                    💉 {pet.vacunada    ? 'Vacunado' : 'Sin vacuna'}
-                  </span>
-                  <span style={{ fontSize:11, color: pet.esterilizada ? '#00F5A0' : '#444' }}>
-                    ✂️ {pet.esterilizada ? 'Esteril.' : 'No ester.'}
-                  </span>
-                </div>
-
-                {/* Refugio */}
-                <p style={{ color:'#00E5FF', fontSize:10, margin:0, textAlign:'center',
-                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                  {pet.refugio}
-                </p>
-
-                {/* Botón */}
-                <button
-                  onClick={() => setPetModal(pet)}
-                  style={{
-                    marginTop:4, padding:'10px 0', borderRadius:10,
-                    fontSize:12, fontWeight:700, cursor:'pointer',
-                    background: 'linear-gradient(#111,#111) padding-box, linear-gradient(90deg,#FF2D9B,#00E5FF) border-box',
-                    border: '1.5px solid transparent',
-                    color: '#fff',
-                  }}
-                >Ver historia</button>
               </div>
+              <button
+                onClick={() => { const urgente = mascotas.find(m => m.urgente); if (urgente) abrirDonacion(urgente); }}
+                style={{
+                  background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                  border:'none', borderRadius:10, padding:'8px 14px',
+                  color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer', flexShrink:0,
+                }}
+              >Donar ❤️</button>
+            </div>
+          </div>
+
+          {/* ── Filtros ───────────────────────────────────────── */}
+          <div style={{ display:'flex', gap:8, overflowX:'auto', padding:'0 20px 16px' }} className="no-scrollbar">
+            {FILTROS.map(f => (
+              <button key={f} onClick={() => setFiltro(f)}
+                style={{
+                  flexShrink:0, padding:'8px 16px', borderRadius:20, cursor:'pointer',
+                  fontSize:13, fontWeight:600,
+                  background: filtro === f ? 'linear-gradient(90deg,#FF2D9B,#A855F7)' : 'var(--bg-card)',
+                  color: filtro === f ? '#fff' : 'var(--text-secondary)',
+                  border: filtro === f ? 'none' : '1px solid var(--border-color)',
+                }}
+              >{f}</button>
             ))}
           </div>
 
-          {/* ── ZONA 7: DONAR ────────────────────────────────── */}
-          <div style={{
-            margin:'32px 20px 0',
-            borderRadius:20, padding:24,
-            background:'linear-gradient(135deg, rgba(124,58,237,0.35) 0%, rgba(255,45,155,0.15) 100%)',
-            border:'1px solid rgba(124,58,237,0.3)',
-          }}>
-            <p style={{ color:'#fff', fontWeight:800, fontSize:17, margin:'0 0 6px' }}>
-              ❤️ ¿No puedes adoptar ahora?
-            </p>
-            <p style={{ color:'#aaa', fontSize:13, margin:'0 0 18px', lineHeight:1.5 }}>
-              Ayuda a costear alimento y cuidados médicos de estos angelitos
-            </p>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-              {['Donar $5', 'Donar $10', 'Donar $20', 'Otro monto'].map(label => (
-                <button
-                  key={label}
-                  onClick={() => showToast('¡Gracias por tu donación! 💜 (Simulado)')}
-                  style={{
-                    padding:'12px 0', borderRadius:12, fontSize:13,
-                    fontWeight:700, cursor:'pointer',
-                    background: label === 'Otro monto'
-                      ? 'transparent'
-                      : 'linear-gradient(90deg,#FF2D9B,#7C3AED)',
-                    border: label === 'Otro monto'
-                      ? '1px solid rgba(124,58,237,0.5)'
-                      : 'none',
-                    color: label === 'Otro monto' ? '#aaa' : '#fff',
-                  }}
-                >{label}</button>
+          {/* ── Grid mascotas ─────────────────────────────────── */}
+          {loading ? (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
+              {[1,2,3,4].map(k => (
+                <div key={k} style={{ background:'var(--bg-card)', borderRadius:16, height:200,
+                  border:'1px solid var(--border-color)', opacity:0.5 }} />
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════
-            ZONA 5: MODAL PERFIL MASCOTA
-        ══════════════════════════════════════════════════════ */}
-        <IonModal
-          isOpen={!!petModal}
-          onDidDismiss={() => setPetModal(null)}
-          breakpoints={[0, 0.95]}
-          initialBreakpoint={0.95}
-        >
-          <div style={{ background:'#0a0a0a', height:'100%', overflow:'auto', padding:'28px 20px 48px' }}>
-            {petModal && (
-              <>
-                {/* Header */}
-                <div style={{ textAlign:'center', marginBottom:24 }}>
+          ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
+              {filtradas.map(pet => (
+                <button key={pet.id} onClick={() => setPetModal(pet)}
+                  style={{
+                    background:'var(--bg-card)', border:'1px solid var(--border-color)',
+                    borderRadius:16, overflow:'hidden', cursor:'pointer',
+                    display:'flex', flexDirection:'column', textAlign:'left', padding:0,
+                  }}
+                >
+                  {/* Foto */}
                   <div style={{
-                    width:96, height:96, borderRadius:'50%', margin:'0 auto 14px',
-                    background:`${petModal.color}33`, border:`3px solid ${petModal.color}66`,
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:48,
-                  }}>{petModal.foto}</div>
+                    width:'100%', height:100,
+                    background:`linear-gradient(135deg,${pet.color}22,${pet.color}44)`,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    fontSize:48, position:'relative',
+                  }}>
+                    {pet.foto}
+                    {pet.urgente && (
+                      <span style={{
+                        position:'absolute', top:8, right:8,
+                        fontSize:9, fontWeight:700, padding:'2px 7px', borderRadius:10,
+                        background:'#FF2D9B', color:'#fff',
+                      }}>URGENTE</span>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding:'10px 12px 12px' }}>
+                    <p style={{ color:'var(--text-primary)', fontSize:14, fontWeight:700, margin:'0 0 3px' }}>
+                      {pet.nombre}
+                    </p>
+                    <p style={{ color:'var(--text-secondary)', fontSize:11, margin:'0 0 8px' }}>
+                      {pet.raza} · {pet.edad}
+                    </p>
+                    <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
+                      {pet.vacunada && <Chip label="Vacunada" color="#00F5A0" />}
+                      {pet.esterilizada && <Chip label="Esterilizada" color="#00E5FF" />}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
 
+          {/* ── Modal detalle mascota ──────────────────────────── */}
+          <IonModal isOpen={!!petModal} onDidDismiss={() => setPetModal(null)}
+            breakpoints={[0,0.92]} initialBreakpoint={0.92}>
+            {petModal && (
+              <div style={{ background:'var(--bg-primary)', height:'100%', overflowY:'auto', paddingBottom:40 }}>
+
+                {/* Hero */}
+                <div style={{
+                  height:160, background:`linear-gradient(135deg,${petModal.color}33,${petModal.color}66)`,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  fontSize:80, position:'relative',
+                }}>
+                  {petModal.foto}
                   {petModal.urgente && (
-                    <span style={{
-                      display:'inline-block', marginBottom:8,
-                      background:'rgba(255,45,155,0.15)', border:'1px solid rgba(255,45,155,0.4)',
-                      borderRadius:10, padding:'3px 10px', fontSize:11, fontWeight:700, color:'#FF2D9B',
-                    }}>URGENTE 🔥</span>
+                    <div style={{
+                      position:'absolute', bottom:12, left:16,
+                      background:'#FF2D9B', color:'#fff', fontSize:11,
+                      fontWeight:700, padding:'4px 12px', borderRadius:20,
+                    }}>❤️‍🔥 Necesita hogar urgente</div>
                   )}
+                </div>
 
-                  <h2 style={{ color:'#fff', fontWeight:800, fontSize:26, margin:'0 0 4px' }}>
+                <div style={{ padding:'20px 20px 0' }}>
+                  <h2 style={{ color:'var(--text-primary)', fontSize:22, fontWeight:800, margin:'0 0 4px' }}>
                     {petModal.nombre}
                   </h2>
-                  <p style={{ color:'#666', fontSize:14, margin:0 }}>
-                    {petModal.raza} · {petModal.edad}
+                  <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'0 0 12px' }}>
+                    {petModal.especie} · {petModal.raza} · {petModal.edad} · {petModal.sexo}
                   </p>
-                </div>
 
-                {/* Descripción */}
-                <div style={{
-                  background:'#111', borderRadius:14, padding:16, marginBottom:20,
-                  border:'1px solid #1e1e1e',
-                }}>
-                  <p style={{ color:'#ccc', fontSize:14, lineHeight:1.6, margin:0 }}>
-                    "{petModal.descripcion}"
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:16 }}>
+                    {petModal.vacunada     && <Chip label="✓ Vacunada"     color="#00F5A0" />}
+                    {petModal.esterilizada && <Chip label="✓ Esterilizada" color="#00E5FF" />}
+                    <Chip label={petModal.tamanio} color={petModal.color} />
+                    <Chip label={petModal.refugio} color="#888" />
+                  </div>
+
+                  <p style={{ color:'var(--text-primary)', fontSize:14, lineHeight:1.6, margin:'0 0 20px' }}>
+                    {petModal.descripcion}
                   </p>
-                </div>
 
-                {/* Grid características */}
-                <p style={{ color:'#555', fontSize:11, fontWeight:600,
-                  letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:12 }}>
-                  Características
-                </p>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-                  {[
-                    { label:'Especie',     value: petModal.especie },
-                    { label:'Sexo',        value: petModal.sexo },
-                    { label:'Tamaño',      value: petModal.tamaño },
-                    { label:'Vacunado',    value: petModal.vacunada ? '✅ Sí' : '❌ No' },
-                    { label:'Esterilizado',value: petModal.esterilizada ? '✅ Sí' : '❌ No' },
-                    { label:'Refugio',     value: petModal.refugio },
-                  ].map(({ label, value }) => (
-                    <div key={label} style={{
-                      background:'#111', borderRadius:12, padding:'12px 14px',
-                      border:'1px solid #1e1e1e',
+                  {/* Necesidades económicas */}
+                  {(petModal.costo_vacunas > 0 || petModal.costo_esteril > 0) && (
+                    <div style={{
+                      background:'rgba(255,45,155,0.06)', border:'1px solid rgba(255,45,155,0.2)',
+                      borderRadius:14, padding:'14px 16px', marginBottom:20,
                     }}>
-                      <p style={{ color:'#555', fontSize:10, fontWeight:600,
-                        textTransform:'uppercase', margin:'0 0 4px' }}>{label}</p>
-                      <p style={{ color:'#fff', fontSize:13, fontWeight:600, margin:0 }}>{value}</p>
+                      <p style={{ color:'#FF2D9B', fontWeight:700, fontSize:13, margin:'0 0 8px' }}>
+                        💝 {petModal.nombre} necesita ayuda
+                      </p>
+                      {petModal.costo_vacunas > 0 && (
+                        <p style={{ color:'var(--text-secondary)', fontSize:12, margin:'0 0 4px' }}>
+                          💉 Vacunas pendientes: <strong style={{ color:'var(--text-primary)' }}>${petModal.costo_vacunas}</strong>
+                        </p>
+                      )}
+                      {petModal.costo_esteril > 0 && (
+                        <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0 }}>
+                          ✂️ Esterilización: <strong style={{ color:'var(--text-primary)' }}>${petModal.costo_esteril}</strong>
+                        </p>
+                      )}
                     </div>
-                  ))}
-                </div>
+                  )}
 
-                {/* ¿Por qué adoptarme? */}
-                <p style={{ color:'#555', fontSize:11, fontWeight:600,
-                  letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:12 }}>
-                  ¿Por qué adoptarme?
-                </p>
-                <div style={{
-                  background:'#111', borderRadius:14, padding:16, marginBottom:24,
-                  border:'1px solid #1e1e1e',
-                }}>
-                  {buildBullets(petModal).map((b, i) => (
-                    <div key={i} style={{ display:'flex', gap:10, marginBottom: i < 2 ? 10 : 0 }}>
-                      <span style={{ color:'#00E5FF', fontSize:16, flexShrink:0 }}>•</span>
-                      <p style={{ color:'#ccc', fontSize:13, lineHeight:1.5, margin:0 }}>{b}</p>
-                    </div>
-                  ))}
+                  {/* Botones acción */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                    <button onClick={() => abrirFormulario(petModal)}
+                      style={{
+                        padding:'15px 0', borderRadius:14,
+                        background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                        color:'#fff', fontWeight:800, fontSize:15,
+                        border:'none', cursor:'pointer',
+                      }}
+                    >🐾 Quiero adoptarlo</button>
+                    <button onClick={() => abrirDonacion(petModal)}
+                      style={{
+                        padding:'13px 0', borderRadius:14,
+                        background:'var(--bg-card)', border:'1px solid rgba(255,45,155,0.3)',
+                        color:'#FF2D9B', fontWeight:700, fontSize:14, cursor:'pointer',
+                      }}
+                    >❤️ Donar para {petModal.nombre}</button>
+                  </div>
                 </div>
-
-                {/* Botones */}
-                <button
-                  onClick={() => { abrirFormulario(petModal); }}
-                  className="btn-brand"
-                  style={{
-                    width:'100%', padding:'16px 0', borderRadius:14,
-                    fontSize:16, marginBottom:12,
-                    boxShadow:'0 0 30px rgba(255,45,155,0.3)',
-                  }}
-                >
-                  💜 Quiero adoptarlo
-                </button>
-                <button
-                  onClick={() => showToast('Enlace copiado al portapapeles 📋')}
-                  style={{
-                    width:'100%', padding:'14px 0', borderRadius:14,
-                    fontSize:14, fontWeight:700, cursor:'pointer',
-                    background:'transparent',
-                    border:'1px solid #333', color:'#888',
-                  }}
-                >
-                  Compartir
-                </button>
-              </>
+              </div>
             )}
-          </div>
-        </IonModal>
+          </IonModal>
 
-        {/* ══════════════════════════════════════════════════════
-            ZONA 6: MODAL FORMULARIO ADOPCIÓN
-        ══════════════════════════════════════════════════════ */}
-        <IonModal
-          isOpen={!!formModal}
-          onDidDismiss={() => setFormModal(null)}
-          breakpoints={[0, 0.97]}
-          initialBreakpoint={0.97}
-        >
-          <div style={{ background:'#0a0a0a', height:'100%', overflow:'auto', padding:'28px 20px 48px' }}>
+          {/* ── Modal formulario adopción ──────────────────────── */}
+          <IonModal isOpen={!!formModal} onDidDismiss={() => setFormModal(null)}
+            breakpoints={[0,1]} initialBreakpoint={1}>
             {formModal && (
-              <>
-                {/* Header */}
-                <div style={{ textAlign:'center', marginBottom:24 }}>
-                  <div style={{
-                    width:64, height:64, borderRadius:'50%', margin:'0 auto 12px',
-                    background:`${formModal.color}33`, border:`2px solid ${formModal.color}55`,
-                    display:'flex', alignItems:'center', justifyContent:'center', fontSize:32,
-                  }}>{formModal.foto}</div>
-                  <h2 style={{ color:'#fff', fontWeight:800, fontSize:18, margin:0 }}>
-                    Solicitud de adopción
-                  </h2>
-                  <p style={{ color:'#00E5FF', fontSize:14, margin:'4px 0 0' }}>
-                    para {formModal.nombre}
-                  </p>
-                </div>
+              <div style={{ background:'var(--bg-primary)', height:'100%', overflowY:'auto', padding:'52px 20px 60px' }}>
+                <button onClick={() => setFormModal(null)}
+                  style={{ background:'none', border:'none', color:'var(--text-secondary)', fontSize:14, cursor:'pointer', marginBottom:16 }}>
+                  ← Volver
+                </button>
+                <h2 style={{ color:'var(--text-primary)', fontSize:20, fontWeight:800, margin:'0 0 4px' }}>
+                  Adoptar a {formModal.nombre} {formModal.foto}
+                </h2>
+                <p style={{ color:'var(--text-secondary)', fontSize:13, margin:'0 0 24px' }}>
+                  {formModal.refugio}
+                </p>
 
-                <FormField label="Tu nombre completo">
-                  <input value={nombreForm} onChange={e => setNombreForm(e.target.value)}
-                    placeholder="Nombre completo" style={inputStyle} />
+                <FormField label="Tu nombre completo *">
+                  <input style={iStyle} value={nombreForm} onChange={e => setNombreForm(e.target.value)} placeholder="Nombre completo" />
+                </FormField>
+                <FormField label="Email *">
+                  <input style={iStyle} type="email" value={emailForm} onChange={e => setEmailForm(e.target.value)} placeholder="tu@email.com" />
+                </FormField>
+                <FormField label="Teléfono / WhatsApp">
+                  <input style={iStyle} value={telForm} onChange={e => setTelForm(e.target.value)} placeholder="+593 99 000 0000" />
                 </FormField>
 
-                <FormField label="Tu email">
-                  <input value={emailForm} onChange={e => setEmailForm(e.target.value)}
-                    type="email" placeholder="tu@email.com" style={inputStyle} />
-                </FormField>
-
-                <FormField label="Tu teléfono">
-                  <input value={telForm} onChange={e => setTelForm(e.target.value)}
-                    type="tel" placeholder="+593 99 000 0000" style={inputStyle} />
-                </FormField>
-
-                <FormField label="¿Tienes mascotas actualmente?">
-                  <IonSegment value={tieneMasc}
-                    onIonChange={e => setTieneMasc(e.detail.value as 'si'|'no')}
-                    style={{ '--background':'#111' } as React.CSSProperties}>
-                    <IonSegmentButton value="si"><IonLabel>Sí</IonLabel></IonSegmentButton>
-                    <IonSegmentButton value="no"><IonLabel>No</IonLabel></IonSegmentButton>
-                  </IonSegment>
-                </FormField>
-
-                {tieneMasc === 'si' && (
-                  <FormField label="¿Cuántas y de qué tipo?">
-                    <input value={cualesMasc} onChange={e => setCualesMasc(e.target.value)}
-                      placeholder="Ej: 1 perro adulto, 2 gatos" style={inputStyle} />
-                  </FormField>
-                )}
-
-                <FormField label="¿Tienes espacio exterior (patio/jardín)?">
-                  <IonSegment value={patio}
-                    onIonChange={e => setPatio(e.detail.value as 'si'|'no')}
-                    style={{ '--background':'#111' } as React.CSSProperties}>
-                    <IonSegmentButton value="si"><IonLabel>Sí</IonLabel></IonSegmentButton>
-                    <IonSegmentButton value="no"><IonLabel>No</IonLabel></IonSegmentButton>
-                  </IonSegment>
-                </FormField>
-
-                <FormField label={`¿Por qué quieres adoptar a ${formModal.nombre}? *`}>
-                  <div style={{ background:'#111', border:'1px solid #222', borderRadius:12, overflow:'hidden' }}>
-                    <IonTextarea
-                      value={motivoForm}
-                      onIonInput={e => setMotivoForm(e.detail.value ?? '')}
-                      placeholder="Cuéntanos sobre ti y tu hogar..."
-                      rows={4}
-                      style={{ '--color':'#fff', '--placeholder-color':'#555',
-                        '--background':'transparent', padding:'4px 8px' } as React.CSSProperties}
-                    />
+                <FormField label="¿Tienes otras mascotas?">
+                  <div style={{ display:'flex', gap:10 }}>
+                    {(['si','no'] as const).map(v => (
+                      <button key={v} type="button" onClick={() => setTieneMasc(v)}
+                        style={{
+                          flex:1, padding:'12px 0', borderRadius:12, cursor:'pointer', fontWeight:700, fontSize:14,
+                          background: tieneMasc === v ? 'rgba(0,229,255,0.1)' : 'var(--bg-card)',
+                          border: `1px solid ${tieneMasc === v ? '#00E5FF' : 'var(--border-color)'}`,
+                          color: tieneMasc === v ? '#00E5FF' : 'var(--text-secondary)',
+                        }}
+                      >{v === 'si' ? '🐾 Sí' : '✗ No'}</button>
+                    ))}
                   </div>
                 </FormField>
 
-                {/* Checkbox acuerdo */}
-                <div
-                  onClick={() => setAcuerdo(a => !a)}
+                {tieneMasc === 'si' && (
+                  <FormField label="¿Cuáles?">
+                    <input style={iStyle} value={cualesMasc} onChange={e => setCualesMasc(e.target.value)} placeholder="Ej: 1 perro adulto, 2 gatos" />
+                  </FormField>
+                )}
+
+                <FormField label="¿Tienes patio o espacio exterior?">
+                  <div style={{ display:'flex', gap:10 }}>
+                    {(['si','no'] as const).map(v => (
+                      <button key={v} type="button" onClick={() => setPatio(v)}
+                        style={{
+                          flex:1, padding:'12px 0', borderRadius:12, cursor:'pointer', fontWeight:700, fontSize:14,
+                          background: patio === v ? 'rgba(0,229,255,0.1)' : 'var(--bg-card)',
+                          border: `1px solid ${patio === v ? '#00E5FF' : 'var(--border-color)'}`,
+                          color: patio === v ? '#00E5FF' : 'var(--text-secondary)',
+                        }}
+                      >{v === 'si' ? '🏡 Sí' : '🏢 No'}</button>
+                    ))}
+                  </div>
+                </FormField>
+
+                <FormField label={`¿Por qué quieres adoptar a ${formModal.nombre}? *`}>
+                  <IonTextarea
+                    value={motivoForm}
+                    onIonInput={e => setMotivoForm(e.detail.value ?? '')}
+                    placeholder="Cuéntanos sobre ti, tu hogar y por qué quieres adoptarlo..."
+                    rows={4}
+                    style={{ '--color':'var(--text-primary)', '--placeholder-color':'var(--text-secondary)',
+                      '--background':'var(--bg-card)', borderRadius:'12px',
+                      border:'1px solid var(--border-color)', padding:'4px 8px' } as React.CSSProperties}
+                  />
+                </FormField>
+
+                <div onClick={() => setAcuerdo(a => !a)}
                   style={{
                     display:'flex', gap:12, alignItems:'flex-start',
                     marginBottom:24, cursor:'pointer', padding:'14px 16px',
-                    background:'#111', borderRadius:12,
-                    border:`1px solid ${acuerdo ? 'rgba(0,229,255,0.3)' : '#222'}`,
+                    background:'var(--bg-card)', borderRadius:12,
+                    border:`1px solid ${acuerdo ? 'rgba(0,229,255,0.3)' : 'var(--border-color)'}`,
                   }}
                 >
                   <div style={{
                     width:20, height:20, borderRadius:6, flexShrink:0, marginTop:1,
-                    background: acuerdo ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : '#222',
-                    border: acuerdo ? 'none' : '1px solid #444',
+                    background: acuerdo ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'var(--bg-secondary)',
+                    border: acuerdo ? 'none' : '1px solid var(--border-color)',
                     display:'flex', alignItems:'center', justifyContent:'center',
                     color:'#000', fontSize:12, fontWeight:700,
                   }}>{acuerdo ? '✓' : ''}</div>
-                  <p style={{ color:'#888', fontSize:13, margin:0, lineHeight:1.5 }}>
-                    Todos en mi hogar están de acuerdo con la adopción
+                  <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0, lineHeight:1.5 }}>
+                    Todos en mi hogar están de acuerdo con la adopción y me comprometo a cuidar a {formModal.nombre} de por vida.
                   </p>
                 </div>
 
-                <button
-                  onClick={enviarSolicitud}
-                  disabled={saving}
-                  className="btn-brand"
+                <button onClick={enviarSolicitud} disabled={saving}
                   style={{
-                    width:'100%', padding:'16px 0', borderRadius:14, fontSize:16,
-                    boxShadow:'0 0 30px rgba(255,45,155,0.3)',
+                    width:'100%', padding:'16px 0', borderRadius:14, fontSize:16, fontWeight:800,
+                    background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                    color:'#fff', border:'none', cursor:'pointer',
+                    opacity: saving ? 0.5 : 1,
+                  }}
+                >Enviar solicitud 🐾</button>
+              </div>
+            )}
+          </IonModal>
+
+          {/* ── Modal donación ─────────────────────────────────── */}
+          <IonModal isOpen={!!donModal} onDidDismiss={() => setDonModal(null)}
+            breakpoints={[0,0.85]} initialBreakpoint={0.85}>
+            {donModal && (
+              <div style={{ background:'var(--bg-primary)', height:'100%', padding:'32px 20px 48px', overflowY:'auto' }}>
+
+                <div style={{ textAlign:'center', marginBottom:20 }}>
+                  <span style={{ fontSize:48 }}>{donModal.foto}</span>
+                  <h3 style={{ color:'var(--text-primary)', fontWeight:800, fontSize:18, margin:'8px 0 4px' }}>
+                    Ayuda a {donModal.nombre}
+                  </h3>
+                  <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0 }}>
+                    {donModal.refugio}
+                  </p>
+                </div>
+
+                {/* Montos sugeridos */}
+                <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600,
+                  textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>
+                  ¿En qué quieres ayudar?
+                </p>
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+                  {montosParaMascota(donModal).map(opt => (
+                    <button key={opt.monto} type="button"
+                      onClick={() => { setMontoSel(opt.monto); setMontoCustom(''); }}
+                      style={{
+                        padding:'13px 16px', borderRadius:12, cursor:'pointer', textAlign:'left',
+                        background: montoSel === opt.monto ? 'rgba(255,45,155,0.1)' : 'var(--bg-card)',
+                        border: `1px solid ${montoSel === opt.monto ? '#FF2D9B' : 'var(--border-color)'}`,
+                        color:'var(--text-primary)', fontSize:14, fontWeight:600,
+                      }}
+                    >
+                      <span>{opt.label}</span>
+                      {montoSel === opt.monto && <span style={{ float:'right', color:'#FF2D9B' }}>✓</span>}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Monto personalizado */}
+                <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600,
+                  textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+                  O ingresa otro monto
+                </p>
+                <div style={{ position:'relative', marginBottom:16 }}>
+                  <span style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)',
+                    color:'var(--text-secondary)', fontSize:16, fontWeight:600 }}>$</span>
+                  <input
+                    type="number" min="1" placeholder="0.00"
+                    value={montoCustom}
+                    onChange={e => { setMontoCustom(e.target.value); setMontoSel(0); }}
+                    style={{ ...iStyle, paddingLeft:30 }}
+                  />
+                </div>
+
+                {/* Mensaje opcional */}
+                <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600,
+                  textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+                  Mensaje para el refugio (opcional)
+                </p>
+                <input
+                  placeholder={`Ej: Espero que ${donModal.nombre} encuentre su hogar pronto`}
+                  value={mensajeDon}
+                  onChange={e => setMensajeDon(e.target.value)}
+                  style={{ ...iStyle, marginBottom:20 }}
+                />
+
+                <button onClick={agregarDonacion}
+                  style={{
+                    width:'100%', padding:'15px 0', borderRadius:14, fontSize:15, fontWeight:800,
+                    background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                    color:'#fff', border:'none', cursor:'pointer',
                   }}
                 >
-                  Enviar solicitud 🐾
+                  ❤️ Agregar al carrito — ${montoSel > 0 ? montoSel : (parseFloat(montoCustom) || 0)}
                 </button>
-              </>
+
+                <p style={{ color:'var(--text-secondary)', fontSize:11, textAlign:'center', marginTop:12 }}>
+                  Tu donación llega directamente al refugio · 100% transparente
+                </p>
+              </div>
             )}
-          </div>
-        </IonModal>
+          </IonModal>
 
-        {/* Auth wall para invitados que intentan adoptar */}
-        <IonModal
-          isOpen={authWall}
-          onDidDismiss={() => setAuthWall(false)}
-          breakpoints={[0, 0.45]}
-          initialBreakpoint={0.45}
-        >
-          <div style={{ background:'#0d0d0d', height:'100%', padding:'32px 24px 48px', display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
-            <div style={{
-              width:64, height:64, borderRadius:'50%', marginBottom:16,
-              background:'linear-gradient(135deg,rgba(255,45,155,0.2),rgba(124,58,237,0.2))',
-              border:'1px solid rgba(255,45,155,0.3)',
-              display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
-            }}>🐾</div>
-            <h3 style={{ color:'#fff', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
-              Necesitas una cuenta
-            </h3>
-            <p style={{ color:'#555', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
-              Para enviar una solicitud de adopción necesitamos verificar tu identidad y contactarte.
-            </p>
-            <button
-              onClick={() => { setAuthWall(false); history.push('/login?mode=register'); }}
-              className="btn-brand"
-              style={{ width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, marginBottom:12 }}
-            >
-              Crear cuenta gratis
-            </button>
-            <button
-              onClick={() => { setAuthWall(false); history.push('/login?mode=login'); }}
-              style={{
-                width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
-                background:'transparent', border:'1px solid #333', color:'#888', cursor:'pointer',
-              }}
-            >
-              Ya tengo cuenta
-            </button>
-          </div>
-        </IonModal>
+          {/* ── Auth wall ─────────────────────────────────────── */}
+          <IonModal isOpen={authWall} onDidDismiss={() => setAuthWall(false)}
+            breakpoints={[0,0.45]} initialBreakpoint={0.45}>
+            <div style={{ background:'var(--bg-primary)', height:'100%', padding:'32px 24px 48px',
+              display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+              <div style={{
+                width:64, height:64, borderRadius:'50%', marginBottom:16,
+                background:'linear-gradient(135deg,rgba(255,45,155,0.2),rgba(124,58,237,0.2))',
+                border:'1px solid rgba(255,45,155,0.3)',
+                display:'flex', alignItems:'center', justifyContent:'center', fontSize:28,
+              }}>🐾</div>
+              <h3 style={{ color:'var(--text-primary)', fontWeight:800, fontSize:18, margin:'0 0 8px' }}>
+                Necesitas una cuenta
+              </h3>
+              <p style={{ color:'var(--text-secondary)', fontSize:14, margin:'0 0 28px', lineHeight:1.5 }}>
+                Para enviar una solicitud de adopción necesitamos verificar tu identidad y contactarte.
+              </p>
+              <button onClick={() => { setAuthWall(false); history.push('/login?mode=register'); }}
+                style={{
+                  width:'100%', padding:'14px 0', borderRadius:12, fontSize:15, fontWeight:800,
+                  background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                  color:'#fff', border:'none', cursor:'pointer', marginBottom:12,
+                }}
+              >Crear cuenta gratis</button>
+              <button onClick={() => { setAuthWall(false); history.push('/login?mode=login'); }}
+                style={{
+                  width:'100%', padding:'13px 0', borderRadius:12, fontSize:14,
+                  background:'transparent', border:'1px solid var(--border-color)',
+                  color:'var(--text-secondary)', cursor:'pointer',
+                }}
+              >Ya tengo cuenta</button>
+            </div>
+          </IonModal>
 
-        <IonLoading isOpen={saving} message="Enviando solicitud..." />
-        {toast && <Toast msg={toast} />}
+          <IonLoading isOpen={saving} message="Enviando solicitud..." />
+          {toast && <Toast msg={toast} />}
+        </div>
       </IonContent>
     </IonPage>
   );
 };
-
-/* ── Helpers ─────────────────────────────────────────────────── */
-function buildBullets(pet: PetAdopcion): string[] {
-  const bullets: string[] = [];
-  if (pet.vacunada && pet.esterilizada)
-    bullets.push('Estoy al día con vacunas y ya fui esterilizado/a — sin gastos médicos urgentes.');
-  else if (pet.vacunada)
-    bullets.push('Tengo todas mis vacunas en regla y estoy listo/a para mi nuevo hogar.');
-  else
-    bullets.push('Seré tu proyecto de amor — solo necesito mis vacunas y ya estaré al 100%.');
-
-  if (pet.tamaño === 'Pequeño')
-    bullets.push('Mi tamaño pequeño me hace perfecto/a para apartamentos o casas sin patio.');
-  else if (pet.tamaño === 'Grande')
-    bullets.push('Soy grande y lleno de energía — ideal para una familia activa con espacio.');
-  else
-    bullets.push('Mi tamaño es ideal — no demasiado grande ni demasiado pequeño.');
-
-  if (pet.urgente)
-    bullets.push(`Llevo tiempo esperando en ${pet.refugio}. Cada día que pasa en el refugio es un día lejos de mi hogar. 🙏`);
-  else
-    bullets.push(`El equipo de ${pet.refugio} me conoce bien y puede contarte todo sobre mi personalidad.`);
-
-  return bullets;
-}
-
-/* ── Estilos ─────────────────────────────────────────────────── */
-const inputStyle: React.CSSProperties = {
-  width:'100%', boxSizing:'border-box',
-  background:'#111', border:'1px solid #222', borderRadius:12,
-  padding:'13px 16px', color:'#fff', fontSize:14,
-};
-
-const FormField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div style={{ marginBottom:16 }}>
-    <p style={{ color:'#666', fontSize:11, fontWeight:600,
-      letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>{label}</p>
-    {children}
-  </div>
-);
 
 export default Adopcion;
