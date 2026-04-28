@@ -93,7 +93,7 @@ const HelpButton: React.FC<Props> = ({ session, mascotasNombres = '', pedidosAct
         <button
           onClick={() => setOpen(true)}
           style={{
-            position: 'fixed', bottom: 84, right: 20, zIndex: 8000,
+            position: 'fixed', bottom: 144, right: 20, zIndex: 8000,
             width: 52, height: 52, borderRadius: '50%',
             background: 'linear-gradient(135deg,#FF2D9B,#A855F7)',
             border: 'none', cursor: 'pointer',
