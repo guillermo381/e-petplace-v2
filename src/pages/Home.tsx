@@ -109,6 +109,7 @@ const Home: React.FC<Props> = ({ session }) => {
   const [pedidoActivo,   setPedidoActivo]   = useState<PedidoActivo | null>(null);
   const [toast,          setToast]          = useState('');
   const [cardDismissed,  setCardDismissed]  = useState(false);
+  const [showNotifs,     setShowNotifs]     = useState(false);
   const onboardingOkRef = useRef(false);
   const history = useHistory();
 
@@ -232,9 +233,9 @@ const Home: React.FC<Props> = ({ session }) => {
                   <Badge label={totalItems > 9 ? '9+' : String(totalItems)} />
                 )}
               </div>
-              <div style={{ position:'relative' }}>
-                <button style={iconBtn}>🔔</button>
-                <Badge label="2" />
+              <div style={{ position:'relative', display:'inline-flex' }}>
+                <button onClick={() => setShowNotifs(true)} style={iconBtn}>🔔</button>
+                {alertas.length > 0 && <Badge label={alertas.length > 9 ? '9+' : String(alertas.length)} />}
               </div>
             </div>
           </div>
@@ -474,6 +475,124 @@ const Home: React.FC<Props> = ({ session }) => {
             ))}
           </div>
         </div>
+
+        {/* ── Drawer de notificaciones ─────────────────────────── */}
+        {showNotifs && (
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9998,
+            background: 'rgba(0,0,0,0.6)',
+          }} onClick={() => setShowNotifs(false)}>
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{
+                position: 'absolute', top: 0, right: 0, bottom: 0,
+                width: '85%', maxWidth: 340,
+                background: 'var(--bg-primary)',
+                boxShadow: '-4px 0 40px rgba(0,0,0,0.4)',
+                overflowY: 'auto', paddingBottom: 40,
+              }}
+            >
+              {/* Header del drawer */}
+              <div style={{
+                padding: '52px 20px 16px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                borderBottom: '1px solid var(--border-color)',
+              }}>
+                <h2 style={{ color: 'var(--text-primary)', fontSize: 18, fontWeight: 800, margin: 0 }}>
+                  Notificaciones
+                </h2>
+                <button
+                  onClick={() => setShowNotifs(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: 22, cursor: 'pointer' }}
+                >✕</button>
+              </div>
+
+              {/* Alertas */}
+              <div style={{ padding: '16px 20px' }}>
+                {alertas.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                    <span style={{ fontSize: 40 }}>🎉</span>
+                    <p style={{ color: 'var(--text-primary)', fontWeight: 700, margin: '12px 0 4px' }}>Todo al día</p>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: 13, margin: 0 }}>No tienes alertas pendientes</p>
+                  </div>
+                ) : alertas.map((a, i) => {
+                  const color = a.kind === 'urgente' ? '#FF2D9B' : a.kind === 'warning' ? '#FFE600' : '#00E5FF';
+                  const icon  = a.kind === 'urgente' ? '🚨' : a.kind === 'warning' ? '⚠️' : '💡';
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => { if (a.mascotaId) { setShowNotifs(false); history.push(`/biopet/${a.mascotaId}`); } }}
+                      style={{
+                        display: 'flex', borderRadius: 14, overflow: 'hidden',
+                        border: `1px solid ${color}25`, marginBottom: 8,
+                        cursor: a.mascotaId ? 'pointer' : 'default',
+                      }}
+                    >
+                      <div style={{ width: 3, background: color, flexShrink: 0 }} />
+                      <div style={{
+                        flex: 1, background: 'var(--bg-card)',
+                        padding: '12px 14px',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>{icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, margin: 0 }}>{a.title}</p>
+                          <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '2px 0 0' }}>{a.sub}</p>
+                        </div>
+                        {a.mascotaId && <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>›</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pedido activo en notificaciones */}
+              {pedidoActivo && (
+                <div style={{ padding: '0 20px' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px' }}>
+                    Pedido activo
+                  </p>
+                  <div
+                    onClick={() => { setShowNotifs(false); history.push('/mis-pedidos'); }}
+                    style={{
+                      display: 'flex', borderRadius: 14, overflow: 'hidden',
+                      border: '1px solid rgba(0,229,255,0.2)', cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ width: 3, background: '#00E5FF', flexShrink: 0 }} />
+                    <div style={{
+                      flex: 1, background: 'var(--bg-card)',
+                      padding: '12px 14px',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                      <span style={{ fontSize: 18 }}>📦</span>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, margin: 0 }}>Pedido en curso</p>
+                        <p style={{ color: '#00E5FF', fontSize: 11, margin: '2px 0 0', fontWeight: 600, textTransform: 'capitalize' }}>
+                          {pedidoActivo.estado}
+                        </p>
+                      </div>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: 14 }}>›</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Link a ayuda */}
+              <div style={{ padding: '24px 20px 0' }}>
+                <button
+                  onClick={() => { setShowNotifs(false); history.push('/ayuda'); }}
+                  style={{
+                    width: '100%', padding: '13px 0', borderRadius: 12,
+                    background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >🐾 Centro de ayuda</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Toast */}
         {toast && (

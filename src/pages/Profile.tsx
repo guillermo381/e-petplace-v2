@@ -733,10 +733,10 @@ const Profile: React.FC<Props> = ({ session }) => {
                 { icon: '📄', label: 'Términos de uso',          val: '›',       ruta: '/terminos',  action: null },
                 { icon: '🔒', label: 'Política de privacidad',   val: '›',       ruta: '/privacidad', action: null },
                 { icon: '🍪', label: 'Política de cookies',      val: '›',       ruta: '/cookies',   action: null },
-                { icon: '💬', label: 'Contactar soporte',        val: '›',       ruta: null,         action: () => showToast('soporte@epetplace.com 📧') },
+                { icon: '💬', label: 'Centro de ayuda',           val: '›',       ruta: '/ayuda',     action: null },
               ].map((item, i, arr) => (
                 <button key={item.label} type="button"
-                  onClick={() => item.ruta ? history.push(item.ruta) : item.action?.()}
+                  onClick={() => item.ruta ? history.push(item.ruta) : (item.action as (() => void) | null)?.(  )}
                   style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'none', border: 'none', borderBottom: i < arr.length - 1 ? '1px solid var(--border-color)' : 'none', cursor: item.ruta || item.action ? 'pointer' : 'default', textAlign: 'left' }}>
                   <span style={{ fontSize: 18 }}>{item.icon}</span>
                   <span style={{ flex: 1, fontSize: 14, color: 'var(--text-primary)' }}>{item.label}</span>

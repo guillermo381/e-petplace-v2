@@ -30,6 +30,7 @@ import Checkout          from './pages/Checkout';
 import MisPedidos        from './pages/MisPedidos';
 import Onboarding        from './pages/Onboarding';
 import ResetPassword     from './pages/ResetPassword';
+import Ayuda             from './pages/Ayuda';
 import PrivacyPolicy     from './pages/legal/PrivacyPolicy';
 import TermsOfService    from './pages/legal/TermsOfService';
 import CookiesPolicy     from './pages/legal/CookiesPolicy';
@@ -109,6 +110,7 @@ const AuthedContent: React.FC<{ session: Session }> = ({ session }) => (
       <Route exact path="/privacidad"  render={() => <PrivacyPolicy />} />
       <Route exact path="/terminos"    render={() => <TermsOfService />} />
       <Route exact path="/cookies"     render={() => <CookiesPolicy />} />
+      <Route exact path="/ayuda"       render={() => <Ayuda session={session} />} />
       <Route exact path="/biopet/new" render={() => <BioPetNew session={session} />} />
       <Route exact path="/biopet/:id/editar" render={(props) => <BioPetEdit session={session} petId={props.match.params.id} />} />
       <Route exact path="/biopet/:id" render={(props) => <BioPetDetail session={session} petId={props.match.params.id} />} />
@@ -167,6 +169,7 @@ const GuestContent: React.FC = () => (
         <Route exact path="/privacidad" render={() => <PrivacyPolicy />} />
         <Route exact path="/terminos"   render={() => <TermsOfService />} />
         <Route exact path="/cookies"    render={() => <CookiesPolicy />} />
+        <Route exact path="/ayuda"      render={() => <Ayuda session={null} />} />
         <Route render={() => <Redirect to="/tienda" />} />
       </IonRouterOutlet>
 
