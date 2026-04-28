@@ -24,7 +24,8 @@ interface Profile  {
 interface Vacuna   { id: string; nombre: string; fecha_proxima: string }
 interface Mascota  {
   id: string; nombre: string; especie: string; raza?: string;
-  foto_url?: string; fecha_nacimiento?: string; vacunas: Vacuna[];
+  foto_url?: string; fecha_nacimiento?: string; peso?: number; sexo?: string;
+  vacunas: Vacuna[];
 }
 interface Producto { id: string; nombre: string; precio: number; imagen_url?: string }
 
@@ -216,7 +217,12 @@ const Home: React.FC<Props> = ({ session }) => {
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <img src={logoImg} alt="e-PetPlace" style={{ height:36, width:'auto', display:'block' }} />
               <div>
-                <p style={{ color:'var(--text-secondary)', fontSize:11, margin:0, letterSpacing:'0.03em' }}>Buenos días,</p>
+                <p style={{ color:'var(--text-secondary)', fontSize:11, margin:0, letterSpacing:'0.03em' }}>{(() => {
+                  const h = new Date().getHours();
+                  if (h >= 5  && h < 12) return 'Buenos días,';
+                  if (h >= 12 && h < 19) return 'Buenas tardes,';
+                  return 'Buenas noches,';
+                })()}</p>
                 {loading ? (
                   <IonSkeletonText animated style={{ width:88, height:15, borderRadius:6, marginTop:3 } as React.CSSProperties} />
                 ) : (
@@ -662,6 +668,23 @@ const PetCard: React.FC<{ m: Mascota; hasAlert: boolean; onClick: () => void }> 
           {m.especie}{m.raza ? ` · ${m.raza}` : ''}
         </p>
         {edad && <p style={{ color:'#00E5FF', fontSize:11, margin:'2px 0 0', fontWeight:600 }}>{edad}</p>}
+        {/* Mini health bar */}
+        {(() => {
+          let s = 40;
+          if (m.peso)             s += 15;
+          if (m.fecha_nacimiento) s += 10;
+          if (m.sexo)             s += 5;
+          s = Math.min(s, 70);
+          const color = s >= 60 ? '#00F5A0' : s >= 40 ? '#FFE600' : '#FF2D9B';
+          return (
+            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 4, width: '100%' }}>
+              <div style={{ flex: 1, height: 3, background: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${s}%`, background: color, borderRadius: 2 }} />
+              </div>
+              <span style={{ fontSize: 9, color, fontWeight: 700 }}>{s}%</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Indicador salud */}

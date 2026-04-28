@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   IonPage, IonContent, IonActionSheet, IonAlert, IonToggle, IonInput,
 } from '@ionic/react';
@@ -176,7 +176,9 @@ const Profile: React.FC<Props> = ({ session }) => {
   const [toast,         setToast]         = useState('');
   const [showLogout,    setShowLogout]    = useState(false);
   const [showAvatar,    setShowAvatar]    = useState(false);
-  const [brokenPhotos,  setBrokenPhotos]  = useState<Set<string>>(new Set());
+  const [brokenPhotos,    setBrokenPhotos]    = useState<Set<string>>(new Set());
+  const [uploadingPhoto,  setUploadingPhoto]  = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const { isDark, toggleTheme } = useTheme();
   const { clearCart } = useCart();
   const history = useHistory();
@@ -244,6 +246,45 @@ const Profile: React.FC<Props> = ({ session }) => {
       showToast('❌ Error al guardar');
     }
     setSaving(false);
+  };
+
+  /* ── Subir foto de perfil ───────────────────────────────────── */
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+
+    const resized = await new Promise<File>(resolve => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const scale = Math.min(1, 400 / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width  * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+          URL.revokeObjectURL(url);
+          resolve(new File([blob!], file.name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.85);
+      };
+      img.src = url;
+    });
+
+    const path = `avatars/${session.user.id}.jpg`;
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, resized, { upsert: true, contentType: 'image/jpeg' });
+
+    if (!uploadError) {
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', session.user.id);
+      setProfile(p => p ? { ...p, avatar_url: data.publicUrl } : p);
+      showToast('¡Foto actualizada! 📸');
+    } else {
+      showToast('❌ Error al subir foto');
+    }
+    setUploadingPhoto(false);
   };
 
   /* ── Cerrar sesión ───────────────────────────────────────────── */
@@ -539,33 +580,38 @@ const Profile: React.FC<Props> = ({ session }) => {
             padding: '56px 20px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12,
           }}>
             {/* Avatar */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', marginBottom: 4 }}>
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="avatar"
-                  style={{ width: 90, height: 90, borderRadius: '50%', objectFit: 'cover', border: '3px solid transparent', backgroundImage: 'linear-gradient(#000,#000), linear-gradient(135deg,#FF2D9B,#00E5FF)', backgroundOrigin: 'border-box', backgroundClip: 'content-box, border-box' }}
+                <img
+                  src={profile.avatar_url}
+                  alt="avatar"
+                  style={{ width: 88, height: 88, borderRadius: '50%', objectFit: 'cover',
+                    border: '3px solid transparent',
+                    backgroundImage: 'linear-gradient(var(--bg-primary),var(--bg-primary)), linear-gradient(135deg,#FF2D9B,#00E5FF)',
+                    backgroundOrigin: 'border-box', backgroundClip: 'content-box, border-box' }}
                 />
               ) : (
                 <div style={{
-                  width: 90, height: 90, borderRadius: '50%',
+                  width: 88, height: 88, borderRadius: '50%',
                   background: 'linear-gradient(135deg, #FF2D9B, #00E5FF)',
+                  boxShadow: '0 0 35px rgba(255,45,155,0.4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 32, fontWeight: 900, color: '#fff',
-                  boxShadow: '0 0 40px rgba(255,45,155,0.3)',
-                  transition: 'transform 0.2s',
-                }}>
-                  {initials}
-                </div>
+                  fontSize: 32, fontWeight: 800, color: '#fff',
+                }}>{initials}</div>
               )}
-              <button type="button" onClick={() => setShowAvatar(true)}
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploadingPhoto}
                 style={{
                   position: 'absolute', bottom: 0, right: 0,
                   width: 28, height: 28, borderRadius: '50%',
-                  background: '#111', border: '2px solid #333',
+                  background: 'linear-gradient(135deg,#FF2D9B,#00E5FF)',
+                  border: '2px solid var(--bg-primary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, cursor: 'pointer',
-                }}>
-                📷
-              </button>
+                  fontSize: 13, cursor: 'pointer', color: '#fff',
+                }}
+              >{uploadingPhoto ? '…' : '📷'}</button>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
             </div>
 
             {/* Nombre + email */}

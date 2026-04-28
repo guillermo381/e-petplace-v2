@@ -63,16 +63,70 @@ const ESPECIES = [
 ];
 
 export const RAZAS: Record<string, string[]> = {
-  perro:  ['Labrador','Golden Retriever','Bulldog','Poodle','Beagle','Pastor Alemán','Chihuahua',
-            'Dachshund','Boxer','Rottweiler','Shih Tzu','Yorkshire','Bichon Frise','Schnauzer',
-            'American Bully','Bulldog Inglés','Husky Siberiano','Mix/Mestizo'],
-  gato:   ['Siamés','Persa','Maine Coon','Ragdoll','Bengalí','Sphynx','British Shorthair',
-            'Scottish Fold','Doméstico','Mix/Mestizo'],
-  ave:    ['Periquito','Canario','Loro','Cacatúa','Agaporni','Ninfa','Cotorra','Otro'],
-  conejo: ['Holandés enano','Angora','Rex','Belier','Nueva Zelanda','Mix/Mestizo'],
-  pez:    ['Goldfish','Betta','Guppy','Neon','Oscar','Disco','Otro'],
-  reptil: ['Iguana','Gecko','Tortuga','Camaleón','Otro'],
-  otro:   ['Mix/Mestizo','Otro'],
+  perro: [
+    'Labrador Retriever','Golden Retriever','Bulldog Francés','Bulldog Inglés',
+    'Poodle Toy','Poodle Miniatura','Poodle Estándar','Beagle','Pastor Alemán',
+    'Chihuahua','Dachshund','Boxer','Rottweiler','Shih Tzu','Yorkshire Terrier',
+    'Bichon Frise','Schnauzer Miniatura','Schnauzer Gigante','American Bully',
+    'Husky Siberiano','Malamute de Alaska','Border Collie','Australian Shepherd',
+    'Cocker Spaniel','Springer Spaniel','Dobermann','Shar Pei','Chow Chow',
+    'Samoyedo','Pomerania','Maltés','Cavalier King Charles','Boston Terrier',
+    'Pug','Basenji','Weimaraner','Vizsla','Dálmata','Akita','Shiba Inu',
+    'Bernés de la Montaña','San Bernardo','Terranova','Gran Danés','Mastín',
+    'Pitbull','Staffordshire Bull Terrier','Jack Russell Terrier','Fox Terrier',
+    'West Highland White Terrier','Lhasa Apso','Pekinés','Whippet','Galgo',
+    'Greyhound','Setter Irlandés','Pointer','Braco Alemán','Bloodhound',
+    'Basset Hound','Cane Corso','Fila Brasileiro','Boerboel','Kuvasz',
+    'Hovawart','Leonberger','Alaskan Klee Kai','Spitz Alemán','Volpino',
+    'Caniche','Borzoi','Afgano','Saluki','Ibizan Hound','Pharaoh Hound',
+    'Mix/Mestizo','Otro',
+  ],
+  gato: [
+    'Siamés','Persa','Maine Coon','Ragdoll','Bengalí','Sphynx',
+    'British Shorthair','Scottish Fold','American Shorthair','Russian Blue',
+    'Abisinio','Birmano','Burmés','Devon Rex','Cornish Rex','Turkish Angora',
+    'Turkish Van','Norwegian Forest','Siberian','Balinés','Javanés',
+    'Ocicat','Egyptian Mau','Savannah','Selkirk Rex','LaPerm',
+    'Pixiebob','Manx','Cymric','Tonkinés','Bombay','Havana Brown',
+    'Korat','Chartreux','Himalayo','Exótico de Pelo Corto',
+    'Oriental Shorthair','Oriental Longhair','Doméstico Pelo Corto',
+    'Doméstico Pelo Largo','Mix/Mestizo','Otro',
+  ],
+  ave: [
+    'Periquito Australiano','Canario','Loro Gris Africano','Cacatúa Ninfa (Cockatiel)',
+    'Cacatúa Alba','Cacatúa Rosada','Agaporni (Inseparable)','Loro Amazonas',
+    'Loro Ecléctico','Cotorra Argentina','Cotorra de Kramer','Guacamayo Azul y Oro',
+    'Guacamayo Rojo','Lorito','Lori','Jilguero','Pinzón Cebra','Pinzón Mandarín',
+    'Diamante de Gould','Estornino','Tucán','Pato Mandarín','Otro',
+  ],
+  conejo: [
+    'Holandés Enano','Angora Inglés','Angora Francés','Angora Gigante',
+    'Rex','Mini Rex','Belier Francés','Belier Enano','Nueva Zelanda',
+    'California','Chinchilla','Lionhead (Cabeza de León)','Satín',
+    'Havana','Palomino','Plata de Champagne','Gigante Flamenco',
+    'Gigante Alemán','Florida White','Harlequín','Mix/Mestizo','Otro',
+  ],
+  pez: [
+    'Goldfish Común','Goldfish Ryukin','Goldfish Oranda','Goldfish Telescopio',
+    'Betta Splendens','Guppy','Platy','Molly','Espada (Xiphophorus)',
+    'Tetra Neón','Tetra Cardinal','Tetra Negro','Tetra Limón',
+    'Oscar','Disco','Ángel (Escalar)','Ramirezi','Apistogramma',
+    'Corydoras','Otocinclus','Pleco','Ancistrus','Loach Payaso',
+    'Danio Cebra','Rasbora','Barbo Tigre','Gurami','Betta Siamés',
+    'Pez Luna','Koi','Otro',
+  ],
+  reptil: [
+    'Iguana Verde','Iguana del Desierto','Gecko Leopardo','Gecko Diurno',
+    'Gecko Tokay','Gecko de Cola de Rábano','Camaleón Velado','Camaleón de Jackson',
+    'Anolis','Lagarto Barba de Dragón','Skink de Lengua Azul',
+    'Tortuga Rusa','Tortuga de Caja','Tortuga de Orejas Rojas',
+    'Tortuga Mediterránea','Tortuga del Desierto','Serpiente del Maíz',
+    'Serpiente Real','Boa Constrictor','Pitón Real','Serpiente Rata',
+    'Otro',
+  ],
+  otro: ['Hámster Sirio','Hámster Ruso','Cobaya (Cuy)','Chinchilla',
+    'Hurón','Rata Doméstica','Ratón Doméstico','Jerbo','Erizo Africano',
+    'Sugar Glider','Mapache','Zorro Fennec','Otro'],
 };
 
 export const TITULO_ESPECIE: Record<string, string> = {
@@ -342,6 +396,21 @@ export const RazaInput: React.FC<{
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  if (!especie) {
+    return (
+      <div style={{
+        padding: '12px 14px', borderRadius: 12,
+        background: 'rgba(255,230,0,0.06)', border: '1px solid rgba(255,230,0,0.2)',
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 16 }}>⚠️</span>
+        <p style={{ color: '#FFE600', fontSize: 13, margin: 0 }}>
+          Primero selecciona la especie para ver las razas disponibles
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div ref={wrapRef} style={{ position:'relative' }}>
