@@ -30,7 +30,8 @@ import {
   IonAlert, IonToast,
 } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
+import { SERVICIOS } from '../data/servicios';
 import { supabase } from '../lib/supabase';
 import { useCart } from '../context/CartContext';
 import PhoneInput, { PhoneInputValue } from '../components/PhoneInput';
@@ -115,7 +116,8 @@ const Toast: React.FC<{ msg: string }> = ({ msg }) => (
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
 const Vet: React.FC<Props> = ({ session }) => {
-  const history = useHistory();
+  const history  = useHistory();
+  const location = useLocation();
   const { addToCart } = useCart();
   const [filtro,       setFiltro]       = useState('Todos');
   const [busqueda,     setBusqueda]     = useState('');
@@ -565,6 +567,41 @@ const Vet: React.FC<Props> = ({ session }) => {
               )}
             </div>
           )}
+
+          {/* ── Otros servicios ─────────────────────────────────── */}
+          <div style={{ padding: '24px 20px 0' }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,
+              textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 12px' }}>
+              También disponible
+            </p>
+            <div style={{ display: 'flex', gap: 10, overflowX: 'auto' }} className="no-scrollbar">
+              {SERVICIOS.filter(s => s.disponible && s.ruta !== location.pathname).map(s => (
+                <button key={s.id}
+                  onClick={() => history.push(s.ruta)}
+                  style={{
+                    flexShrink: 0, display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 14,
+                    background: s.color, border: `1px solid ${s.textColor}33`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                  }}>{s.icono}</div>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600 }}>{s.nombre}</span>
+                </button>
+              ))}
+              <button onClick={() => history.push('/tienda')}
+                style={{ flexShrink: 0, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                <div style={{ width: 48, height: 48, borderRadius: 14,
+                  background: '#0d1f12', border: '1px solid #00F5A033',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🛒</div>
+                <span style={{ color: 'var(--text-secondary)', fontSize: 10, fontWeight: 600 }}>Nutrición</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* ── ZONA 4: MODAL AGENDAR ──────────────────────────────── */}

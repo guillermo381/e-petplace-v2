@@ -683,7 +683,9 @@ const Profile: React.FC<Props> = ({ session }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <DataCard campo="nombre"    icono="👤" color="#A78BFA" label="Nombre completo" valor={profile?.nombre ?? ''} editor={renderEditorNombre()} />
               <DataCard campo="email"     icono="📧" color="#00E5FF" label="Email"           valor={session.user.email ?? ''} editor={renderEditorEmail()} />
-              <DataCard campo="password"  icono="🔒" color="#FF6B35" label="Contraseña"      valor="••••••••" editor={renderEditorPassword()} />
+              {!session.user.app_metadata?.provider?.includes('google') && (
+                <DataCard campo="password"  icono="🔒" color="#FF6B35" label="Contraseña"      valor="••••••••" editor={renderEditorPassword()} />
+              )}
               <DataCard campo="telefono"  icono="📱" color="#00F5A0" label="Teléfono"
                 valor={profile?.telefono ?? ''}
                 editor={renderEditorTelefono()}
