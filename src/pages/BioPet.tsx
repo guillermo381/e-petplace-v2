@@ -306,7 +306,57 @@ const BioPet: React.FC<Props> = ({ session }) => {
                 </button>
               </div>
             ) : (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
+              <>
+                {/* ── Resumen de salud global ──────────────────────────────── */}
+                <div style={{ padding:'0 20px 16px' }}>
+                  <div style={{
+                    background:'var(--bg-card)', borderRadius:16,
+                    border:'1px solid var(--border-color)', padding:'14px 16px',
+                    display:'flex', alignItems:'center', gap:14,
+                  }}>
+                    <div style={{ flex:1 }}>
+                      <p style={{ color:'var(--text-secondary)', fontSize:11, fontWeight:600,
+                        textTransform:'uppercase', letterSpacing:'0.08em', margin:'0 0 6px' }}>
+                        Salud general de tus mascotas
+                      </p>
+                      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                        {mascotas.map(m => {
+                          let s = 40;
+                          if (m.peso) s += 15;
+                          if (m.fecha_nacimiento) s += 10;
+                          if (m.sexo) s += 5;
+                          s = Math.min(s, 70);
+                          const color = s >= 60 ? '#00F5A0' : s >= 40 ? '#FFE600' : '#FF2D9B';
+                          return (
+                            <div key={m.id} style={{ textAlign:'center' }}>
+                              <div style={{
+                                width:36, height:36, borderRadius:'50%',
+                                background:`${color}22`, border:`2px solid ${color}`,
+                                display:'flex', alignItems:'center', justifyContent:'center',
+                                fontSize:10, fontWeight:800, color,
+                              }}>{s}%</div>
+                              <p style={{ color:'var(--text-secondary)', fontSize:9,
+                                margin:'3px 0 0', maxWidth:36,
+                                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                {m.nombre}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => history.push('/biopet/new')}
+                      style={{
+                        padding:'8px 14px', borderRadius:10, flexShrink:0,
+                        background:'linear-gradient(90deg,#FF2D9B,#A855F7)',
+                        border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer',
+                      }}
+                    >+ Agregar</button>
+                  </div>
+                </div>
+
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, padding:'0 20px' }}>
                 {mascotas.map(m => {
                   let score = 40;
                   if (m.peso)             score += 15;
@@ -375,6 +425,7 @@ const BioPet: React.FC<Props> = ({ session }) => {
                   </span>
                 </button>
               </div>
+              </>
             )}
           </div>
 

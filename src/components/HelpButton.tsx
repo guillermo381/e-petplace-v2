@@ -168,23 +168,32 @@ const HelpButton: React.FC<Props> = ({ session, mascotasNombres = '', pedidosAct
             {view === 'menu' && (
               <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px 20px' }}>
 
-                {/* Chat IA */}
-                <button
-                  onClick={() => setView('chat')}
-                  style={{
-                    width: '100%', padding: '14px 16px', borderRadius: 14, cursor: 'pointer',
-                    background: 'linear-gradient(135deg,rgba(255,45,155,0.1),rgba(168,85,247,0.1))',
-                    border: '1px solid rgba(255,45,155,0.25)',
-                    display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12,
-                  }}
-                >
-                  <span style={{ fontSize: 24 }}>🤖</span>
-                  <div style={{ textAlign: 'left' }}>
-                    <p style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: 13, margin: 0 }}>Chat con PetBot IA</p>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: 11, margin: '2px 0 0' }}>Respuestas instantáneas 24/7</p>
-                  </div>
-                  <span style={{ color: 'var(--text-secondary)', marginLeft: 'auto' }}>›</span>
-                </button>
+                {/* Chat IA — hero */}
+                <div style={{ marginBottom: 16 }}>
+                  <button
+                    onClick={() => setView('chat')}
+                    style={{
+                      width: '100%', padding: '16px', borderRadius: 16, cursor: 'pointer',
+                      background: 'linear-gradient(135deg,#FF2D9B,#A855F7,#00E5FF)',
+                      border: 'none', display: 'flex', alignItems: 'center', gap: 14,
+                    }}
+                  >
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 14, flexShrink: 0,
+                      background: 'rgba(255,255,255,0.2)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+                    }}>🤖</div>
+                    <div style={{ textAlign: 'left', flex: 1 }}>
+                      <p style={{ color: '#fff', fontWeight: 800, fontSize: 15, margin: '0 0 2px' }}>
+                        Hablar con PetBot
+                      </p>
+                      <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, margin: 0 }}>
+                        IA · Respuestas instantáneas 24/7
+                      </p>
+                    </div>
+                    <span style={{ color: '#fff', fontSize: 20 }}>›</span>
+                  </button>
+                </div>
 
                 {/* Sugerencias contextuales */}
                 <p style={{ color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600,

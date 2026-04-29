@@ -77,6 +77,7 @@ const Adopcion: React.FC<Props> = ({ session }) => {
   const [patio,       setPatio]       = useState<'si'|'no'>('no');
   const [motivoForm,  setMotivoForm]  = useState('');
   const [acuerdo,     setAcuerdo]     = useState(false);
+  const [erroresSolicitud, setErroresSolicitud] = useState<string[]>([]);
 
   // Donación
   const [montoCustom, setMontoCustom] = useState('');
@@ -146,15 +147,20 @@ const Adopcion: React.FC<Props> = ({ session }) => {
   /* ── Enviar solicitud adopción ───────────────────────────────── */
   const enviarSolicitud = async () => {
     if (!session || !formModal) return;
-    if (!nombreForm.trim() || !emailForm.trim()) {
-      showToast('⚠️ Nombre y email son obligatorios'); return;
+
+    const errores: string[] = [];
+    if (!nombreForm.trim())       errores.push('• Tu nombre completo');
+    if (!emailForm.trim())        errores.push('• Tu email');
+    if (motivoForm.length < 50)   errores.push('• El motivo (mínimo 50 caracteres)');
+    if (!acuerdo)                 errores.push('• El compromiso familiar (checkbox)');
+
+    if (errores.length > 0) {
+      showToast('⚠️ Completa los campos obligatorios');
+      setErroresSolicitud(errores);
+      return;
     }
-    if (!motivoForm.trim() || motivoForm.length < 20) {
-      showToast('⚠️ Cuéntanos más sobre ti (mínimo 20 caracteres)'); return;
-    }
-    if (!acuerdo) {
-      showToast('⚠️ Confirma que todos en tu hogar están de acuerdo'); return;
-    }
+
+    setErroresSolicitud([]);
     setSaving(true);
     const { error } = await supabase.from('solicitudes_adopcion').insert({
       user_id:            session.user.id,
@@ -497,33 +503,85 @@ const Adopcion: React.FC<Props> = ({ session }) => {
                   <IonTextarea
                     value={motivoForm}
                     onIonInput={e => setMotivoForm(e.detail.value ?? '')}
-                    placeholder="Cuéntanos sobre ti, tu hogar y por qué quieres adoptarlo..."
-                    rows={4}
-                    style={{ '--color':'var(--text-primary)', '--placeholder-color':'var(--text-secondary)',
-                      '--background':'var(--bg-card)', borderRadius:'12px',
-                      border:'1px solid var(--border-color)', padding:'4px 8px' } as React.CSSProperties}
+                    placeholder="Cuéntanos sobre ti, tu hogar, tu experiencia con mascotas y por qué quieres adoptarlo. Mientras más detallas, más posibilidades tienes de ser seleccionado..."
+                    rows={5}
+                    style={{
+                      '--color': 'var(--text-primary)',
+                      '--placeholder-color': 'var(--text-secondary)',
+                      '--background': 'var(--bg-card)',
+                      borderRadius: '12px',
+                      border: `1px solid ${motivoForm.length > 0 && motivoForm.length < 50
+                        ? '#FF2D9B'
+                        : motivoForm.length >= 50
+                        ? '#00F5A0'
+                        : 'var(--border-color)'}`,
+                      padding: '4px 8px',
+                    } as React.CSSProperties}
                   />
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
+                    <p style={{
+                      fontSize:11, margin:0,
+                      color: motivoForm.length < 50 ? '#FF2D9B' : '#00F5A0',
+                      fontWeight:500,
+                    }}>
+                      {motivoForm.length < 50
+                        ? `⚠️ Mínimo 50 caracteres (faltan ${50 - motivoForm.length})`
+                        : '✓ ¡Bien! Mientras más detallas, mejor'}
+                    </p>
+                    <span style={{ color:'var(--text-secondary)', fontSize:11 }}>
+                      {motivoForm.length}/50
+                    </span>
+                  </div>
                 </FormField>
 
-                <div onClick={() => setAcuerdo(a => !a)}
+                <div
+                  onClick={() => setAcuerdo(a => !a)}
                   style={{
                     display:'flex', gap:12, alignItems:'flex-start',
-                    marginBottom:24, cursor:'pointer', padding:'14px 16px',
-                    background:'var(--bg-card)', borderRadius:12,
-                    border:`1px solid ${acuerdo ? 'rgba(0,229,255,0.3)' : 'var(--border-color)'}`,
+                    marginBottom:8, cursor:'pointer', padding:'14px 16px',
+                    background: acuerdo ? 'rgba(0,229,255,0.08)' : 'rgba(255,45,155,0.05)',
+                    borderRadius:12,
+                    border:`2px solid ${acuerdo ? '#00E5FF' : 'rgba(255,45,155,0.4)'}`,
+                    transition:'all 0.2s',
                   }}
                 >
                   <div style={{
-                    width:20, height:20, borderRadius:6, flexShrink:0, marginTop:1,
-                    background: acuerdo ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'var(--bg-secondary)',
-                    border: acuerdo ? 'none' : '1px solid var(--border-color)',
+                    width:24, height:24, borderRadius:6, flexShrink:0, marginTop:1,
+                    background: acuerdo ? 'linear-gradient(90deg,#FF2D9B,#00E5FF)' : 'transparent',
+                    border: acuerdo ? 'none' : '2px solid #FF2D9B',
                     display:'flex', alignItems:'center', justifyContent:'center',
-                    color:'#000', fontSize:12, fontWeight:700,
+                    color:'#fff', fontSize:14, fontWeight:900,
+                    transition:'all 0.2s',
                   }}>{acuerdo ? '✓' : ''}</div>
-                  <p style={{ color:'var(--text-secondary)', fontSize:13, margin:0, lineHeight:1.5 }}>
-                    Todos en mi hogar están de acuerdo con la adopción y me comprometo a cuidar a {formModal.nombre} de por vida.
-                  </p>
+                  <div style={{ flex:1 }}>
+                    <p style={{ color:'var(--text-primary)', fontSize:13, fontWeight:700, margin:'0 0 4px' }}>
+                      ✋ Compromiso familiar
+                    </p>
+                    <p style={{ color:'var(--text-secondary)', fontSize:12, margin:0, lineHeight:1.5 }}>
+                      Todos en mi hogar están de acuerdo con la adopción y me comprometo a cuidar
+                      a {formModal.nombre} de por vida con amor y responsabilidad.
+                    </p>
+                  </div>
                 </div>
+                {!acuerdo && (
+                  <p style={{ color:'#FF2D9B', fontSize:11, margin:'-2px 0 16px', fontWeight:500 }}>
+                    ⚠️ Este compromiso es obligatorio para continuar
+                  </p>
+                )}
+
+                {erroresSolicitud.length > 0 && (
+                  <div style={{
+                    padding:'12px 16px', borderRadius:12, marginBottom:12,
+                    background:'rgba(255,45,155,0.06)', border:'1px solid rgba(255,45,155,0.25)',
+                  }}>
+                    <p style={{ color:'#FF2D9B', fontWeight:700, fontSize:13, margin:'0 0 6px' }}>
+                      Completa estos campos antes de enviar:
+                    </p>
+                    {erroresSolicitud.map((e, i) => (
+                      <p key={i} style={{ color:'var(--text-secondary)', fontSize:12, margin:'2px 0' }}>{e}</p>
+                    ))}
+                  </div>
+                )}
 
                 <button onClick={enviarSolicitud} disabled={saving}
                   style={{
