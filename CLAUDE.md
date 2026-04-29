@@ -316,3 +316,42 @@ CREATE POLICY "Público puede ver mascotas adopcion" ON mascotas_adopcion FOR SE
 5. Multi-idioma ES/EN
 6. Admin back office (dashboard de pedidos, vets, adopciones)
 7. Integración VTEX + Kushki
+
+## Sesión 29 Abr 2026
+
+### Completado
+- [x] HelpButton.tsx: botón PetBot rediseñado — hero card full-width con gradiente rosa→púrpura→cyan, ícono 48px, texto en blanco. Mucho más prominente en el menú de ayuda.
+- [x] Adopcion.tsx: checkbox compromiso rediseñado — borde 2px dinámico (rosa sin marcar / cyan marcado), fondo diferenciado, ícono ✓ 24px, label con título "✋ Compromiso familiar" + descripción
+- [x] Adopcion.tsx: mensaje de error debajo del checkbox si no está marcado ("⚠️ Este compromiso es obligatorio")
+- [x] Adopcion.tsx: campo motivo con contador de caracteres en tiempo real (mínimo 50), borde rojo/verde según progreso, guía "faltan N caracteres"
+- [x] Adopcion.tsx: validación `enviarSolicitud` reescrita — genera checklist de errores específicos mostrados en card roja debajo del formulario (en vez de toast genérico)
+- [x] Adopcion.tsx: nuevo estado `erroresSolicitud: string[]` — se limpia al enviar exitosamente
+- [x] BioPet.tsx (lista): widget "Salud general de tus mascotas" arriba del grid — círculos porcentuales por mascota con color verde/amarillo/rojo + botón "+ Agregar" integrado
+- [x] chat-ayuda KNOWLEDGE: sección "Cuando el usuario reporta un error" con checklist de 4 pasos de diagnóstico antes de escalar a WhatsApp
+- [x] chat-ayuda KNOWLEDGE: sección "Errores comunes y soluciones" — adopción, carrito, perfil, pedidos, pagos
+- [x] Edge Function chat-ayuda redesplegada en Supabase
+
+### Lógica del widget de salud (BioPet lista)
+- Score base 40% + 15 si tiene peso + 10 si tiene fecha_nacimiento + 5 si tiene sexo = máx 70% desde la lista
+- Verde (#00F5A0): 60%+, Amarillo (#FFE600): 40-59%, Rosa (#FF2D9B): <40%
+- (El score completo hasta 100% se calcula en BioPetDetail con las vacunas)
+
+### Validación formulario adopción
+- Campos obligatorios: nombre, email, motivo (mínimo 50 chars), checkbox compromiso
+- Errores mostrados como checklist en card rosa debajo del formulario
+- Campo motivo: borde rojo si <50 chars, verde si ≥50 chars, contador en tiempo real
+
+### Bugs Activos Pendientes
+- [ ] Google Places AddressInput: validar en producción
+- [ ] Onboarding welcome modal: posible color hardcodeado en fondo
+- [ ] Carnet PNG: verificar render correcto en todos los dispositivos
+- [ ] Modo claro: BioPet.tsx — revisar colores en detalle de mascota
+
+### Próximas sesiones prioritarias
+1. Modelo de suscripción premium (es_premium en profiles + Kushki/Stripe)
+2. Chat IA con Claude API en contexto de mascota específica (desde BioPetDetail)
+3. Notificaciones push con Capacitor
+4. Build iOS/Android
+5. Multi-idioma ES/EN
+6. Admin back office (dashboard de pedidos, vets, adopciones)
+7. Integración VTEX + Kushki

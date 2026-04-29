@@ -22,6 +22,7 @@ Guardería, Grooming, Paseos, Seguros, Wearables.
 
 ### Sección Mascotas — features clave
 - **Grid de mascotas**: vista en cuadrícula 2x2 con foto, nombre, especie y edad.
+- **Resumen de salud global**: widget arriba del grid que muestra el % de salud de cada mascota en círculos de colores (verde ≥60%, amarillo 40-59%, rojo <40%) y botón para agregar nueva mascota.
 - **Dashboard de mascota**: al tocar una mascota se abre su dashboard personal completo.
 - **Índice de salud**: puntaje de 0-100% que se calcula automáticamente con:
   - +40 puntos base
@@ -74,6 +75,7 @@ Guardería, Grooming, Paseos, Seguros, Wearables.
 - Para donar: dentro de cada mascota hay botón "💛 Donar para su cuidado" con montos sugeridos (vacunas, esterilización, alimento) → se agrega al carrito y se paga normal.
 - Las donaciones van directamente al refugio. El timeline en Mis Pedidos muestra: Confirmada → Transferida al refugio → Impacto generado.
 - Requiere cuenta para adoptar. Las donaciones también requieren cuenta.
+- El formulario de adopción requiere: nombre completo, email, motivo de adopción (mínimo 50 caracteres) y marcar el checkbox "✋ Compromiso familiar". Si falta alguno, aparece un checklist rojo indicando exactamente qué falta.
 
 ### Donaciones
 - Se agregan al carrito como cualquier producto.
