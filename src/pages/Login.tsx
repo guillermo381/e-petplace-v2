@@ -14,6 +14,7 @@ CONFIGURACIÓN REQUERIDA EN SUPABASE DASHBOARD:
 */
 
 import React, { useState, useEffect, useRef } from 'react';
+import posthog from 'posthog-js';
 import { IonContent, IonPage } from '@ionic/react';
 import { useHistory, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -230,6 +231,7 @@ const Login: React.FC = () => {
       options: { redirectTo: window.location.origin + '/home' },
     });
     if (err) { setError('Error al conectar con Google'); setGoogleLoading(false); }
+    else posthog.capture('login_success', { metodo: 'google' });
   };
 
   /* ── Migrar pedidos y citas huérfanos al nuevo user_id ──────── */
@@ -276,6 +278,7 @@ const Login: React.FC = () => {
       if (err) {
         const next = attempts + 1;
         setAttempts(next);
+        posthog.capture('login_failed', { motivo: 'credenciales_invalidas' });
         if (next >= MAX_ATTEMPTS) {
           setLockout(LOCKOUT_SECS);
           setError(`Demasiados intentos. Espera ${LOCKOUT_SECS} segundos.`);
@@ -283,6 +286,7 @@ const Login: React.FC = () => {
           setError(`Email o contraseña incorrectos. (${next}/${MAX_ATTEMPTS} intentos)`);
         }
       } else if (loginData.user) {
+        posthog.capture('login_success', { metodo: 'email' });
         const emailLogin = email.toLowerCase().trim();
         const emailLS    = localStorage.getItem('guest_email_checkout') || '';
         const hayPedidos = await migrarDatosHuerfanos(loginData.user.id, emailLogin)
@@ -337,6 +341,7 @@ const Login: React.FC = () => {
         localStorage.removeItem('guest_email_checkout');
 
         if (data.session) {
+          posthog.capture('user_registered', { metodo: 'email' });
           history.replace('/onboarding');
         } else {
           setSuccess('¡Cuenta creada! Revisa tu email para confirmar tu acceso.');

@@ -24,6 +24,7 @@ CREATE POLICY "Guest citas update" ON citas FOR UPDATE USING (user_id IS NULL);
 */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import posthog from 'posthog-js';
 import {
   IonPage, IonContent, IonModal, IonSegment, IonSegmentButton,
   IonLabel, IonSelect, IonSelectOption, IonTextarea, IonLoading,
@@ -248,6 +249,7 @@ const Vet: React.FC<Props> = ({ session }) => {
       },
     });
 
+    posthog.capture('service_booked', { tipo_servicio: 'veterinario' });
     const fechaInteligente = formatearFechaInteligente(fechaSel);
     setToastCita({ open: true, msg: `🗓️ Cita agendada para ${fechaInteligente} a las ${horaSel} con ${vetModal.nombre}` });
     setVetModal(null);

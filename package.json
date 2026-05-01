@@ -27,6 +27,7 @@
     "@types/react-router-dom": "^5.3.3",
     "html2canvas": "^1.4.1",
     "ionicons": "^7.4.0",
+    "posthog-js": "^1.372.6",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-router": "^5.3.4",

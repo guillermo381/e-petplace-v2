@@ -7,6 +7,7 @@ CREATE POLICY "Guest pedidos insert" ON pedidos
 */
 
 import React, { useState, useEffect, useRef } from 'react';
+import posthog from 'posthog-js';
 import { IonPage, IonContent, IonLoading, useIonViewWillEnter } from '@ionic/react';
 import { useHistory, Link } from 'react-router-dom';
 import { Session } from '@supabase/supabase-js';
@@ -307,6 +308,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
       // 6. Todo exitoso — marcar como procesado, limpiar y navegar
       setPagoProcesado(true);
       orderSnapshotRef.current = { items: itemsSnapshot, total: totalSnapshot, numeroOrden };
+      posthog.capture('order_completed', { pedido_id: numeroOrden, total: totalSnapshot, metodo_pago: metodo });
       clearCart();
       setSaving(false);
       setStep(4);
@@ -514,6 +516,7 @@ const Checkout: React.FC<Props> = ({ session }) => {
         guardadoComo: addressVal.guardadoComo ?? 'casa',
       }));
       setMostrarFormEnvio(false);
+      posthog.capture('checkout_started', { items: items.length, total: totalPrice });
       setStep(3);
     };
 

@@ -22,6 +22,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   IonContent, IonPage, IonLoading, IonSkeletonText, useIonViewWillEnter,
 } from '@ionic/react';
+import posthog from 'posthog-js';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -657,6 +658,7 @@ export const BioPetNew: React.FC<Props> = ({ session }) => {
     }
 
     setSaving(false);
+    posthog.capture('pet_added', { especie: form.especie });
     history.replace('/mascotas');
   };
 
@@ -1042,6 +1044,7 @@ export const BioPetDetail: React.FC<{ session: Session; petId: string }> = ({ se
     setSaving(false);
     setShowVacForm(false);
     setVacForm({ nombre:'', fecha_aplicada:'', fecha_proxima:'', veterinario:'' });
+    posthog.capture('vacuna_added', { mascota_id: petId });
     showToast('Vacuna registrada ✅');
   };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import posthog from 'posthog-js';
 import { IonContent, IonPage } from '@ionic/react';
 import { Session } from '@supabase/supabase-js';
 import { useHistory } from 'react-router-dom';
@@ -79,11 +80,13 @@ const Store: React.FC<Props> = ({ session }) => {
       precio:       p.precio,
       imagen_emoji: CAT_EMOJI[p.categoria] ?? '📦',
     });
+    posthog.capture('cart_added', { producto_id: p.id, precio: p.precio });
     setToast(`¡${p.nombre} agregado al carrito! 🛒`);
     setTimeout(() => setToast(''), 2200);
   };
 
   const handleAdd = async (p: Producto) => {
+    posthog.capture('product_viewed', { producto_id: p.id, categoria: p.categoria });
     const isLoggedIn = !!(await supabase.auth.getSession()).data.session;
     const isGuest    = localStorage.getItem('guest_mode') === 'true';
     if (isLoggedIn || isGuest) {
