@@ -2,14 +2,18 @@
 
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 
 export default defineConfig({
   plugins: [
     react(),
+    ...(process.env.VITE_SENTRY_DSN
+      ? [sentryVitePlugin({ authToken: process.env.SENTRY_AUTH_TOKEN, org: 'e-petplace', project: 'e-petplace-v2' })]
+      : []),
   ],
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    sourcemap: !!process.env.VITE_SENTRY_DSN,
     chunkSizeWarningLimit: 1600,
     rollupOptions: {
       output: {
