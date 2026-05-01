@@ -10,6 +10,7 @@ import { useHistory } from 'react-router-dom';
 import { homeOutline, pawOutline, bagHandleOutline, cartOutline, personOutline, receiptOutline } from 'ionicons/icons';
 
 import { supabase } from './lib/supabase';
+import { useCountry } from './lib/useCountry';
 
 import { CartProvider, useCart } from './context/CartContext';
 import { GuestProvider, useGuest } from './context/GuestContext';
@@ -225,6 +226,7 @@ const AppInner: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const { exitGuest } = useGuest();
+  useCountry(session);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
